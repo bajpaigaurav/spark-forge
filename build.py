@@ -20,6 +20,13 @@ CHAPTERS = os.path.join(ROOT, "content", "chapters")
 SITE = os.path.join(ROOT, "site")
 QUEUE = os.path.join(ROOT, "state", "queue.json")
 
+# A small inline SVG favicon: a token-shaped square in the book's accent colour.
+# Inline so it costs no extra request and survives a clone with no assets.
+FAVICON = ('<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 '
+           'viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%238a3324%22/>'
+           '<path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 '
+           'stroke-linecap=%22round%22/></svg>">\n')
+
 def esc(s):
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
@@ -510,15 +517,28 @@ input[type=range] {
 }
 """
 
-def page(title, body, depth=0):
+def page(title, body, depth=0, description="", canonical=""):
     prefix = "../" if depth else ""
+    # Every chapter already carries a hand-written thesis; that is a better link
+    # preview than anything generated, so it is the default description.
+    desc = esc(description) if description else ""
+    meta = ""
+    if desc:
+        meta += f'<meta name="description" content="{desc}">\n'
+        meta += f'<meta property="og:description" content="{desc}">\n'
+    meta += f'<meta property="og:title" content="{esc(title)}">\n'
+    meta += '<meta property="og:type" content="article">\n'
+    if canonical:
+        meta += f'<meta property="og:url" content="{esc(canonical)}">\n'
+    meta += '<meta name="twitter:card" content="summary">\n'
+    meta += FAVICON
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
-<style>{CSS}</style>
+{meta}<style>{CSS}</style>
 </head>
 <body>
 <div class="wrap">
@@ -826,7 +846,9 @@ request. The last chapter explains how, so the rest can be checked.</p>
 </footer>
 """
     open(os.path.join(SITE, "index.html"), "w", encoding="utf-8").write(
-        page(meta["project"], index_body))
+        page(meta["project"], index_body,
+             description=meta.get("subtitle", ""),
+             canonical="https://bajpaigaurav.github.io/spark-forge/"))
 
     about_body = f"""
 <header class="masthead">
@@ -886,7 +908,9 @@ the model's. The shape of the thing is not.</p>
 </nav>
 """
     open(os.path.join(SITE, "about.html"), "w", encoding="utf-8").write(
-        page("How this was made", about_body))
+        page("How this was made", about_body,
+             description="How the book was written, gated, reviewed and published.",
+             canonical="https://bajpaigaurav.github.io/spark-forge/about.html"))
 
     # Per-chapter pages. Clear stale ones first: a chapter that lost its
     # published status must not keep serving an old page.
@@ -934,7 +958,8 @@ the model's. The shape of the thing is not.</p>
 </nav>
 """
         open(os.path.join(cdir, c["id"] + ".html"), "w", encoding="utf-8").write(
-            page(c["title"], body, depth=1))
+            page(c["title"], body, depth=1, description=c["thesis"],
+                 canonical=f"https://bajpaigaurav.github.io/spark-forge/chapters/{c['id']}.html"))
 
     print(f"built: {len(published)} chapters, {total_words:,} words -> {SITE}")
 

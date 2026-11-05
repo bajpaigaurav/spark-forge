@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Shape of a Token</title>
+<meta name="description" content="How a language model actually works, from the tokenizer to the sampler">
+<meta property="og:description" content="How a language model actually works, from the tokenizer to the sampler">
+<meta property="og:title" content="The Shape of a Token">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://bajpaigaurav.github.io/spark-forge/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%238a3324%22/><path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 stroke-linecap=%22round%22/></svg>">
 <style>
 :root {
   --paper: #f6f3ec;
@@ -490,7 +497,7 @@ input[type=range] {
 <hr class="rule-short">
 </section>
 
-<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">3</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">62.3%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">73.8%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.1</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">55°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.5</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
+<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">38</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">67.6%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">73.8%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.4</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">78°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.2</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
 
 <section class="part"><h2 class="part-title">I. The raw material</h2><p class="part-count">3 of 3 written</p><ul class="toc">
 <li><a class="" href="chapters/01-tokens.html"><span class="t-num">01</span><span><span class="t-title">Text is not numbers yet</span><span class="t-status">published &middot; 2,512 words</span></span></a></li>
