@@ -365,6 +365,51 @@ body {
   .path-title { font-size: 1.15rem; }
 }
 
+/* ---- reproduce-this page ---- */
+/* Same voice as the paths and glossary pages: a list of artifacts, then the
+   measured values in the provenance table style, then the honest limits. */
+.rig-artifacts { max-width: var(--measure); }
+.rig-artifacts ul { list-style: none; margin: 0; padding: 0; }
+.rig-artifacts li {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+}
+.rig-artifacts li:last-child { border-bottom: 1px solid var(--rule); }
+.rig-artifacts .r-name {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82rem;
+  display: block;
+}
+.rig-artifacts .r-name a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.rig-artifacts .r-name a:hover { border-bottom-style: solid; }
+.rig-artifacts .r-what {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin-top: 0.25rem;
+}
+.rig-limits { max-width: var(--measure); }
+.rig-limits dl { margin: 0; }
+.rig-limits dt {
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.rig-limits dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.rig-table td .ru {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -703,7 +748,7 @@ input[type=range] {
 <ul><li><a href="paths.html#skip-the-basics"><span class="p-when">about 1 and a half hours</span><span class="p-what">Skip the basics: start at the cache</span></a></li><li><a href="paths.html#the-whole-arc"><span class="p-when">about 3 hours</span><span class="p-what">The whole arc, spine only</span></a></li><li><a href="paths.html#serving"><span class="p-when">about 1 and a half hours</span><span class="p-what">I serve inference and need the cost model</span></a></li><li><a href="paths.html#precision"><span class="p-when">about 1 and a half hours</span><span class="p-what">Making it fit: precision and quantization</span></a></li></ul>
 </nav>
 
-<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">32</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">75.4%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">74.2%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">113.2</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">73°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">4.7</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
+<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">39</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">76.3%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">74.2%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">113.3</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">78°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2184</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">4.6</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
 
 <section class="part"><h2 class="part-title">I. The raw material</h2><p class="part-count">3 of 3 written</p><ul class="toc">
 <li><a class="" href="chapters/01-tokens.html"><span class="t-num">01</span><span><span class="t-title">Text is not numbers yet</span><span class="t-status">published &middot; 2,546 words</span></span></a></li>
@@ -757,6 +802,7 @@ input[type=range] {
 <p>Every figure in this document was read from the live engine, a log line, or a timed
 request. The last chapter explains how, so the rest can be checked.</p>
 <p><a href="about.html" style="color:var(--accent)">How this was made</a>
+&middot; <a href="rig.html" style="color:var(--accent)">Reproduce this</a>
 &middot; <a href="paths.html" style="color:var(--accent)">Reading paths</a>
 &middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
 </footer>

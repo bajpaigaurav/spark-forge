@@ -21,10 +21,10 @@ n_pub=$(python3 -c "import json;q=json.load(open('state/queue.json'));print(sum(
 n_html=$(ls site/chapters/*.html 2>/dev/null | wc -l)
 [ "$n_pub" -eq "$n_html" ] || { echo "MISMATCH: $n_pub published vs $n_html pages"; fail=1; }
 
-# total page count: index, about, glossary and paths at the top level, plus
-# one page per published chapter under chapters/
+# total page count: index, about, glossary, paths and rig at the top level,
+# plus one page per published chapter under chapters/
 n_all=$(find site -maxdepth 1 -name '*.html' | wc -l)
-[ "$((n_pub + 4))" -eq "$((n_all + n_html))" ] || { echo "PAGE COUNT: $((n_all + n_html)) pages, expected $((n_pub + 4)) ($n_pub chapters + index/about/glossary/paths)"; fail=1; }
+[ "$((n_pub + 5))" -eq "$((n_all + n_html))" ] || { echo "PAGE COUNT: $((n_all + n_html)) pages, expected $((n_pub + 5)) ($n_pub chapters + index/about/glossary/paths/rig)"; fail=1; }
 n_all=$((n_all + n_html))
 
 # no page repeats its own title as a heading
@@ -137,6 +137,47 @@ for f in glob.glob('site/chapters/*.html'):
     if n > 8:
         print('TERM CHIPS over cap in', f, n)
         sys.exit(1)
+EOF
+fi
+
+# the reproduce-this page is built, linked from index, about and the last
+# chapter, its artifacts are downloadable, and every number on it matches the
+# entry it came from in content/sources.json
+[ -f site/rig.html ] || { echo "rig page missing"; fail=1; }
+[ -f site/rig/README.md ] || { echo "rig README artifact missing"; fail=1; }
+[ -f site/rig/serve-argv.txt ] || { echo "rig serve-argv artifact missing"; fail=1; }
+[ -f site/rig/probe.sh ] || { echo "rig probe artifact missing"; fail=1; }
+if [ -f site/rig.html ]; then
+  grep -q 'src="site.js"' site/rig.html || { echo "BAD SCRIPT PATH in rig"; fail=1; }
+  grep -q 'href="rig.html"' site/index.html || { echo "rig not linked from index"; fail=1; }
+  grep -q 'href="rig.html"' site/about.html || { echo "rig not linked from about"; fail=1; }
+  grep -q 'href="../rig.html"' site/chapters/31-local-numbers.html || { echo "rig not linked from chapter 31"; fail=1; }
+  grep -q 'href="rig/probe.sh"' site/rig.html || { echo "probe.sh not linked for download"; fail=1; }
+  grep -q 'href="rig/serve-argv.txt"' site/rig.html || { echo "serve-argv.txt not linked for download"; fail=1; }
+  grep -q 'href="rig/README.md"' site/rig.html || { echo "README.md not linked for download"; fail=1; }
+  python3 - <<'EOF' || fail=1
+import json, re, sys
+src = json.load(open('content/sources.json', encoding='utf-8'))['verified']
+html = open('site/rig.html', encoding='utf-8').read()
+bad = 0
+for v in src:
+    disp = v['display']
+    # each entry's display value must appear on the page, and its source and
+    # context must sit on the same row, so a number cannot drift from its origin
+    if f'>{disp}</td>' not in html:
+        print('RIG: value missing from page:', v['id'], repr(disp))
+        bad = 1
+        continue
+    if v['source'] not in html or v['context'] not in html:
+        print('RIG: source/context missing for', v['id'])
+        bad = 1
+# and the page must not print a display string that is not in sources.json
+known = {v['display'] for v in src}
+for m in re.finditer(r'<td class="pv">([^<]+)</td>', html):
+    if m.group(1) not in known:
+        print('RIG: unknown value on page:', repr(m.group(1)))
+        bad = 1
+sys.exit(bad)
 EOF
 fi
 

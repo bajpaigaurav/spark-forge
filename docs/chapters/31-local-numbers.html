@@ -365,6 +365,51 @@ body {
   .path-title { font-size: 1.15rem; }
 }
 
+/* ---- reproduce-this page ---- */
+/* Same voice as the paths and glossary pages: a list of artifacts, then the
+   measured values in the provenance table style, then the honest limits. */
+.rig-artifacts { max-width: var(--measure); }
+.rig-artifacts ul { list-style: none; margin: 0; padding: 0; }
+.rig-artifacts li {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+}
+.rig-artifacts li:last-child { border-bottom: 1px solid var(--rule); }
+.rig-artifacts .r-name {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82rem;
+  display: block;
+}
+.rig-artifacts .r-name a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.rig-artifacts .r-name a:hover { border-bottom-style: solid; }
+.rig-artifacts .r-what {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin-top: 0.25rem;
+}
+.rig-limits { max-width: var(--measure); }
+.rig-limits dl { margin: 0; }
+.rig-limits dt {
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.rig-limits dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.rig-table td .ru {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -720,7 +765,7 @@ input[type=range] {
 
 
 <nav class="chapter-nav">
-<a href="30-measurement.html">&larr; How to know any of this is true</a><a href="../index.html">Contents &rarr;</a>
+<a href="30-measurement.html">&larr; How to know any of this is true</a><a href="../index.html">Contents &rarr;</a><a href="../rig.html">Reproduce these numbers</a>
 </nav>
 
 </div>

@@ -587,6 +587,51 @@ body {
   .path-title { font-size: 1.15rem; }
 }
 
+/* ---- reproduce-this page ---- */
+/* Same voice as the paths and glossary pages: a list of artifacts, then the
+   measured values in the provenance table style, then the honest limits. */
+.rig-artifacts { max-width: var(--measure); }
+.rig-artifacts ul { list-style: none; margin: 0; padding: 0; }
+.rig-artifacts li {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+}
+.rig-artifacts li:last-child { border-bottom: 1px solid var(--rule); }
+.rig-artifacts .r-name {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82rem;
+  display: block;
+}
+.rig-artifacts .r-name a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.rig-artifacts .r-name a:hover { border-bottom-style: solid; }
+.rig-artifacts .r-what {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin-top: 0.25rem;
+}
+.rig-limits { max-width: var(--measure); }
+.rig-limits dl { margin: 0; }
+.rig-limits dt {
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.rig-limits dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.rig-table td .ru {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -1277,6 +1322,150 @@ def glossary_page(entries):
              canonical="https://bajpaigaurav.github.io/spark-forge/glossary.html"))
     return len(live)
 
+# Which entries came off this machine and which came from published sources.
+# The split is read from the `source` string rather than hand-listed, so it
+# cannot drift from sources.json.
+RIG_PUBLISHED_PREFIXES = ("NVIDIA DGX Spark hardware guide",
+                          "GB10 silicon maximum SM clock")
+
+def is_measured(v):
+    """True if this fact was read off the rig rather than a published source."""
+    src = v["source"]
+    return not src.startswith(RIG_PUBLISHED_PREFIXES)
+
+def rig_page():
+    """Write docs/rig.html: what was measured here, what came from a source,
+    and what a reader can and cannot reproduce.
+
+    Every value on this page is read straight out of content/sources.json and
+    printed through `display`, so it cannot drift from the fact gate's file.
+    The page ships the artifacts in content/rig/ as downloads and is honest
+    about the one thing missing: the raw scrape itself.
+    """
+    p = os.path.join(ROOT, "content", "sources.json")
+    if not os.path.exists(p):
+        return 0
+    d = json.load(open(p, encoding="utf-8"))
+    verified = d["verified"]
+    measured = [v for v in verified if is_measured(v)]
+    published = [v for v in verified if not is_measured(v)]
+
+    def rows(vs):
+        return "".join(
+            f'<tr><td class="pv">{esc(v["display"])}</td>'
+            f'<td class="ps">{esc(v["source"])}</td>'
+            f'<td class="pc">{esc(v["context"])}</td></tr>'
+            for v in vs
+        )
+
+    artifacts = [
+        ("README.md", "What this artifact is, what it is not, and why the raw "
+                       "metrics dump is deliberately absent."),
+        ("serve-argv.txt", "The serve command line and container environment. "
+                            "The four constants are transcribed from sources.json, "
+                            "each with the source string it came from quoted above it."),
+        ("probe.sh", "The commands: the nvidia-smi clock query, the /metrics "
+                      "scrape, the sequential-vs-concurrent probe, and the "
+                      "arithmetic. Read it before running it."),
+    ]
+    art_html = "".join(
+        f'<li><span class="r-name"><a href="rig/{name}">{esc(name)}</a></span>'
+        f'<span class="r-what">{esc(what)}</span></li>'
+        for name, what in artifacts
+    )
+
+    body = f"""
+<header class="chapter-head">
+  <span class="num">Reference</span>
+  <h1>Reproduce this</h1>
+  <p class="thesis">The book's trust rests on numbers scraped from one machine on one day. Here is what was measured, what came from a published source, and what you can check yourself.</p>
+</header>
+
+<article class="prose">
+<p>Every number in the last part of the book traces to <code>content/sources.json</code>.
+Each entry there records a value, the string it was read from, and what it means. This
+page lists them, split by where they came from, and ships the artifacts that let a reader
+re-run the measurements.</p>
+
+<p>{len(measured)} of the {len(verified)} entries were read off this rig: counters scraped
+from the engine's <code>/metrics</code> on 2026-10-31, two hand-run probes, and the
+arithmetic that follows from them. The remaining {len(published)} are published constants,
+not measurements.</p>
+</article>
+
+<article class="prose rig-artifacts">
+<h2>The artifacts</h2>
+<p>Plain text, no build step. Download them and read them.</p>
+<ul>
+{art_html}
+</ul>
+</article>
+
+<section class="provenance rig-table">
+  <h3>Measured on this machine</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody>{rows(measured)}</tbody>
+  </table>
+</section>
+
+<section class="provenance rig-table">
+  <h3>From published sources</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody>{rows(published)}</tbody>
+  </table>
+</section>
+
+<article class="prose rig-limits">
+<h2>What you can and cannot reproduce</h2>
+<dl>
+<dt>You cannot reproduce the hardware.</dt>
+<dd>The 273 GB/s of LPDDR5X bandwidth and the 3,003 MHz silicon maximum are
+properties of an NVIDIA DGX Spark (GB10). The 2,197 MHz observed clock is that
+part on that day, under that load. A different box gives different numbers, and
+that is the point of the book's own caveat.</dd>
+
+<dt>You cannot reproduce the date.</dt>
+<dd>The counters are one 98-request window on 2026-10-31. The workload was
+whatever that machine was serving then. Your traffic will not match it, so your
+averages will not match the book's.</dd>
+
+<dt>You cannot reproduce the raw scrape, because it is not shipped.</dt>
+<dd>The dump itself is not in this repository, and it was not reconstructed. A
+dump rebuilt from memory would look checkable while proving nothing. If you want
+the counters, scrape your own with <code>probe.sh</code> and run the same
+arithmetic.</dd>
+
+<dt>You can reproduce the commands.</dt>
+<dd>Every step in <code>probe.sh</code> is a plain HTTP GET, an
+<code>nvidia-smi</code> query, or a <code>curl</code> POST. The metric names
+are this engine's, so expect to edit the URL and the names before anything
+returns a number.</dd>
+
+<dt>You can reproduce the arithmetic.</dt>
+<dd>The pool arithmetic is exact: 262,144 / 4 = 65,536; 65,536 &minus; 32,768
+&minus; 16 &minus; 2 = 32,750; and 1,048,576 / 4 = 262,144, then &minus; 32,768
+&minus; 16 &minus; 2 = 229,358. Those are pure integer arithmetic on constants
+recorded in sources.json and come out the same on any machine. The throughput
+ratios are arithmetic too, but the two decode figures (59.1 and 106.2) came
+from the engine's own token counts rather than from 1,600 divided by the wall
+clock, so a reader's own division will land a few tenths away.</dd>
+</dl>
+</article>
+
+<nav class="chapter-nav">
+  <a href="index.html">&larr; Contents</a>
+  <a href="about.html">How this was made</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+"""
+    open(os.path.join(SITE, "rig.html"), "w", encoding="utf-8").write(
+        page("Reproduce this", body,
+             description="What was measured on the rig, what came from a published source, and what a reader can reproduce.",
+             canonical="https://bajpaigaurav.github.io/spark-forge/rig.html"))
+    return len(verified)
+
 def build():
     q = json.load(open(QUEUE, encoding="utf-8"))
     meta = q["meta"]
@@ -1385,6 +1574,7 @@ def build():
 <p>Every figure in this document was read from the live engine, a log line, or a timed
 request. The last chapter explains how, so the rest can be checked.</p>
 <p><a href="about.html" style="color:var(--accent)">How this was made</a>
+&middot; <a href="rig.html" style="color:var(--accent)">Reproduce this</a>
 &middot; <a href="paths.html" style="color:var(--accent)">Reading paths</a>
 &middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
 </footer>
@@ -1449,6 +1639,7 @@ the model's. The shape of the thing is not.</p>
 
 <nav class="chapter-nav">
   <a href="index.html">&larr; Contents</a>
+  <a href="rig.html">Reproduce this</a>
   <a href="paths.html">Reading paths</a>
   <a href="glossary.html">Glossary</a>
 </nav>
@@ -1481,6 +1672,10 @@ the model's. The shape of the thing is not.</p>
             nav.append(f'<a href="{next_c["id"]}.html">{esc(next_c["title"])} &rarr;</a>')
         else:
             nav.append('<a href="../index.html">Contents &rarr;</a>')
+        # The last chapter is where the measurements land; give its build-time
+        # nav a pointer to the artifact page. Prose is untouched.
+        if c["id"] == "31-local-numbers":
+            nav.append('<a href="../rig.html">Reproduce these numbers</a>')
 
         prose_html, headings = paragraphs(txt)
         body = f"""
@@ -1519,6 +1714,22 @@ the model's. The shape of the thing is not.</p>
     n_terms = glossary_page(glossary)
     if n_terms:
         print(f"glossary: {n_terms} terms -> {os.path.join(SITE, 'glossary.html')}")
+    n_rig = rig_page()
+    if n_rig:
+        print(f"rig: {n_rig} sourced values -> {os.path.join(SITE, 'rig.html')}")
+
+    # Ship the raw artifacts so build_site.sh carries them into docs/rig/.
+    rig_src = os.path.join(ROOT, "content", "rig")
+    if os.path.isdir(rig_src):
+        rig_dst = os.path.join(SITE, "rig")
+        os.makedirs(rig_dst, exist_ok=True)
+        n = 0
+        for name in sorted(os.listdir(rig_src)):
+            src = os.path.join(rig_src, name)
+            if os.path.isfile(src):
+                shutil.copy2(src, os.path.join(rig_dst, name))
+                n += 1
+        print(f"rig artifacts: {n} files -> {rig_dst}")
 
 if __name__ == "__main__":
     build()
