@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Guessing ahead and checking cheaply</h1>
   <p class="thesis">Speculative decoding turns spare compute into lower latency by drafting several tokens and verifying them in one pass.</p>
   <p class="prereq">Assumes <a class="xref" href="24-sampling.html">24</a>, <a class="xref" href="26-prefill-decode.html">26</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#decode">decode</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#prefill">prefill</a> &middot; <a href="../glossary.html#speculative-decoding">speculative decoding</a> &middot; <a href="../glossary.html#logits">logits</a> &middot; <a href="../glossary.html#ttft">TTFT</a> &middot; <a href="../glossary.html#temperature">temperature</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#how-speculative-decoding-works">How speculative decoding works</a></li><li><a href="#the-verification-pass-is-a-batched-gemm">The verification pass is a batched GEMM</a></li><li><a href="#the-acceptance-rule-and-its-exactness-proof">The acceptance rule and its exactness proof</a></li><li><a href="#the-arithmetic-of-the-speedup">The arithmetic of the speedup</a></li><li><a href="#drafting-with-heads-trees-and-features">Drafting with heads, trees, and features</a></li><li><a href="#measured-acceptance-on-this-engine">Measured acceptance on this engine</a></li></ul></nav>

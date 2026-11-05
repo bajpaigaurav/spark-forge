@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>How to know any of this is true</h1>
   <p class="thesis">A performance claim without a methodology is a rumour, and most published numbers are not comparable to each other.</p>
   <p class="prereq">Assumes <a class="xref" href="29-roofline.html">29</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#throughput">throughput</a> &middot; <a href="../glossary.html#prefill">prefill</a> &middot; <a href="../glossary.html#decode">decode</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#ttft">TTFT</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#roofline">roofline</a> &middot; <a href="../glossary.html#temperature">temperature</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#three-instruments-three-different-answers">Three instruments, three different answers</a></li><li><a href="#units-averages-and-what-the-mean-hides">Units, averages, and what the mean hides</a></li><li><a href="#how-the-prefix-cache-contaminates-prefill-rates">How the prefix cache contaminates prefill rates</a></li><li><a href="#warm-up-costs-that-steady-state-never-pays">Warm-up costs that steady state never pays</a></li><li><a href="#concurrency-rooflines-and-the-remaining-confounds">Concurrency, rooflines, and the remaining confounds</a></li><li><a href="#what-a-reproducible-benchmark-must-state">What a reproducible benchmark must state</a></li></ul></nav>

@@ -36,6 +36,40 @@ grep -q 'src="site.js"' site/index.html || { echo "BAD SCRIPT PATH in index"; fa
 [ -f site/about.html ] || { echo "about page missing"; fail=1; }
 grep -q 'src="site.js"' site/about.html || { echo "BAD SCRIPT PATH in about"; fail=1; }
 
+# the glossary is built and every chapter pointer on it resolves
+[ -f site/glossary.html ] || { echo "glossary page missing"; fail=1; }
+grep -q 'src="site.js"' site/glossary.html || { echo "BAD SCRIPT PATH in glossary"; fail=1; }
+grep -q 'href="glossary.html"' site/index.html || { echo "glossary not linked from index"; fail=1; }
+grep -q 'href="glossary.html"' site/about.html || { echo "glossary not linked from about"; fail=1; }
+if [ -f content/glossary.json ]; then
+  python3 - <<'EOF' || fail=1
+import glob, json, os, re, sys
+entries = json.load(open('content/glossary.json', encoding='utf-8'))
+ids = {os.path.basename(p)[:-3] for p in glob.glob('content/chapters/*.md')}
+bad = [e['term'] for e in entries if e['chapter'] not in ids]
+if bad:
+    print('GLOSSARY: unknown chapter for', ', '.join(bad))
+    sys.exit(1)
+slugs = [re.sub(r'[^a-z0-9]+', '-', e['term'].lower()).strip('-') for e in entries]
+if len(slugs) != len(set(slugs)):
+    print('GLOSSARY: duplicate anchor slug')
+    sys.exit(1)
+html = open('site/glossary.html', encoding='utf-8').read()
+missing = [s for s in slugs if f'id="{s}"' not in html]
+if missing:
+    print('GLOSSARY: anchors missing from page:', ', '.join(missing))
+    sys.exit(1)
+# no chapter may exceed the chip cap
+for f in glob.glob('site/chapters/*.html'):
+    page = open(f, encoding='utf-8').read()
+    m = re.search(r'<p class="terms">(.*?)</p>', page, re.S)
+    n = len(re.findall(r'glossary\.html#', m.group(1))) if m else 0
+    if n > 8:
+        print('TERM CHIPS over cap in', f, n)
+        sys.exit(1)
+EOF
+fi
+
 # interactives are wired to ids the JS actually looks for
 for pair in "01-tokens:bpe-host" "05-scaled-dot-product:attn-host" "10-kv-cache:kv-host"; do
   ch="${pair%%:*}"; wid="${pair##*:}"

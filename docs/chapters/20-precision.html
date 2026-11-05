@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>From fp32 to bf16 to fp8</h1>
   <p class="thesis">Reducing precision is not a compromise; it is a deliberate trade of mantissa bits for throughput, and the exponent is the part that must not shrink.</p>
   <p class="prereq">Assumes <a class="xref" href="16-ffn.html">16</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#fp32">fp32</a> &middot; <a href="../glossary.html#bf16">bf16</a> &middot; <a href="../glossary.html#fp8">fp8</a> &middot; <a href="../glossary.html#throughput">throughput</a> &middot; <a href="../glossary.html#significand">significand</a> &middot; <a href="../glossary.html#amax">amax</a> &middot; <a href="../glossary.html#decode">decode</a> &middot; <a href="../glossary.html#token">token</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#exponent-for-range-mantissa-for-resolution">Exponent for range, mantissa for resolution</a></li><li><a href="#loss-scaling-and-the-fp32-master-copy">Loss scaling and the fp32 master copy</a></li><li><a href="#bfloat16-keeps-the-range-and-spends-the-mantissa">bfloat16 keeps the range and spends the mantissa</a></li><li><a href="#the-two-fp8-formats-and-per-tensor-scaling">The two fp8 formats and per-tensor scaling</a></li><li><a href="#accumulation-width-and-memory-arithmetic">Accumulation width and memory arithmetic</a></li><li><a href="#the-mixed-precision-policy-and-the-ordering-of-precision-loss">The mixed-precision policy and the ordering of precision loss</a></li></ul></nav>

@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>The cost that defines the field</h1>
   <p class="thesis">Every architectural decision in modern inference is a response to the fact that attention cost grows with the square of sequence length.</p>
   <p class="prereq">Assumes <a class="xref" href="07-softmax.html">07</a>, <a class="xref" href="08-positions.html">08</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#quadratic-wall">quadratic wall</a> &middot; <a href="../glossary.html#softmax">softmax</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#flash-attention">Flash Attention</a> &middot; <a href="../glossary.html#prefill">prefill</a> &middot; <a href="../glossary.html#decode">decode</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#the-quadratic-term-in-attention">The quadratic term in attention</a></li><li><a href="#why-the-score-matrix-never-fits">Why the score matrix never fits</a></li><li><a href="#flash-attention-and-the-tiled-softmax">Flash Attention and the tiled softmax</a></li><li><a href="#sparse-linear-and-state-space-alternatives">Sparse, linear, and state-space alternatives</a></li><li><a href="#the-kv-cache-and-the-prefix-cache">The KV cache and the prefix cache</a></li><li><a href="#what-actually-binds-admission">What actually binds admission</a></li></ul></nav>

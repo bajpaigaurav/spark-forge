@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Where most of the parameters actually live</h1>
   <p class="thesis">Attention gets the attention, but the feed-forward network holds roughly two thirds of the weights and behaves like a key-value memory.</p>
   <p class="prereq">Assumes <a class="xref" href="03-residual-stream.html">03</a>, <a class="xref" href="05-scaled-dot-product.html">05</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#residual-stream">residual stream</a> &middot; <a href="../glossary.html#embedding">embedding</a> &middot; <a href="../glossary.html#logits">logits</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#mixture-of-experts">mixture of experts</a> &middot; <a href="../glossary.html#gelu">GELU</a> &middot; <a href="../glossary.html#swiglu">SwiGLU</a> &middot; <a href="../glossary.html#quantization">quantization</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#counting-the-matrices-in-a-block">Counting the matrices in a block</a></li><li><a href="#the-four-times-inner-width-and-its-gated-variants">The four-times inner width and its gated variants</a></li><li><a href="#the-feed-forward-block-as-a-key-value-memory">The feed-forward block as a key-value memory</a></li><li><a href="#causal-evidence-and-editing-the-memory">Causal evidence and editing the memory</a></li><li><a href="#quantization-and-outlier-weights">Quantization and outlier weights</a></li><li><a href="#bandwidth-and-sparse-experts">Bandwidth and sparse experts</a></li></ul></nav>

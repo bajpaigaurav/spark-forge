@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -546,7 +592,7 @@ input[type=range] {
 <hr class="rule-short">
 </section>
 
-<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">1</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">72.1%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">74.2%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.8</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">53°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.0</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
+<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">61</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">73.5%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">74.2%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.9</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">78°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">4.8</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
 
 <section class="part"><h2 class="part-title">I. The raw material</h2><p class="part-count">3 of 3 written</p><ul class="toc">
 <li><a class="" href="chapters/01-tokens.html"><span class="t-num">01</span><span><span class="t-title">Text is not numbers yet</span><span class="t-status">published &middot; 2,546 words</span></span></a></li>
@@ -599,7 +645,8 @@ input[type=range] {
 <footer class="colophon">
 <p>Every figure in this document was read from the live engine, a log line, or a timed
 request. The last chapter explains how, so the rest can be checked.</p>
-<p><a href="about.html" style="color:var(--accent)">How this was made</a></p>
+<p><a href="about.html" style="color:var(--accent)">How this was made</a>
+&middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
 </footer>
 
 </div>

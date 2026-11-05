@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Temperature, top-k, top-p, and what each one does</h1>
   <p class="thesis">Sampling parameters are not knobs on a single dial; each one cuts the distribution in a different place.</p>
   <p class="prereq">Assumes <a class="xref" href="23-logits.html">23</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#temperature">temperature</a> &middot; <a href="../glossary.html#top-k">top-k</a> &middot; <a href="../glossary.html#top-p">top-p</a> &middot; <a href="../glossary.html#residual-stream">residual stream</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#logits">logits</a> &middot; <a href="../glossary.html#softmax">softmax</a> &middot; <a href="../glossary.html#continuous-batching">continuous batching</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#greedy-decoding-and-the-degeneration-loop">Greedy decoding and the degeneration loop</a></li><li><a href="#temperature-rescales-logits-without-reordering">Temperature rescales logits without reordering</a></li><li><a href="#count-based-and-mass-based-truncation">Count-based and mass-based truncation</a></li><li><a href="#min-p-sets-a-floor-relative-to-the-top-token">Min-p sets a floor relative to the top token</a></li><li><a href="#penalties-and-the-order-of-operations">Penalties and the order of operations</a></li><li><a href="#beam-search-and-length-normalisation">Beam search and length normalisation</a></li></ul></nav>

@@ -19,6 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 CHAPTERS = os.path.join(ROOT, "content", "chapters")
 SITE = os.path.join(ROOT, "site")
 QUEUE = os.path.join(ROOT, "state", "queue.json")
+GLOSSARY = os.path.join(ROOT, "content", "glossary.json")
 
 # A small inline SVG favicon: a token-shaped square in the book's accent colour.
 # Inline so it costs no extra request and survives a clone with no assets.
@@ -165,6 +166,66 @@ def read_chapter(ch):
     if not os.path.exists(p):
         return None
     return open(p, encoding="utf-8").read()
+
+# Terms per chapter in the header strip. Past eight the line stops orienting the
+# reader and starts reading like an index, so the earliest-defined eight win.
+MAX_TERM_CHIPS = 8
+
+def load_glossary():
+    """Entries from content/glossary.json, each with its stable anchor slug.
+
+    A missing file is not fatal: the book builds without a glossary, and the
+    page simply is not written.
+    """
+    if not os.path.exists(GLOSSARY):
+        return []
+    entries = json.load(open(GLOSSARY, encoding="utf-8"))
+    for e in entries:
+        e["slug"] = slug(e["term"])
+    return entries
+
+def term_pattern(e):
+    """Compile one entry's matcher, wrapped in word boundaries.
+
+    Substring matching over-hits badly in this book -- 'cache' inside 'caching',
+    'token' inside 'tokenizer' -- so every alternative is bounded. The boundary
+    is a lookaround rather than \\b so a term ending in punctuation still works.
+    """
+    alts = e.get("match") or re.escape(e["term"])
+    parts = [p.strip() for p in alts.split("|") if p.strip()]
+    body = "|".join(f"(?:{p})" for p in parts)
+    return re.compile(r"(?<![A-Za-z0-9_])(?:" + body + r")(?![A-Za-z0-9_])", re.I)
+
+def terms_in(text, entries):
+    """Glossary entries a chapter uses, earliest first occurrence first.
+
+    Only the first match per entry matters: the chip strip is ordered by where
+    the term first appears, so the reader meets the list in reading order.
+    """
+    found = []
+    for e in entries:
+        m = term_pattern(e).search(text)
+        if m:
+            found.append((m.start(), e))
+    found.sort(key=lambda t: t[0])
+    return [e for _, e in found]
+
+def term_strip(cid, entries):
+    """A quiet line of chips naming the terms this chapter uses.
+
+    Muted like the prerequisite strip so it orients without competing with the
+    thesis. Each chip links to that term's definition in the glossary.
+    """
+    txt = read_chapter({"id": cid})
+    if not txt:
+        return ""
+    terms = terms_in(txt, entries)[:MAX_TERM_CHIPS]
+    if not terms:
+        return ""
+    chips = " &middot; ".join(
+        f'<a href="../glossary.html#{e["slug"]}">{esc(e["term"])}</a>' for e in terms
+    )
+    return f'<p class="terms">Terms in this chapter: {chips}</p>'
 
 CSS = r"""
 :root {
@@ -367,6 +428,52 @@ body {
   border-bottom: 1px dotted var(--accent);
 }
 .prereq a:hover { border-bottom-style: solid; }
+
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
 
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
@@ -903,10 +1010,54 @@ def prereq_strip(c):
     )
     return f'<p class="prereq">Assumes {links}.</p>'
 
+def glossary_page(entries):
+    """Write docs/glossary.html: every term, alphabetically, with its source.
+
+    Terms that are not yet in a published chapter are dropped, so every link
+    on the page resolves. Entries carry their own `chapter` pointer, which is
+    the chapter that defines the term, not whichever one mentions it first.
+    """
+    live = [e for e in entries if e["chapter"] in CHAPTER_TITLES]
+    if not live:
+        return 0
+    live.sort(key=lambda e: e["term"].lower())
+    rows = []
+    for e in live:
+        cid = e["chapter"]
+        n = CHAPTER_NUMBERS[cid]
+        rows.append(
+            f'<dt id="{e["slug"]}"><a href="chapters/{cid}.html">{esc(e["term"])}</a></dt>\n'
+            f'<dd>{esc(e["one_line"])} <span class="src">'
+            f'<a href="chapters/{cid}.html">ch. {n:02d}</a></span></dd>'
+        )
+    body = f"""
+<header class="chapter-head">
+  <span class="num">Reference</span>
+  <h1>Glossary</h1>
+  <p class="thesis">The load-bearing terms, one sentence each, pointing at the chapter that defines them.</p>
+</header>
+
+<article class="prose glossary">
+<dl>
+{chr(10).join(rows)}
+</dl>
+</article>
+
+<nav class="chapter-nav">
+  <a href="index.html">&larr; Contents</a>
+</nav>
+"""
+    open(os.path.join(SITE, "glossary.html"), "w", encoding="utf-8").write(
+        page("Glossary", body,
+             description="Every load-bearing term in the book, one sentence each, with the chapter that defines it.",
+             canonical="https://bajpaigaurav.github.io/spark-forge/glossary.html"))
+    return len(live)
+
 def build():
     q = json.load(open(QUEUE, encoding="utf-8"))
     meta = q["meta"]
     os.makedirs(SITE, exist_ok=True)
+    glossary = load_glossary()
 
     published = [c for c in q["chapters"] if c["status"] == "published"]
     # Fill the link registry before rendering any prose, so [[id]] resolves.
@@ -1005,7 +1156,8 @@ def build():
 <footer class="colophon">
 <p>Every figure in this document was read from the live engine, a log line, or a timed
 request. The last chapter explains how, so the rest can be checked.</p>
-<p><a href="about.html" style="color:var(--accent)">How this was made</a></p>
+<p><a href="about.html" style="color:var(--accent)">How this was made</a>
+&middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
 </footer>
 """
     open(os.path.join(SITE, "index.html"), "w", encoding="utf-8").write(
@@ -1068,6 +1220,7 @@ the model's. The shape of the thing is not.</p>
 
 <nav class="chapter-nav">
   <a href="index.html">&larr; Contents</a>
+  <a href="glossary.html">Glossary</a>
 </nav>
 """
     open(os.path.join(SITE, "about.html"), "w", encoding="utf-8").write(
@@ -1106,6 +1259,7 @@ the model's. The shape of the thing is not.</p>
   <h1>{esc(c["title"])}</h1>
   <p class="thesis">{esc(c["thesis"])}</p>
   {prereq_strip(c)}
+  {term_strip(c["id"], glossary)}
 </header>
 
 {mini_toc(headings)}
@@ -1129,6 +1283,9 @@ the model's. The shape of the thing is not.</p>
                  canonical=f"https://bajpaigaurav.github.io/spark-forge/chapters/{c['id']}.html"))
 
     print(f"built: {len(published)} chapters, {total_words:,} words -> {SITE}")
+    n_terms = glossary_page(glossary)
+    if n_terms:
+        print(f"glossary: {n_terms} terms -> {os.path.join(SITE, 'glossary.html')}")
 
 if __name__ == "__main__":
     build()

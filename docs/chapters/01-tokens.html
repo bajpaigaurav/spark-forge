@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Text is not numbers yet</h1>
   <p class="thesis">A tokenizer is a compression scheme wearing a linguistic costume, and every downstream oddity of language models starts here.</p>
   
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#embedding">embedding</a> &middot; <a href="../glossary.html#bpe">BPE</a> &middot; <a href="../glossary.html#softmax">softmax</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#byte-pair-encoding-began-as-a-compressor">Byte-pair encoding began as a compressor</a></li><li><a href="#the-merge-loop-and-rank-order">The merge loop and rank order</a></li><li><a href="#byte-level-bpe-and-sentencepiece">Byte-level BPE and SentencePiece</a></li><li><a href="#the-vocabulary-size-trade">The vocabulary-size trade</a></li><li><a href="#fertility-and-digit-composition">Fertility and digit composition</a></li><li><a href="#glitch-tokens-and-trailing-spaces">Glitch tokens and trailing spaces</a></li></ul></nav>

@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Keeping the residual stream in range</h1>
   <p class="thesis">Normalization placement is one of the quiet decisions that determines whether a deep model trains at all.</p>
   <p class="prereq">Assumes <a class="xref" href="03-residual-stream.html">03</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#residual-stream">residual stream</a> &middot; <a href="../glossary.html#layernorm">LayerNorm</a> &middot; <a href="../glossary.html#rmsnorm">RMSNorm</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#logits">logits</a> &middot; <a href="../glossary.html#softmax">softmax</a> &middot; <a href="../glossary.html#bf16">bf16</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#the-identity-path-through-residual-additions">The identity path through residual additions</a></li><li><a href="#how-the-residual-stream-s-norm-recurses">How the residual stream's norm recurses</a></li><li><a href="#layernorm-rmsnorm-and-the-invariances-that-matter">LayerNorm, RMSNorm, and the invariances that matter</a></li><li><a href="#pre-norm-post-norm-and-the-jacobian-on-the-residual-path">Pre-norm, post-norm, and the Jacobian on the residual path</a></li><li><a href="#attention-logits-softmax-saturation-and-qk-norm">Attention logits, softmax saturation, and QK-norm</a></li><li><a href="#exponent-range-and-the-compute-format">Exponent range and the compute format</a></li></ul></nav>

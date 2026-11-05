@@ -213,6 +213,52 @@ body {
 }
 .prereq a:hover { border-bottom-style: solid; }
 
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.terms {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Glossary page: a definition list, not cards. */
+.glossary { max-width: var(--measure); }
+.glossary dt {
+  font-weight: 400;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.glossary dt a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.glossary dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.glossary dd .src {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.glossary dd .src a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary dl { margin: 0; }
+
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
   color: var(--accent);
@@ -514,6 +560,7 @@ input[type=range] {
   <h1>Why many small heads beat one large one</h1>
   <p class="thesis">Splitting attention into heads is not parallelism for its own sake; each head is a separate subspace where a different relation can be expressed.</p>
   <p class="prereq">Assumes <a class="xref" href="05-scaled-dot-product.html">05</a>.</p>
+  <p class="terms">Terms in this chapter: <a href="../glossary.html#multi-head-attention">multi-head attention</a> &middot; <a href="../glossary.html#softmax">softmax</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#residual-stream">residual stream</a> &middot; <a href="../glossary.html#attention">attention</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#multi-query-attention">multi-query attention</a> &middot; <a href="../glossary.html#grouped-query-attention">grouped-query attention</a></p>
 </header>
 
 <nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#the-fixed-budget-of-one-softmax">The fixed budget of one softmax</a></li><li><a href="#splitting-attention-into-eight-heads">Splitting attention into eight heads</a></li><li><a href="#rank-expressiveness-versus-softmax-scarcity">Rank expressiveness versus softmax scarcity</a></li><li><a href="#what-a-head-writes-versus-where-it-looks">What a head writes versus where it looks</a></li><li><a href="#what-heads-learn-and-which-ones-matter">What heads learn and which ones matter</a></li><li><a href="#head-count-and-the-kv-cache">Head count and the KV cache</a></li></ul></nav>
