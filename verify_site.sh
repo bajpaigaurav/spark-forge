@@ -154,6 +154,7 @@ for f in content/chapters/*.md; do
   [ "$st" = "published" ] || continue
   python3 skills/slop_gate.py "$f" >/dev/null 2>&1 || { echo "SLOP GATE FAIL: $f"; fail=1; }
   python3 skills/fact_gate.py "$f" content/sources.json >/dev/null 2>&1 || { echo "FACT GATE FAIL: $f"; fail=1; }
+  python3 skills/consistency_gate.py "$f" >/dev/null 2>&1 || { echo "CONSISTENCY GATE FAIL: $f"; fail=1; }
 done
 
 if [ "$fail" -eq 0 ]; then
