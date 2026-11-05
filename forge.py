@@ -261,7 +261,12 @@ supercharge, harness, ever-evolving, testament, pivotal, seamless, unlock, revol
 quantity in words instead.
 
 Length: 1200 to 1800 words. Write the chapter body only, with a single markdown H2
-heading at the top. No preamble, no "Here is the chapter"."""
+heading at the top. No preamble, no "Here is the chapter".
+
+Structure: after the H2, insert a markdown H3 subheading (`### `) every 250 to 400 words.
+Each subheading names the idea the next few paragraphs establish -- the thing a reader
+would search for when re-reading. Aim for 3 to 6 subheadings. Do not number them, do not
+write them as questions, and do not repeat the chapter title."""
 
 CRITIC_SYSTEM = """You are a hostile technical editor reviewing one chapter of an explanatory book about how language models work.
 
@@ -296,7 +301,8 @@ what you just said.
 revision easier.
 - Vary sentence length. Do not let three consecutive sentences have the same shape.
 
-Output the full revised chapter with the same single markdown H2 heading. No commentary
+Output the full revised chapter with the same single markdown H2 heading and the same
+H3 subheadings (keep them, and add one where a section grew long). No commentary
 about what you changed."""
 
 
@@ -439,7 +445,8 @@ Rules:
 - The result must not repeat any paragraph and must not shrink a section to make room.
 - Target: 1000 to 1500 words.
 
-Output the full improved chapter with its single markdown H2 heading. No commentary."""
+Output the full improved chapter with its single markdown H2 heading and its H3
+subheadings. No commentary."""
 
 
 def plan_more(n=4):

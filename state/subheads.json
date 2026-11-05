@@ -1,0 +1,344 @@
+{
+  "01-tokens": {
+    "status": "ok",
+    "heads": [
+      "Byte-pair encoding began as a compressor",
+      "The merge loop and rank order",
+      "Byte-level BPE and SentencePiece",
+      "The vocabulary-size trade",
+      "Fertility and digit composition",
+      "Glitch tokens and trailing spaces"
+    ]
+  },
+  "02-embeddings": {
+    "status": "ok",
+    "heads": [
+      "The token id carries no geometry",
+      "Scoring pairs with dot products and softmax",
+      "Other routes to the same geometry",
+      "Cosine similarity and the anisotropic cone",
+      "Analogies and the embedding table",
+      "What cosine actually measures"
+    ]
+  },
+  "03-residual-stream": {
+    "status": "ok",
+    "heads": [
+      "The residual path and the gradient product",
+      "Residual sublayers and the persistent stream",
+      "Pre-norm, post-norm, and stream growth",
+      "Superposition and interference in a fixed-width stream",
+      "LayerNorm, attribution, and the logit lens",
+      "Live stream versus KV cache at scale"
+    ]
+  },
+  "04-before-attention": {
+    "status": "ok",
+    "heads": [
+      "The fixed-vector bottleneck and its workarounds",
+      "Bahdanau attention scores every annotation",
+      "Luong's scoring functions and local attention",
+      "Why dot-product attention won on hardware",
+      "Attention weights are not explanations",
+      "The recurrence remained"
+    ]
+  },
+  "05-scaled-dot-product": {
+    "status": "ok",
+    "heads": [
+      "Four facts the rest of the chapter leans on",
+      "One token, three projections",
+      "What a block adds and why position must be injected",
+      "Scores, softmax, and the lookup-table view",
+      "Multi-head attention and the scaling factor",
+      "The quadratic cost and the shift to inference"
+    ]
+  },
+  "06-multi-head": {
+    "status": "ok",
+    "heads": [
+      "The fixed budget of one softmax",
+      "Splitting attention into eight heads",
+      "Rank expressiveness versus softmax scarcity",
+      "What a head writes versus where it looks",
+      "What heads learn and which ones matter",
+      "Head count and the KV cache"
+    ]
+  },
+  "07-softmax": {
+    "status": "ok",
+    "heads": [
+      "Why exponentials and shift invariance",
+      "Overflow and the row-maximum shift",
+      "Underflow and temperature",
+      "Entropy as a measure of concentration",
+      "The attention sink and the cost of normalization",
+      "Saturation, scaling, and the artifacts of softmax"
+    ]
+  },
+  "08-positions": {
+    "status": "ok",
+    "heads": [
+      "Unmasked attention is permutation-equivariant",
+      "The causal mask makes a decoder order-sensitive",
+      "Sinusoidal encodings and the offset property",
+      "Learned tables and relative position biases",
+      "Rotary position embedding and the scaling knob",
+      "KV cache memory and admission"
+    ]
+  },
+  "09-quadratic-wall": {
+    "status": "ok",
+    "heads": [
+      "The quadratic term in attention",
+      "Why the score matrix never fits",
+      "Flash Attention and the tiled softmax",
+      "Sparse, linear, and state-space alternatives",
+      "The KV cache and the prefix cache",
+      "What actually binds admission"
+    ]
+  },
+  "10-kv-cache": {
+    "status": "ok",
+    "heads": [
+      "The measured request profile",
+      "Why decode advances one token at a time",
+      "What the KV cache stores",
+      "The arithmetic behind the cache size",
+      "Positions, rows, and admission",
+      "Batching, bandwidth, and the prefix cache"
+    ]
+  },
+  "11-mqa-gqa-mla": {
+    "status": "ok",
+    "heads": [
+      "Why the KV cache exists",
+      "The arithmetic behind the cache bill",
+      "From multi-head to multi-query attention",
+      "GQA as a dial and an uptraining recipe",
+      "MLA compresses keys and values into a latent",
+      "Absorbing projections and decoupling RoPE",
+      "The quality-versus-cache curve and adoption constraints"
+    ]
+  },
+  "12-paged-attention": {
+    "status": "ok",
+    "heads": [
+      "The worst-case reservation and its arithmetic",
+      "Decode is bandwidth-bound",
+      "From page tables to PagedAttention",
+      "What the gather costs the kernel",
+      "Copy-on-write sharing and prefix caching",
+      "Admission, block size, and where paging stops paying"
+    ]
+  },
+  "13-prefix-caching": {
+    "status": "ok",
+    "heads": [
+      "When a shared prefix is actually reusable",
+      "What a PagedAttention block stores",
+      "How block hashes bind a block to its prefix",
+      "Radix-tree lookup and the block-size trade-off",
+      "Eviction, admission, and cache isolation",
+      "Measuring token-level hit rate and uncached prefill throughput"
+    ]
+  },
+  "14-flash-attention": {
+    "status": "ok",
+    "heads": [
+      "The bandwidth gap and latency",
+      "Why naive attention cannot materialize the score matrix",
+      "FlashAttention's tiling fix",
+      "Online softmax and the rescaling identity",
+      "Backward pass recomputation and linear footprint",
+      "Scheduling rewrites and the decode wall"
+    ]
+  },
+  "15-sparse-sliding": {
+    "status": "ok",
+    "heads": [
+      "The quadratic cost of full attention",
+      "Local, dilated, and global sparse patterns",
+      "Attention sinks and the softmax denominator",
+      "Rolling KV cache and position IDs",
+      "Pool arithmetic and hybrid attention",
+      "Block-sparse kernels and retrieval evaluation"
+    ]
+  },
+  "16-ffn": {
+    "status": "ok",
+    "heads": [
+      "Counting the matrices in a block",
+      "The four-times inner width and its gated variants",
+      "The feed-forward block as a key-value memory",
+      "Causal evidence and editing the memory",
+      "Quantization and outlier weights",
+      "Bandwidth and sparse experts"
+    ]
+  },
+  "17-activations": {
+    "status": "ok",
+    "heads": [
+      "Why the nonlinearity cannot be removed",
+      "Saturation and the vanishing gradient",
+      "ReLU and the dead-unit problem",
+      "GELU as a probabilistic gate",
+      "Gated linear units and the SwiGLU budget",
+      "Where each activation still lives"
+    ]
+  },
+  "18-normalization": {
+    "status": "ok",
+    "heads": [
+      "The identity path through residual additions",
+      "How the residual stream's norm recurses",
+      "LayerNorm, RMSNorm, and the invariances that matter",
+      "Pre-norm, post-norm, and the Jacobian on the residual path",
+      "Attention logits, softmax saturation, and QK-norm",
+      "Exponent range and the compute format"
+    ]
+  },
+  "19-moe": {
+    "status": "ok",
+    "heads": [
+      "The expert block, the router, and the arithmetic",
+      "The router gradient and the exploration problem",
+      "Capacity, drops, and the auxiliary loss",
+      "Switch's top-1 simplification and router precision",
+      "Expert parallelism and the all-to-all",
+      "Decode, prefill, and the memory budget"
+    ]
+  },
+  "20-precision": {
+    "status": "ok",
+    "heads": [
+      "Exponent for range, mantissa for resolution",
+      "Loss scaling and the fp32 master copy",
+      "bfloat16 keeps the range and spends the mantissa",
+      "The two fp8 formats and per-tensor scaling",
+      "Accumulation width and memory arithmetic",
+      "The mixed-precision policy and the ordering of precision loss"
+    ]
+  },
+  "21-quantization": {
+    "status": "ok",
+    "heads": [
+      "The arithmetic behind four bits",
+      "How a linear layer is laid out and quantized",
+      "Why groups run along the input dimension",
+      "GPTQ and AWQ: reconstruction versus salience",
+      "GGUF k-quants and the evaluation protocol",
+      "Activation outliers and why weight-only won"
+    ]
+  },
+  "22-why-4bit-works": {
+    "status": "ok",
+    "heads": [
+      "The KV pool budget and the cost of raising it",
+      "Quantization grids and rounding error",
+      "Why independent rounding errors add in quadrature",
+      "How layer normalization bounds perturbation growth",
+      "The bandwidth roofline check",
+      "Why four bits is near the floor, and where outliers break it"
+    ]
+  },
+  "23-logits": {
+    "status": "ok",
+    "heads": [
+      "The head as a matrix of token directions",
+      "The vocabulary and tied embeddings",
+      "Softmax and the arithmetic of the head",
+      "Temperature and distillation",
+      "Decoding rules and failure modes",
+      "The head as a fixed interface"
+    ]
+  },
+  "24-sampling": {
+    "status": "ok",
+    "heads": [
+      "Greedy decoding and the degeneration loop",
+      "Temperature rescales logits without reordering",
+      "Count-based and mass-based truncation",
+      "Min-p sets a floor relative to the top token",
+      "Penalties and the order of operations",
+      "Beam search and length normalisation"
+    ]
+  },
+  "25-speculative": {
+    "status": "ok",
+    "heads": [
+      "How speculative decoding works",
+      "The verification pass is a batched GEMM",
+      "The acceptance rule and its exactness proof",
+      "The arithmetic of the speedup",
+      "Drafting with heads, trees, and features",
+      "Measured acceptance on this engine"
+    ]
+  },
+  "26-prefill-decode": {
+    "status": "ok",
+    "heads": [
+      "Prefill is compute-bound",
+      "Decode and the KV cache",
+      "The ridge point and clock speed",
+      "Time to first token and prefix reuse",
+      "Batching gains and admission limits",
+      "Why one tokens-per-second number misleads"
+    ]
+  },
+  "27-batching": {
+    "status": "ok",
+    "heads": [
+      "What a decode step costs",
+      "Iteration-level scheduling and selective batching",
+      "Chunked prefill and the roofline",
+      "The scheduler's phases and admission arithmetic",
+      "Eviction and fairness",
+      "Prefix caching, throughput, and the reservation tradeoff"
+    ]
+  },
+  "28-parallelism": {
+    "status": "ok",
+    "heads": [
+      "Column-parallel f and row-parallel g",
+      "Two all-reduces per block and their volume",
+      "The per-collective latency budget",
+      "Pipeline stages and the micro-batch bubble",
+      "Message counts, sequence parallelism, and expert parallelism",
+      "The two-rank engine\u2019s bandwidth and stall budget"
+    ]
+  },
+  "29-roofline": {
+    "status": "ok",
+    "heads": [
+      "The roofline model and decode's intensity",
+      "What batching amortizes",
+      "The arithmetic behind 273 GB/s",
+      "Quantization as a bandwidth multiplier",
+      "What measured decode reveals about the step budget",
+      "Why prefill, speculation, and capacity set different limits"
+    ]
+  },
+  "30-measurement": {
+    "status": "ok",
+    "heads": [
+      "Three instruments, three different answers",
+      "Units, averages, and what the mean hides",
+      "How the prefix cache contaminates prefill rates",
+      "Warm-up costs that steady state never pays",
+      "Concurrency, rooflines, and the remaining confounds",
+      "What a reproducible benchmark must state"
+    ]
+  },
+  "31-local-numbers": {
+    "status": "ok",
+    "heads": [
+      "The shared memory budget and the memguard kill switch",
+      "Tensor parallelism and the all-reduce stall",
+      "Decode throughput and concurrency scaling",
+      "Prefill, prefix cache, and speculative decoding",
+      "KV pool arithmetic and admission policy",
+      "Latency, pair stall, and the limits of the case study"
+    ]
+  }
+}

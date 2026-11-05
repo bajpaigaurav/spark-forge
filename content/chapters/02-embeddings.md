@@ -2,6 +2,8 @@
 
 The tokenizer hands the model an integer, and that integer is a name badge. Byte-pair encoding builds it in a fixed order. Training starts with 256 single-byte symbols, then repeatedly counts adjacent pairs across the corpus, merges the most frequent pair into a new symbol, and assigns that symbol the next free id. A token produced by an early merge gets a low number. One assembled late gets a high number. The id records when a merge happened and nothing else. The id for "cat" is not close to the id for "kitten," and the id for "the" sits wherever the merge order dropped it. Nothing in the number is ordered, weighted, or comparable to anything else.
 
+### The token id carries no geometry
+
 So the first operation in every language model throws the integer away and replaces it with a vector.
 
 The obvious construction is one-hot. Give the vocabulary a hundred thousand entries and each token becomes a list of a hundred thousand numbers, all zero except a single one at the token's own position. The dot product of two distinct one-hot vectors is exactly zero, because no position holds a one in both. Every word is equally unrelated to every other word.
@@ -9,6 +11,8 @@ The obvious construction is one-hot. Give the vocabulary a hundred thousand entr
 The usual complaint about one-hot is imprecise, so the real problem deserves a careful statement. A linear layer over one-hot inputs does have a gradient. Feed it "cat" and the row at cat's index receives a nonzero update. That row moves. What the loss never does is compare two input rows. "Cat" and "kitten" are trained against separate output slots, and no term in the objective pulls their input rows toward each other. Each row learns a private association with the output vocabulary. The table stays a lookup, and no geometry forms.
 
 The dense representation is not a separate alternative to that linear layer; it is the same linear layer viewed as a lookup table: one row per vocabulary entry, each row a few thousand numbers wide, learned rather than assigned. The geometry comes from training those rows under a shared prediction objective, not from replacing one-hot with dense Yoshua Bengio and colleagues did this in 2003 in "A Neural Probabilistic Language Model" (JMLR), learning a distributed representation for each word as a side effect of predicting the next one. Ronan Collobert and Jason Weston made the representation the point in 2008 in "A Unified Architecture for Natural Language Processing" (ICML). Tomas Mikolov and colleagues at Google turned it into a standard tool in 2013 with "Distributed Representations of Words and Phrases and their Compositionality" (NIPS).
+
+### Scoring pairs with dot products and softmax
 
 Two pieces of notation carry the rest of the chapter. The dot product of two vectors is the sum of their coordinatewise products, a single number that grows when the vectors point the same way. The softmax turns a list of scores into a probability distribution by exponentiating each score and dividing by the sum of all the exponentials.
 
@@ -24,9 +28,13 @@ The gradient on the positive term is what pulls the two vectors together. Differ
 
 Do that over billions of pairs and the geometry settles. At equilibrium the positive gradient and the summed negative gradients balance, and the direction v_c settles into is pulled toward a frequency-weighted combination of the context vectors it actually co-occurred with, corrected by the negative-sampling term over frequency-sampled non-contexts—not simply their average. Words that keep turning up in the same neighborhoods end up with similar averages, so their vectors point in similar directions. "Cat" and "kitten" share contexts, and their vectors converge because they are pulled toward the same mean.
 
+### Other routes to the same geometry
+
 Jeffrey Pennington, Richard Socher and Christopher Manning reached a similar geometry in 2014 from the opposite direction. GloVe, published at EMNLP as "GloVe: Global Vectors for Word Representation," factorizes a word-word co-occurrence matrix instead of running a prediction task. Its objective is a weighted least-squares fit to the log of the co-occurrence counts, and the vectors it produces behave much like word2vec's. Two routes arriving at the same place suggests the geometry tracks language use rather than the algorithm.
 
 Piotr Bojanowski and colleagues added a third route with fastText, "Enriching Word Vectors with Subword Information," which went up on arXiv in 2016 and appeared in TACL volume 5 in 2017. Each word's vector is the sum of vectors for its character n-grams, for n from 3 to 6, plus a vector for the whole word. "Running" is the sum of the vectors for <ru, run, unn, nni, nin, ing, ng>, with angle brackets marking word boundaries, plus a vector for the whole word. A word never seen in training still gets a vector, assembled from whatever n-grams it shares with known words. That is why morphology leaks into fastText's geometry, and why it handles rare and misspelled tokens better than a pure lookup table.
+
+### Cosine similarity and the anisotropic cone
 
 Once you have vectors you need a way to compare them. Cosine similarity is the dot product divided by the product of the two lengths. Take a = (3, 4) and b = (4, 3). The dot product is 12 + 12 = 24, both lengths are 5, and the cosine is 24/25 = 0.96. Now scale a by ten to (30, 40). The dot product with b is 120 + 120 = 240, the lengths are 50 and 5, and the cosine is 240/250 = 0.96 again. Length changed by a factor of ten and the angle did not move. Compare a with c = (0, 5) instead. The dot product is 20, the lengths are 5 and 5, and the cosine is 0.8, an angle of about 37 degrees. Training with an unnormalized dot product lets frequent words drift to large magnitudes, because a big vector scores high against everything. Cosine discards the length and keeps the angle.
 
@@ -37,6 +45,8 @@ A toy table shows the mechanism. Let the mean vector of the table be m = (1, 1),
 Where does the shared component come from? Negative sampling draws its negatives from the unigram distribution raised to the 3/4 power (the exponent flattens the distribution somewhat, but frequent words still dominate) raised to the 3/4 power (the exponent flattens the distribution somewhat, but frequent words still dominate), so every center vector is pushed away from the same small set of very frequent words. That push adds a common direction to the whole table. The softmax denominator does something similar, since every prediction is normalized against the same vocabulary. Frequent words dominate both terms, and their direction spreads to everything else.
 
 The fix is unglamorous and takes two steps. First, compute the mean of all rows and subtract it from every row. Second, compute the top few principal components of the centered table and remove each vector's projection onto them, v' = v - Σ (v · p_i) p_i over the components you keep. Mu and Viswanath published this recipe in 2018 as "All-but-the-Top" (ICLR). To check whether it worked, sample ten thousand random word pairs, record the mean cosine before and after, and watch it fall toward zero.
+
+### Analogies and the embedding table
 
 The famous demonstration is the parallelogram. Take man = (1.0, 0.2), woman = (0.9, 0.7), king = (0.8, 0.1), queen = (0.7, 0.6). The offset from man to woman is (-0.1, 0.5). Add it to king and you get (0.7, 0.6), which is queen exactly, so the cosine between the query and queen is 1.0. The arithmetic works because the training data made the two offsets nearly parallel. Anna Rogers, Aleksandr Drozd and Bofang Li showed in 2017, in "The (too many) problems of analogical reasoning with word vectors" (*SEM), that the result is fragile. They took the standard analogy test set, added small random perturbations to the vectors, and re-ran the ranking. Accuracy fell sharply, which is a warning about reading too much into any single nearest neighbor.
 
@@ -49,5 +59,7 @@ The savings are easy to count. GPT-2 small has V = 50,257 and d = 768, so the em
 Training the transformer table works differently from training word2vec. The embedding is optimized by the language-modeling loss, and the gradient reaches only the rows for tokens that appear in the batch. A batch of B sequences of length T touches at most B × T rows out of V, so the update is sparse. The row itself stays static. What changes across sentences is the output of the block stack, where attention mixes projected hidden states derived from those rows. "Bank" gets the same input row in both sentences, and a different contextual vector at the end, because the surrounding tokens pull different rows into the mix.
 
 Computationally the lookup is a gather. Multiplying a one-hot row by the table selects one row and adds a row of zeros, and every implementation notices this and indexes directly into a contiguous array. The memory cost is exactly V × d × bytes, with no sparsity tricks available. A vocabulary of 128,256 against 4,096 dimensions comes to 525,336,576 numbers. At two bytes each that is about 1.05 GB, and at four bytes it doubles. Vocabulary size is a design decision with teeth, and multilingual models pay for their coverage partly in this currency—larger vocabularies also raise output-layer/optimizer memory and softmax compute, and tokenizer fertility affects sequence length.
+
+### What cosine actually measures
 
 One caveat belongs at the end. Nearest-neighbor and cosine benchmarks measure distributional overlap, not meaning. A high cosine says two vectors were pulled toward similar context averages. It does not say the model understands either word. Report the postprocessed number, the sample size, and the model, or you are reporting the cone.

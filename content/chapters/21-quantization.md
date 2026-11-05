@@ -2,9 +2,13 @@
 
 A transformer layer is mostly matrix multiplication, and the matrices are where the parameters live. Training commonly uses 16-bit compute, and many checkpoints store weights in FP16 or BF16, though FP32 master weights and FP32 checkpoints are also common Serving does not need sixteen bits. The engine this book measures holds 111.5 GB of unified memory in total, weights and KV cache and live streams together, on a machine where CPU and GPU share 273 GB/s of LPDDR5X bandwidth. That budget closes only because the weights sit at four bits per parameter.
 
+### The arithmetic behind four bits
+
 The arithmetic is worth doing once. Call the parameter count P. At four bits the weight set is P/2 bytes; at sixteen bits it is 2P bytes, four times as large. Decode reads the weight set once per token, so at 273 GB/s the floor on time per token is (P/2)/(273×10⁹) seconds at four bits, and four times that at sixteen. The KV pool is not where the budget goes. Quadrupling it from 262,144 positions to 1,048,576 costs 0.68 GiB per rank, which puts the current pool near a quarter of a gigabyte per rank. Against 111.5 GB that is noise. The budget is weights.
 
 So the question is how to turn a float into four bits without breaking the layer.
+
+### How a linear layer is laid out and quantized
 
 A linear layer computes y = Wx. W has one row per output feature and one column per input feature, so its shape is d_out × d_in. A transformer block holds six or seven of these: four in attention, plus two in a plain feed-forward sub-block or three in a gated one such as SwiGLU Checkpoints store W row-major, so the entries of one row sit next to each other, and a contiguous run of 128 entries is 128 consecutive input features of a single output channel. Every design choice below depends on that layout.
 
@@ -20,11 +24,15 @@ Storage is where the format becomes concrete. Two four-bit codes fit in one byte
 
 A common layout puts one fp16 scale (2 bytes) and one 8-bit zero point (1 byte) per group of 128. That is 3 bytes of metadata against 64 bytes of payload, an overhead of 3/64 = 4.7 percent, or 4.19 bits per weight. Halve the group to 64 and the payload falls to 32 bytes while the metadata stays at 3, so overhead rises to 9.4 percent. Double it to 256 and overhead falls to 2.3 percent, but one outlier now contaminates 255 neighbours instead of 127. A group of 128 sits where the tax is small enough to ignore and the group is small enough to isolate a bad channel.
 
+### Why groups run along the input dimension
+
 Groups run along the input dimension. Picture W as a grid, d_out rows down and d_in columns across. A group is 128 consecutive entries of one row, a contiguous 64-byte read in row-major storage. Cutting along the output dimension instead would stride through memory by d_in elements per entry, which costs a transpose or a gather before the kernel can use it.
 
 The error argument points the same way. An outlier in input feature j enters the output through column j of W, and every error in that column is multiplied by x_j. Suppose the weights in column j are ten times larger than their neighbours (the activation outlier does not itself enlarge them; it only multiplies the output error from that column). With one scale per row, that column sets the step size for all d_in entries of the row, and the other d_in − 1 entries lose about log₂(10) ≈ 3.3 bits of resolution. With groups of 128 along the input dimension, the damage is confined to the 127 entries sharing a group with column j in each row. The affected fraction falls from nearly the whole matrix to 127/d_in, about 3 percent at d_in = 4096.
 
 Collapse in numbers. Take a group of 128 weights with magnitudes around 0.1 and one entry at 4.0. The range is [−4, 4], so for symmetric 4-bit quantization with qmax = 7, the scale is 4/7 ≈ 0.571 and the levels are integer multiples of 0.571, including 0. A weight of 0.1 encodes as round(0.1/0.533) = 0, and so does 0.2, and 0.26. Every ordinary weight lands on level 0, so the group has effectively zero bits of resolution for 127 of its 128 entries. Move the outlier into its own group and the remaining 127 entries get a scale of 0.4/15 ≈ 0.0267, which resolves 0.1 to within 0.013.
+
+### GPTQ and AWQ: reconstruction versus salience
 
 GPTQ, from Frantar, Ashkboos, Hoefler and Alistarh in October 2022, is the reconstruction answer. It descends from their own Optimal Brain Quantization earlier that year, and further back from LeCun's Optimal Brain Damage in 1989 and Hassibi and Stork's Optimal Brain Surgeon in 1993.
 
@@ -44,6 +52,8 @@ Take a group whose largest entry is 1.0, so the scale is 0.1333 and the levels a
 
 AWQ sets s_j = (mean |x_j|)^α and searches α over a small grid on each layer, scoring each candidate by the layer's output error on the calibration set. α = 0 recovers no scaling; α = 1 scales each channel by its average activation magnitude. The paper reports that a single exponent near the middle of the range works well across the models it tests, and the search is cheap because it is one scalar per layer. AWQ consumes a calibration set and inherits whatever that set gets wrong about deployment traffic; GGUF k-quants are data-free and depend only on the weights
 
+### GGUF k-quants and the evaluation protocol
+
 GGUF is the file format llama.cpp reads, and its k-quants, contributed by Kawrakow in 2023, take the mixed-precision route. Q4_K is the four-bit member. The unit is a super-block of 256 weights, split into 8 sub-blocks of 32. The super-block carries an fp16 scale d and an fp16 minimum m, 4 bytes together. The 8 sub-block scales and 8 sub-block minimums are stored at 6 bits each, packed into 12 bytes. The weights are 256 four-bit codes, 128 bytes. Total 144 bytes for 256 weights, which is 4.5 bits per weight.
 
 Dequantization is w = d·s_k·q − m·m_k, where q is the 4-bit code and s_k and m_k are the 6-bit sub-block values for the sub-block containing it. A single large weight raises d for the whole super-block; its own sub-block
@@ -51,6 +61,8 @@ Dequantization is w = d·s_k·q − m·m_k, where q is the 4-bit code and s_k an
 The M in Q4_K_M is a mixture. The recipe promotes a short list of tensors to six bits, and that list is written into llama.cpp's quantize.cpp rather than inferred at runtime. Among the promoted tensors are the value projection and the feed-forward down projection. Everything else stays at Q4_K. A six-bit tensor costs 50 percent more storage than a four-bit one, so the mixture lands between four and five bits per weight overall, depending on how many parameters sit in the promoted tensors.
 
 The threshold where quantization starts to hurt is an empirical question, and the way to answer it is a protocol rather than a rule of thumb. Fix the calibration set and the group size. Quantize the same checkpoint at 8, 4, 3 and 2 bits. Measure perplexity on a held-out corpus such as WikiText-2, and measure task accuracy on benchmarks that stress reasoning and long context, because perplexity is a poor proxy for both. Run each configuration at several model sizes. The published tables from GPTQ and AWQ do roughly this, and they show 4-bit staying close to fp16 on perplexity across the OPT, BLOOM and Llama families they test, with 3-bit visibly worse and 2-bit worse again. Eight-bit weight quantization is usually reported as lossless on perplexity, since 256 levels with a group scale put the rounding error below the noise in the evaluation. The exact crossover differs by model and by benchmark, so a single number for the cliff is not something the published results support.
+
+### Activation outliers and why weight-only won
 
 Everything above concerns weights, which are fixed at export and converted back to floats inside the kernel on the fly. Activations are computed at runtime, and their distribution depends on the input. The outlier structure Dettmers, Lewis, Belkada and Zettlemoyer reported in LLM.int8() in 2022 is an activation phenomenon, and it breaks per-tensor activation quantization outright. Suppose one feature dimension carries a magnitude of 1000 while the rest sit near 1. An 8-bit symmetric scale is set by 1000, so the step is about 1000/127 ≈ 7.9, and activations near 1 round to 0; only values around 4 or above map to the first nonzero level, ≈7.9. The output for those channels is destroyed. Even with a good scale, an error of 0.01 in a weight multiplied by that 1000-magnitude activation contributes 10 to the output, which can be larger than the output itself. That is why activation quantization needs per-channel/feature-wise scales, or mixed-precision decomposition that keeps outlier dimensions in higher precision; per-token scales alone do not fix a persistent outlier feature because that feature still sets each token’s scale, and why weight-only four-bit formats became the default.
 

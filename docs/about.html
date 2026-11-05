@@ -172,6 +172,33 @@ body {
   margin: 0;
 }
 
+/* In-chapter contents. Only rendered for chapters with 3+ subheads. */
+.mini-toc {
+  max-width: var(--measure);
+  margin: 2.2rem 0 2.6rem;
+  padding: 1rem 0 1rem 1.1rem;
+  border-left: 2px solid var(--rule);
+}
+.mini-toc h2 {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+.mini-toc ul { list-style: none; margin: 0; padding: 0; }
+.mini-toc li { margin: 0.28rem 0; }
+.mini-toc a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+.mini-toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+/* Anchored headings should not hide under the top of the viewport. */
+.prose h3 { scroll-margin-top: 1.5rem; }
+
 /* Prerequisite strip: quiet, so it orients without competing with the thesis. */
 .prereq {
   font-size: 0.82rem;

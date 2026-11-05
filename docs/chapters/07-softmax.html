@@ -172,6 +172,33 @@ body {
   margin: 0;
 }
 
+/* In-chapter contents. Only rendered for chapters with 3+ subheads. */
+.mini-toc {
+  max-width: var(--measure);
+  margin: 2.2rem 0 2.6rem;
+  padding: 1rem 0 1rem 1.1rem;
+  border-left: 2px solid var(--rule);
+}
+.mini-toc h2 {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+.mini-toc ul { list-style: none; margin: 0; padding: 0; }
+.mini-toc li { margin: 0.28rem 0; }
+.mini-toc a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+.mini-toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+/* Anchored headings should not hide under the top of the viewport. */
+.prose h3 { scroll-margin-top: 1.5rem; }
+
 /* Prerequisite strip: quiet, so it orients without competing with the thesis. */
 .prereq {
   font-size: 0.82rem;
@@ -489,21 +516,31 @@ input[type=range] {
   <p class="prereq">Assumes <a class="xref" href="05-scaled-dot-product.html">05</a>.</p>
 </header>
 
+<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#why-exponentials-and-shift-invariance">Why exponentials and shift invariance</a></li><li><a href="#overflow-and-the-row-maximum-shift">Overflow and the row-maximum shift</a></li><li><a href="#underflow-and-temperature">Underflow and temperature</a></li><li><a href="#entropy-as-a-measure-of-concentration">Entropy as a measure of concentration</a></li><li><a href="#the-attention-sink-and-the-cost-of-normalization">The attention sink and the cost of normalization</a></li><li><a href="#saturation-scaling-and-the-artifacts-of-softmax">Saturation, scaling, and the artifacts of softmax</a></li></ul></nav>
+
 <article class="prose">
 <p>A query vector leaves the residual stream at one position, gets multiplied by that head's $W_Q$, and then meets every key in the context. Each meeting is a dot product. Each dot product is a scalar with no upper bound and no lower bound. In the engine whose measurements run through this book, the mean prompt is 130,659 tokens long, so a single head at a single layer produces 130,659 of these scalars for one query. They are raw affinities, and attention cannot average value vectors with raw affinities.</p>
 <p>Softmax converts them. It exponentiates each score and divides by the sum of the exponentials. The output is non-negative and sums to one, which is exactly what a weighted average of value vectors requires.</p>
-<p>Why exponentials rather than a sigmoid, or squaring, or dividing by the sum of absolute values? The answer is a property only the exponential has. Add the same constant to every score in the row. The shares should not change, because a constant added to all affinities says nothing about which key is better. With exp that holds exactly: $\exp(s_i + c) = \exp(s_i)\exp(c)$, and the $\exp(c)$ appears in numerator and denominator and cancels. With any other monotone function it fails. Take $f(x) = 1 + x$ on scores 2.0, 1.0 and 0.1. The normalized shares are 3/6.1, 2/6.1 and 1.1/6.1, roughly 0.49, 0.33 and 0.18. Add 10 to each score and the shares become 13/36.1, 12/36.1 and 11.1/36.1, roughly 0.36, 0.33 and 0.31. The ranking survived. The distribution did not. The exponential is the unique continuous function, up to a change of base and a scale on the argument, whose normalized form depends only on differences of scores. That is the whole justification, and it is why the same function shows up in Gibbs' statistical mechanics in 1902 and in multinomial logistic regression decades before anyone pointed it at attention.</p>
+<h3 id="why-exponentials-and-shift-invariance">Why exponentials and shift invariance</h3>
+<p>Why exponentials rather than a sigmoid, or squaring, or dividing by the sum of absolute values? The answer is a property only the exponential has. Add the same constant to every score in the row. The shares should not change, because a constant added to all affinities says nothing about which key is better. With exp that holds exactly: $\exp(s_i + c) = \exp(s_i)\exp(c)$, and the $\exp(c)$ appears in numerator and denominator and cancels. With any other monotone function it fails. Take $f(x) = 1 + x$ on scores 2.0, 1.0 and 0.1. The normalized shares are 3/6.1, 2/6.1 and 1.1/6.1, roughly 0.49, 0.33 and 0.18. Add 10 to each score and the shares become 13/36.1, 12/36.1 and 11.1/36.1, roughly 0.36, 0.33 and 0.31. The ranking survived. The distribution did not.</p>
+<p>The exponential is the unique continuous function, up to a change of base and a scale on the argument, whose normalized form depends only on differences of scores. That is the whole justification, and it is why the same function shows up in Gibbs' statistical mechanics in 1902 and in multinomial logistic regression decades before anyone pointed it at attention.</p>
 <p>John Bridle named it softmax in 1990, in a paper on interpreting classification network outputs. Bahdanau, Cho and Bengio used it in 2014 to normalize their additive attention scores. Vaswani and colleagues used it in 2017 on scaled dot products, and the $1/\sqrt{d_k}$ factor exists partly to keep scores in a range where the softmax does not saturate.</p>
 <p>Work the arithmetic on three scores: 2.0, 1.0, 0.1. $\exp(2.0) = 7.389$, $\exp(1.0) = 2.718$, $\exp(0.1) = 1.105$. The sum is 11.212. The shares are 0.659, 0.242 and 0.099. The first key gets two thirds of the value vector. Now add 100 to each score. The exponents become enormous and the shares are identical to three decimal places. A row has no idea what the absolute scale of its scores is, and that is by design.</p>
+<h3 id="overflow-and-the-row-maximum-shift">Overflow and the row-maximum shift</h3>
 <p>The naive implementation of that arithmetic overflows. IEEE 754 binary16, which most inference kernels use for activations, tops out at 65,504. $\exp(11.09)\approx65{,}513$, already above the 65,504 maximum (fp16 overflows just above $\ln(65{,}504)\approx11.0899$). A row that reaches 12 produces inf in the numerator and inf in the denominator, and inf/inf is NaN. Once a NaN enters a softmax it propagates through every downstream layer and the request dies. Even in fp32 the ceiling arrives at $\exp(88.7)$.</p>
 <p>The fix is to subtract the row maximum before exponentiating. With scores 2.0, 1.0 and 0.1 the maximum is 2.0, so the shifted scores are 0, $-1.0$ and $-1.9$. $\exp(0) = 1$, $\exp(-1.0) = 0.368$, $\exp(-1.9) = 0.150$. The sum is 1.518 and the shares are 0.659, 0.242, 0.099, unchanged. The largest exponent is now 1, so no numerator can overflow, and the denominator is at most the row length. The cost is one pass to find the maximum, which is cheap when the whole row sits in registers. When it does not, as in the tiled kernels Dao and colleagues introduced with Flash Attention in 2022, the maximum has to be tracked incrementally. Milakov and Gimelshein published that online normalizer in 2018, and it is the reason a kernel can stream a 130,659-token row through shared memory without ever materializing the full score vector.</p>
+<h3 id="underflow-and-temperature">Underflow and temperature</h3>
 <p>Underflow is the quieter failure. $\exp(-20)$ is about $2\times10^{-9}$, which fp16 flushes toward zero, and a share that underflows receives no gradient. The shift does not fix this: it caps the largest exponent at 1, so it prevents overflow, not underflow — a score 20 below the row maximum still yields exp(-20) and can vanish. Kernels therefore evaluate the exponentials in fp32 (or accept that vanishingly small shares lose their gradient), while the shift itself remains mandatory because overflow, unlike underflow, yields NaN and kills the request.</p>
 <p>Temperature is a divisor placed inside the exponent. Replace $\exp(s_i)$ with $\exp(s_i/T)$. At $T=1$ nothing changes. At $T=0.5$ the scores are doubled before exponentiating, so the leader pulls further ahead and the row concentrates. At $T=2$ the scores are halved and the row flattens toward uniform. As $T$ approaches zero the softmax approaches a one-hot vector on the argmax. Hinton, Vinyals and Dean used this in 2015 to soften targets in knowledge distillation, and the same knob appears in sampling, where it is called temperature for precisely this reason.</p>
+<h3 id="entropy-as-a-measure-of-concentration">Entropy as a measure of concentration</h3>
 <p>Concentration can be measured. The entropy of a row, $H = -\sum_i p_i \log p_i$, is the number of nats of uncertainty the head carries about which key matters. For the three-score example above, $H$ is about 0.85 nats against a maximum of $\ln 3 = 1.10$. The row is moderately focused. A row collapsed onto one key has $H$ near zero, and a row uniform over $n$ keys has $H = \ln n$. Entropy is the honest way to say how concentrated a row is; whether that concentration reflects genuine selection or a degenerate sink is a separate question, taken up next.</p>
+<h3 id="the-attention-sink-and-the-cost-of-normalization">The attention sink and the cost of normalization</h3>
 <p>Normalization has a consequence that took the field years to name. Softmax must put its mass somewhere. If no visible key is a good match, the head still has to emit a convex combination of values, and the best available behaviour is to attend to something inert. In 2023 Xiao and colleagues showed that many heads in pretrained models dump most of their mass on the first token of the sequence. They called it an attention sink. The mechanism is structural. Under causal masking the first token is the only position visible to every query, so it is always available as a null key, and gradient descent finds it. Remove that token from the window and perplexity explodes, which is why streaming inference schemes keep a few initial tokens resident even after evicting everything else.</p>
 <p>The sink is a symptom of a design choice worth arguing about. Softmax forces competition: every unit of mass given to one key is taken from another, and there is no way to say "attend to nothing." Sigmoid attention, which Ramapuram and colleagues analyzed in 2024, drops the normalization and lets each key be weighted independently, at the cost of losing the shift-invariance argument above. Whether that trade is good remains unsettled. What is settled is that the denominator couples every key in the row to every other key, and that coupling is why the sink exists.</p>
+<h3 id="saturation-scaling-and-the-artifacts-of-softmax">Saturation, scaling, and the artifacts of softmax</h3>
 <p>Saturation is the other cost. The gradient of softmax with respect to a score is $p_i(1-p_i)$ along the diagonal and $-p_ip_j$ off it. When one share approaches 1, that gradient approaches zero, and the attention weights for that row stop being refined — though gradients to the value and output projections remain, so the head can still learn what to write, just not where to look. A head that locks onto a shortcut early in training can stay locked for the rest of it. This is the reason the $1/\sqrt{d_k}$ scaling matters. Without it, dot products of high-dimensional vectors have variance proportional to $d_k$, the softmax saturates almost immediately, and the gradients vanish. Vaswani's 2017 paper included the factor for that reason, and it remains the cheapest logit-variance stabilizer in the architecture.</p>
-<p>Softmax won. It is differentiable, shift-invariant, has a clean gradient, and maps onto the categorical distribution that next-token prediction needs. It also brought two artifacts the field has spent a decade working around. A head that appears to do nothing may be redundant, near-uniform, or attending to an attention sink; the softmax denominator helps explain why sink-attending heads arise, but diagnosing inactivity requires inspecting attention and value behavior rather than assuming a null-key mechanism, and a model that breaks when the first token is evicted is a model whose heads had learned to dump surplus attention on that first token as a sink — softmax still normalizes over the remaining keys, but the distribution the heads were calibrated on is gone. The sink follows directly from the denominator; no-op heads often exploit the same need to allocate mass by collapsing onto a null key/value, but that is a common pattern rather than a general consequence of normalization alone.</p>
+<p>Softmax won. It is differentiable, shift-invariant, has a clean gradient, and maps onto the categorical distribution that next-token prediction needs. It also brought two artifacts the field has spent a decade working around. A head that appears to do nothing may be redundant, near-uniform, or attending to an attention sink; the softmax denominator helps explain why sink-attending heads arise, but diagnosing inactivity requires inspecting attention and value behavior rather than assuming a null-key mechanism, and a model that breaks when the first token is evicted is a model whose heads had learned to dump surplus attention on that first token as a sink — softmax still normalizes over the remaining keys, but the distribution the heads were calibrated on is gone.</p>
+<p>The sink follows directly from the denominator; no-op heads often exploit the same need to allocate mass by collapsing onto a null key/value, but that is a common pattern rather than a general consequence of normalization alone.</p>
 </article>
 
 

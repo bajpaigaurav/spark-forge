@@ -1,8 +1,12 @@
 ## Why generation is slow and memory-hungry
 
+### The measured request profile
+
 The mean request in this engine's sample window arrived carrying 130,659 tokens of prompt and asked for 607 tokens back. The window covers 98 requests counted by the `tensorfold:request_latency_seconds_count` counter, scraped on 2026-10-31. Over those requests the engine averaged 3.33 seconds of prefill and 8.38 seconds of decode, with 3.46 seconds to first token. Prefill ran at 39,237 tokens per second. Decode ran at 59.1.
 
 The prefill figure checks against the prompt length. 130,659 tokens divided by 39,237 tokens per second gives 3.33 seconds, which is the mean prefill duration. Time to first token starts when the request arrives, so it includes admission wait, tokenization, the prefill pass, and the first decode step that emits a token. The mean is 3.46 seconds against a mean prefill of 3.33, which leaves 0.13 seconds for admission, tokenization, and that first step. Decode divides differently. 607 tokens in 8.38 seconds is about 72 tokens per second per request, higher than the 59.1 single-stream figure because the window mixes requests that ran concurrently and shared weight reads.
+
+### Why decode advances one token at a time
 
 Prefill runs at 664 times the decode rate on this pair, and the gap follows from the shape of the computation rather than from a hardware defect.
 
@@ -10,21 +14,29 @@ A language model produces one token per forward pass. It reads the sequence so f
 
 The naive way to run that loop feeds the whole sequence in every time. Pass one sees 130,659 tokens, pass two sees 130,660, and pass 607 sees 131,265. Attention inside each pass lets every position attend to itself and all preceding positions, so the number of comparisons in one pass grows with the square of the sequence length Summed over the reply, the total grows as the reply length times the square of the prompt length. For a long prompt that product is catastrophic. The model would re-derive the same key and value vectors for the same 130,659 positions 607 times and discard each set.
 
+### What the KV cache stores
+
 The fix is to keep them. Inside every attention layer, each position produces a query, a key, and a value. The query is consumed once, in the pass that created it. The key and the value are what later positions compare against and read from. So the cache stores exactly those two, per layer, per position, per key-value head, which is why it is called the KV cache and not the QKV cache. The omission of the query is the whole point. It is the one tensor with no future.
 
 To see the shapes, take one layer with h query heads, g key-value heads, and head dimension d. The hidden state at a position projects to a query of h×d numbers, a key of g×d numbers, and a value of g×d numbers. When g equals h the layer is ordinary multi-head attention. When g is smaller, several query heads share one key-value head, which is grouped-query attention. The cache holds the keys and values only, so its size per position per layer is 2 × g × d × b bytes, where b is the number of bytes per element.
 
 With the cache, pass k computes keys and values for one new position, then attends that position's query against the stored keys of every previous position. The feed-forward work per step is one token's worth. The attention work per step is a read over the cache. Generating n tokens after a prefill of length p costs roughly one prefill plus n small steps instead of n full passes. The transformer paper described the decoder as autoregressive from the start (Vaswani et al. 2017), and caching the keys and values is the standard way to run that decoder.
 
+### The arithmetic behind the cache size
+
 Now the size. Multiply the per-position figure by the number of positions. The engine's config script records 0.9 GiB per rank for 1,048,576 positions, so raising the pool from 262,144 to 1,048,576 adds 786,432 positions and costs 0.9 × 786,432 / 1,048,576 = 0.675 GiB per rank, which the deployment rounds to 0.68. That works out to 0.675 GiB divided by 786,432 positions, or about 922 bytes per position per rank. Substituting into the formula gives 2 × L × g × d × b = 928 for the layer count L and element size b this model uses.
 
 At the mean prompt length the cache is 130,659 × 928 bytes, or about 121 MB per rank. Four streams carrying that prompt would hold 484 MB of cache between them, and every decode step re-reads all of it. The multiplier on g matters here. A model with 32 query heads and 8 key-value heads pays one quarter of what the same model would pay with 32 key-value heads, because the cache scales with g and not with h. That ratio is why grouped-query attention became standard, and it is why the 0.68 GiB figure is small enough to be practical.
+
+### Positions, rows, and admission
 
 The pool itself is a shared resource. It holds 262,144 positions across 4 concurrent streams. Positions, tokens, and rows are three different things and the rest of this chapter depends on keeping them apart. A token is a unit of text. A position is one slot in the pool holding that token's key and value for every layer. A row is one entry in a decode batch, and the kernel processes at most 16 rows per step, set by ROUND_ROWS=16.
 
 The allocator is paged, following the design Kwon and colleagues described for vLLM in 2023. The pool is divided into fixed-size blocks, typically 16 positions each, and a block table maps each request's logical positions onto physical blocks. A request that grows does not need contiguous space, so the pool does not fragment the way a contiguous allocator would. The analogy to virtual memory is exact. The operating system maps contiguous virtual pages onto scattered physical frames through a page table, and the serving engine maps contiguous logical positions onto scattered physical blocks through a block table. That is what chapter 13 means by the page table fixing the allocation problem.
 
 Admission reserves the reply budget before generation starts. The scheduler admits a request only if the pool can supply blocks for the prompt plus MAX_TOKENS, which defaults to 32,768. The reservation is worst-case, so a request never stalls mid-reply waiting for cache. With four streams an equal share of the pool would be 65,536 positions each, though the pool is shared and a stream may use more if others use less. and the reservation subtracts 32,768 for the reply, 16 for the round batch, and 2 for alignment, leaving 32,750 usable positions per stream. A mean request needs 130,659 positions for its prompt alone, so it cannot be admitted at concurrency 4 at all. At concurrency 1 the ceiling is 262,144 − 32,768 − 16 − 2 = 229,358 positions, and the prompt needs 130,659 positions against the 229,358 ceiling, leaving 98,699 positions spare; the 607-token reply is already covered by the 32,768 reservation. It fits with room to grow.
+
+### Batching, bandwidth, and the prefix cache
 
 Decode is not compute-bound. The GPU here runs at 2,197 MHz observed under load against a 3,003 MHz silicon ceiling (nvidia-smi clocks.sm, 2026-10-31; GB10 documentation). At that clock it can retire an enormous number of multiply-adds per second. But one decode step does one token's worth of arithmetic against a cache that may be hundreds of thousands of positions long, and against every weight in the model. Count the arithmetic intensity. Each weight participates in one multiply-add for the single new token, which is two floating-point operations, and it must be read from memory once, which is two bytes in half precision. That is one FLOP per byte. The KV read adds bytes and roughly proportional arithmetic—about one FLOP per byte in FP16—so it keeps the overall intensity near one rather than lowering it So the intensity sits near one, far below the machine's balance point of peak FLOPs divided by bandwidth.
 

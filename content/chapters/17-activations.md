@@ -2,17 +2,25 @@
 
 A transformer block does two things to a token's vector. It lets tokens look at one another through attention, and then it passes the vector through a feed-forward network. The feed-forward network is two matrix multiplies with a bend between them. The residual stream has width d. The first matrix projects the d-dimensional vector up to an intermediate width m. The activation bends each coordinate. The second matrix projects back down to d. The result is added back to the residual stream.
 
+### Why the nonlinearity cannot be removed
+
 Remove the bend and the two matrices collapse into one. Matrix multiplication is associative, so W₂(W₁x) = (W₂W₁)x. A product of matrices is a matrix. Two linear layers stacked without a nonlinearity have exactly the expressive power of one. The model's depth in the width direction buys nothing.
 
 That identity is the reason the activation exists. The intermediate layer is the model's private scratch space, wider than the residual stream, and the nonlinearity stops the scratch space from being a relabeling of the input. Everything else in this chapter is about which bend to use.
 
+### Saturation and the vanishing gradient
+
 For most of the pre-2010 era the answer was sigmoid or tanh. Both saturate. The sigmoid derivative is σ(x)(1−σ(x)), which has a maximum of 1/4 at x=0. If a network has L sigmoid layers, the activation-derivative factor in the backpropagated gradient is at most (1/4)^L. For L=10, that factor is 1/1,048,576, about 9.5×10⁻⁷. The signal dies on the way down. Tanh has derivative 1−tanh²(x). For |x|>3, tanh²(x) is above 0.99, so the derivative is below 0.01 Ten such layers multiply the gradient by less than 10⁻²⁰. Saturation is the mechanism behind the vanishing gradient.
+
+### ReLU and the dead-unit problem
 
 Nair and Hinton proposed the rectified linear unit in 2010, and Glorot, Bordes and Bengio made the case for it in 2011. Krizhevsky's AlexNet in 2012 made it standard. ReLU is max(0,x). Its derivative is exactly 1 for any positive input and exactly 0 for any negative one. There is no saturation on the positive side, so gradients pass through undiminished. The operation is a compare and a select, which is why it was cheap.
 
 The cost is the dead unit. If a unit's pre-activation is negative for every input in the training set, its gradient is exactly zero. The weights never move. Its own incoming weights and bias receive zero gradient and stay put, but the unit can revive if upstream weights or data shift its pre-activation above zero. While dead, its output is zero, so it contributes nothing to the next layer Take a unit with weight w=0.1 and bias b=−1. For inputs x=1,2,3, the pre-activations are 0.1−1=−0.9, 0.2−1=−0.8, and 0.3−1=−0.7. All are negative. The output is zero for every input, and the derivative is zero for every input. The gradient with respect to w and b is zero, so the unit stays dead.
 
 A single large learning-rate step can push a whole slice of units into that state. Suppose a unit has w=1 and b=0, and the training inputs are x=1 and x=2. The pre-activations are 1 and 2, both positive. A gradient step that sets b=−3 makes the pre-activations 1−3=−2 and 2−3=−1. Both are negative. The derivative is zero, so the unit cannot recover. Leaky ReLU and its relatives let a small fraction of the negative input through, which keeps a gradient alive. They never displaced plain ReLU in practice.
+
+### GELU as a probabilistic gate
 
 GELU arrived in 2016 from Dan Hendrycks and Kevin Gimpel. Its construction is worth stating precisely because it explains why it behaves differently. GELU multiplies the input by the standard normal cumulative distribution function evaluated at that input: GELU(x)=xΦ(x). The standard normal CDF is Φ(x)=0.5(1+erf(x/√2)). So GELU(x)=0.5x(1+erf(x/√2)). Read that as a probabilistic gate. Φ(x) is the probability that a standard normal draw comes out below x. The unit's output is the input scaled by how likely that input is to be kept. For large positive x, Φ approaches 1 and GELU is the identity. For large negative x, Φ approaches 0 and GELU approaches zero from below; for any finite x it remains slightly negative with a small nonzero gradient, so GELU does not produce exact zero-gradient dead units the way ReLU does
 
@@ -23,6 +31,8 @@ The derivative is zero at the minimum near x=−0.75, and it approaches zero as 
 The exact form needs the error function. The tanh approximation is 0.5x(1+tanh(√(2/π)(x+0.044715x³))). The factor √(2/π) matches the slope of erf(x/√2) at zero, and the cubic term improves the fit in the tails. At x=1, the exact value is 0.8413 and the approximation gives 0.84125. At x=−1, the exact value is −0.1587 and the approximation gives −0.15875. The maximum absolute difference over the range where the gradient is nonzero is on the order of 10⁻⁴. That is the sense in which the difference is negligible.
 
 GELU appeared in BERT (Devlin et al. 2018), and GPT-2 and GPT-3 followed. That adoption made it the default in many later models. The original GELU paper reported modest gains over ReLU and ELU on some tasks when substituted into fixed architectures; later adoption evidence does not separate architecture from activation It is smooth, it does not kill units outright, and it costs one transcendental function per element. That cost is more than a compare and select.
+
+### Gated linear units and the SwiGLU budget
 
 The gated turn came from a different direction. Yann Dauphin and colleagues at Facebook AI Research introduced gated linear units in 2017 for convolutional language models. The idea is to split the up-projection into two halves and multiply them elementwise. Write the up-projection as a matrix W₁ of size 2m×d. Split W₁ into two d×m matrices, W_g for the gate and W_v for the value. The GLU is GLU(x)=(W_v x+b_v)⊗σ(W_g x+b_g), where ⊗ is elementwise multiplication. The gate half goes through a sigmoid and becomes a soft switch between 0 and 1. The value half passes through unchanged. The product is what the down-projection sees. The down-projection is a matrix W_d of size m×d.
 
@@ -37,6 +47,8 @@ The price is a third matrix. The original Transformer (Vaswani et al. 2017) set 
 Biases change the count slightly. The plain FFN has 4d biases in the up-projection and d in the down-projection, for 5d total. The gated FFN has two up-projection biases of size m each and one down-projection bias of size d, for 2m+d. With m=8d/3, that is 16d/3+d=19d/3, about 6.33d. So the gated layer has slightly more parameters when biases are present. Many modern models omit biases, which makes the equal-parameter calculation exact. Initialization does not change the count, but it changes whether the gate starts near open or closed.
 
 Implementations round 8d/3 up to a multiple that suits the kernel. For d=4096, the exact value is 10922.67. Rounding to a multiple of 256 gives 11008, which is 0.78% above the exact value. Llama 2 7B uses 11008. That is one concrete example; the overshoot depends on d and the chosen kernel/tensor-parallel multiple, so other models can sit closer to or much further above the exact value
+
+### Where each activation still lives
 
 Where each activation still lives tells you what each one is good for. ReLU survives in vision models, in cheap inference stacks where a single compare beats a transcendental, and inside some mixture-of-experts implementations where the expert FFNs are kept deliberately simple. GELU is in BERT, GPT-2, GPT-3, ViT, and many of the models that inherited from them. SwiGLU is in PaLM (Chowdhery et al. 2022), Llama (Touvron et al. 2023), Mistral, and Qwen. GeGLU, the GELU-gated variant, appears where a team preferred it.
 

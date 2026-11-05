@@ -4,15 +4,21 @@ A GPU is a stack of memories, and the distances between the layers explain most 
 
 Registers hold a few hundred bytes per thread and are effectively free to read. Shared memory runs to tens or a couple hundred kilobytes per SM, addressed in tens of cycles. Then L2, shared across the chip. Then the unified LPDDR5X pool, the large address space where tensors actually live.
 
+### The bandwidth gap and latency
+
 The bandwidth gap is the number that matters. On the DGX Spark this book measures, the unified LPDDR5X pool delivers 273 GB/s shared between CPU and GPU, per NVIDIA's hardware guide for the machine. Shared memory on a single SM moves 128 bytes per clock. At the 2,197 MHz SM clock observed on this box under load, one SM's scratchpad sustains 128 bytes × 2,197 MHz = 281 GB/s by itself. That is more than the entire chip, which is the ratio in its bluntest form. One multiprocessor, working out of its own scratchpad, outruns the memory system that feeds all of them.
 
 Latency tells the same story from the other side. A shared-memory load retires in tens of cycles. A miss to HBM costs several hundred. A kernel that touches HBM pays per byte and pays again per round trip.
+
+### Why naive attention cannot materialize the score matrix
 
 Standard attention, as Vaswani and colleagues specified it in 2017, does exactly that. Take one head with queries Q, keys K, values V, each of shape L × d. The first step forms S = QKᵀ, an L × L matrix. The reference deployment in this book serves a mean prompt of 130,659 tokens, a figure derived from 12,804,579 prompt tokens across 98 requests recorded in the engine's metrics, so L = 130,659 and, for a typical head, d = 128. Then L² is 1.707 × 10¹⁰ entries, and at two bytes each, S occupies 34.1 GB for a single head in a single layer.
 
 Run the roofline on that. Forming S costs 2L²d = 4.37 × 10¹² FLOPs. Materializing it is the problem. Stored in fp16 at L = 130,659 and d = 128, S for one head of one layer occupies L × L × 2 bytes, which is 130,659 × 130,659 × 128 × 2 = 4.37 TB. No accelerator holds that, which is why naive attention is not merely slow but impossible at this length; the matrix must be produced tile by tile and consumed as it is produced. Softmax needs the row maximum before any element can be finalized, so a kernel that writes S out and reads it back four times moves five times the matrix through memory. At 273 GB/s, moving 4.37 TB once takes 4.37 TB ÷ 273 GB/s = 16 seconds. The whole 130,659-token prefill, across every layer of the model, averages 3.33 seconds per request, so one head of one layer of naive attention costs several times the entire model's prefill budget.
 
 The arithmetic intensity of that kernel comes to 8.74 × 10¹² FLOPs divided by 2.19 × 10¹³ bytes, or about 0.4 FLOPs per byte. To be compute-bound at that intensity the machine would have to sustain 42.6 × 273 = 11.6 TFLOP/s. It does not, because the kernel stalls on the four round trips. The matmuls are cheap by comparison. The materialization dominates.
+
+### FlashAttention's tiling fix
 
 That diagnosis is what Tri Dao, Daniel Fu, Stefano Ermon, Atri Rudra and Christopher Ré published in 2022 as "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness." The title states the method. Count the bytes, not the FLOPs.
 
@@ -21,6 +27,8 @@ Their fix is tiling, borrowed from cache-aware numerical linear algebra. Split Q
 Tile sizes follow from the shared-memory budget rather than from taste. With d = 128 and fp16 operands, a Br = 128 Q tile takes 128 × 128 × 2 = 32 KB. A Bc = 64 K tile takes 16 KB, the matching V tile another 16 KB, and the Br × Bc score tile 128 × 64 × 2 = 16 KB. That totals 80 KB. NVIDIA's Hopper tuning guide lists a maximum of 228 KB of shared memory per SM, so one block fits comfortably and leaves room for double buffering, which is what lets the next K tile load while the current one is being multiplied. The Ampere tuning guide lists 164 KB per SM, which fits the same configuration with room for double-buffered K and V (112 KB total), and even double-buffered Q (144 KB), though not comfortably for all four buffers. That shared-memory budget—together with register/accumulator pressure and occupancy—is what sets the tile shape, not the arithmetic alone; a 16×128 fp32 accumulator slice already costs 64 registers per thread per warp
 
 The block runs 8 warps. Each warp owns a 16-row strip of the Q tile and the corresponding 16 × d accumulator slice for those rows, held in registers The QKᵀ product issues as warp-level matrix multiply-accumulate instructions, and the score tile stays in registers, where row-wise softmax is computed with warp-level reductions/shuffles. One detail bites here. Shared memory is banked in 32 banks of 4 bytes, a 128-byte period. A row of the score tile at Bc = 64 fp16 is 128 bytes, exactly one period,, so every row starts on the same bank and a column-wise read serializes into 32-way conflicts. Padding the row stride to 136 elements moves each row's start by 16 bytes and spreads the accesses across banks.
+
+### Online softmax and the rescaling identity
 
 One obstruction stands in the way, and it is why this is an algorithm rather than a loop reorganization. Softmax needs two quantities per row, the maximum score and the sum of exponentials, and neither is known until every key has been seen. Process keys in tiles and the maximum arrives late.
 
@@ -44,9 +52,13 @@ A numeric pass makes the rescaling concrete. Suppose the first tile yields score
 
 On the question of exactness, the running maximum is a max over values that are already exactly representable, so it is exact. Every exponent argument is therefore ≤ 0, so no exponential overflows. Underflow happens only for scores more than about 103 below the maximum in fp32 (with subnormals beginning around 87 below). and those terms contribute nothing to the sum in any case. What remains is rounding. Each rescale multiplies the accumulator by a factor and rounds, so relative error grows with the number of tiles, on the order of one unit in the last place per tile in fp32. The naive kernel accumulates the same class of error over its single pass. Flash Attention adds a small multiple of it and nothing else.
 
+### Backward pass recomputation and linear footprint
+
 The backward pass is where the memory savings turn dramatic. Ordinary attention stores the L × L matrix from the forward pass so the gradient can reuse it. Flash Attention stores none of it and recomputes the score tiles from Q, K and V during the backward pass, then applies the chain rule through softmax using the recomputed scores and the stored row normalization. The cost is one extra QKᵀ per head-layer, 4.37 × 10¹² FLOPs, against 34.1 GB of storage saved. That trade is not close on this machine. The deployment holds 111.5 GB of unified memory in total, weights and caches and live streams together, as reported by the engine's device_memory_bytes metric on 2026-10-31. Dividing 111.5 by 34.1 gives 3.3, so the full score matrices for three head-layers would consume the entire machine. A 130,659-token prefill touches thousands of head-layers.
 
 The footprint drops from quadratic to linear in sequence length. Per head, the quadratic term is 2L² bytes and the linear term is the K and V themselves, 4Ld bytes. The ratio is L/2d, which at L = 130,659 and d = 128 comes to 510×. Concretely, the score matrix for one head of one layer is 34.1 GB in fp16 (68.3 GB in fp32). while the keys and values it summarizes are 2 × 130,659 × 128 × 2 bytes = 66.9 MB. That is what made long-context models practical. The reference deployment's KV pool holds 262,144 positions, and a stored score matrix at that length would be larger again by the square of the ratio between the two lengths.
+
+### Scheduling rewrites and the decode wall
 
 Flash Attention 2, published by Dao in 2023, is a scheduling rewrite. The first version rescaled the Br × d accumulator on every tile iteration and divided by l inside the loop. Both operations are elementwise work on 128 × 128 = 16,384 values, against 2·128·64·128 = 2.1 × 10⁶ FLOPs in the matmul for the same tile, so by count they look negligible. They are not, because exp and the elementwise multiply issue on units that run at a small fraction of the matrix-multiply rate, and they serialize behind the matmul. The second version keeps O unnormalized and defers the division to the end, and it rescales only when the running maximum actually changes, which after the first few tiles is rare. It also reverses the loop so the K and V tile stays resident in shared memory while Q blocks stream past, cutting shared-memory traffic on K and V. and it partitions causal attention so that blocks working on early rows, which have few keys to visit, are paired with blocks working on late rows.
 

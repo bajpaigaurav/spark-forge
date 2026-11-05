@@ -14,6 +14,8 @@ x_{l+1} = LN(a_l + MLP(a_l))
 
 The residual stream is the shared vector that every block reads and writes. Anthropic's 2021 "A Mathematical Framework for Transformer Circuits" gave it that name. Nothing overwrites the stream; each block adds to it. The stream is the only path connecting the first layer to the last.
 
+### The identity path through residual additions
+
 The residual addition gives backpropagation an identity path. For a vector function f, write J_f for its Jacobian, the matrix of partial derivatives. A pre-norm block has output y = x + f(LN(x)), so
 
 ∂y/∂x = I + J_f(LN(x)) J_LN(x).
@@ -22,11 +24,15 @@ The identity matrix I is the direct path. Through N blocks, the chain rule multi
 
 Take a scalar simplification. Let LN have derivative s and the sublayer function have derivative a. For one pre-norm block, ∂y/∂x = 1 + a s. For two blocks with derivatives a and b, the gradient at the input is (1 + b s)(1 + a s) times the upstream gradient. Set s = 1, a = -1, b = 0. The product is zero. The identity term in the first block is present, but the sublayer derivative cancels it. A depth comparison therefore has to look at the whole product, not just at the presence of I.
 
+### How the residual stream's norm recurses
+
 The stream's norm also needs a recurrence, not an assumption. With x_{l+1} = x_l + f_l(x_l),
 
 ||x_{l+1}||^2 = ||x_l||^2 + 2 x_l·f_l(x_l) + ||f_l(x_l)||^2.
 
 The cross term decides the direction. If f_l points along x_l, the norm grows. If it points against x_l, the norm can shrink. If it is orthogonal, the squared norm grows by ||f_l||^2: ||x_{l+1}||^2 = ||x_l||^2 + ||f_l||^2. Over N blocks with a constant additive f_l = a, x_N = x_0 + N a, so the vector grows linearly; its norm is ||x_0 + Na|| = sqrt(||x_0||^2 + 2N⟨x_0,a⟩ + N^2||a||^2), which grows asymptotically linearly in N (exactly linear only in special cases such as x_0 parallel to a). With f_l = -x_l/2, x_{l+1} = x_l/2, so the norm halves each block. A model can have either behavior; the initialization and the learned functions decide which.
+
+### LayerNorm, RMSNorm, and the invariances that matter
 
 LayerNorm arrived in July 2016 from Jimmy Lei Ba, Jamie Ryan Kiros and Geoffrey Hinton. Their problem was recurrent networks. Batch normalization computes statistics across the batch for each feature separately, which is awkward when every timestep has a different effective batch and sequences have different lengths. Ba and colleagues normalized per token and across the feature dimension. For a vector x with d components,
 
@@ -47,6 +53,8 @@ r = sqrt((1/d) Σ x_i^2 + ε)
 y_i = γ_i x_i / r.
 
 On the same vector, the mean of squares is (4 + 16 + 36 + 64)/4 = 30, the root mean square is about 5.477, and the output is [0.365, 0.730, 1.095, 1.461]. That output has mean 0.913, so RMSNorm does not center anything. It is invariant to scaling and not to shifting. Zhang and Sennrich argued from their experiments that re-centering contributed little and re-scaling did the work. Dropping the mean removes one reduction, one elementwise subtraction and the beta parameters at every normalization site. LLaMA used RMSNorm in 2023. The operation count falls; whether that shows up as wall-clock time depends on the kernel and the model.
+
+### Pre-norm, post-norm, and the Jacobian on the residual path
 
 Placement changes which Jacobian multiplies the residual path. Pre-norm puts normalization inside the sublayer input, so the residual addition is outside the norm. Post-norm puts normalization after the addition, so the residual path passes through the norm. In post-norm, a block has output y = LN(x + f(x)), so
 
@@ -70,6 +78,8 @@ Xiong and colleagues at Microsoft Research Asia and Peking University analyzed p
 
 Because the stream is never normalized inside a pre-norm block, its norm can drift. The recurrence above shows the drift can go up or down, but nothing in the block pulls the stream back to a fixed scale. A final normalization after the last block and before the unembedding gives the unembedding a controlled input scale. The final norm computes h = LN(x_L) and the unembedding computes logits = W_U h. It does not bound the stream inside the blocks. The last block's output and the first block's output can have different norms, and the final norm handles that difference at the model's exit.
 
+### Attention logits, softmax saturation, and QK-norm
+
 Attention has its own magnitude problem. For a query q and a key k, the logit is q·k, which equals ||q|| ||k|| cos θ. If training pushes the norms upward, the logits grow. Softmax over large logits saturates. Take two logits, 0 and 12. The softmax probabilities are about 6.14 × 10^-6 and 0.99999386. The softmax Jacobian has entries p_i(δ_ij - p_j). Its largest entry is about 6.14 × 10^-6. With logits 0 and 1, the probabilities are 0.269 and 0.731, and the Jacobian entries are about 0.197. The saturated case passes almost no gradient back to the logits. That is the collapse.
 
 A concrete QK example shows the same thing. Let d_head = 2, q = [10, 0], k1 = [10, 0], k2 = [0, 10]. The scaled logits are 100/√2 ≈ 70.7 and 0. Softmax gives a weight of nearly 1 to k1 and nearly 0 to k2. With q = [1, 0], k1 = [1, 0], k2 = [0, 1], the scaled logits are 0.707 and 0, and the softmax weights are 0.669 and 0.331. The first case has a collapsed gradient; the second does not.
@@ -79,5 +89,7 @@ Alex Henry and colleagues proposed normalizing queries and keys in October 2020.
 logits_{h,i,j} = (q̃_{h,i} · k̃_{h,j}) / sqrt(d_head),
 
 with q̃_h = Norm(W_Q^h x; γ_Q^h) and k̃_h = Norm(W_K^h x; γ_K^h). QK-norm does not bound the residual stream. It targets a different site where magnitude can grow. Each normalization site has its own failure mode, and a norm at one site does not fix another.
+
+### Exponent range and the compute format
 
 The range question connects to the compute format. bf16 has eight exponent bits and seven fraction bits. It has a wide exponent range, similar to fp32, but only about three decimal digits of precision. fp16 has five exponent bits and ten fraction bits. It has more precision but a much smaller range; its largest finite value is 65504. A dot product of two vectors with components near 100 over 64 dimensions can reach 640,000, which overflows fp16. Normalizing q and k before the dot product keeps the product inside the representable range. Softmax saturation is a separate loss. Even when the logits are representable, a probability near 1 gives a Jacobian near zero. Mixed precision keeps master weights in fp32 and runs matrix multiplies in bf16 or fp16; fp16 training also uses loss scaling to keep small gradients representable. A model that keeps its residual stream and attention logits inside the exponent range of its compute format can use the narrower format without overflow. A model that fails to do so will lose gradients at the softmax or produce infinities at the dot product. The next chapter follows that arithmetic into bf16 and fp16, where exponent range and mantissa width set the limits.

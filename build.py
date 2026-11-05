@@ -73,18 +73,61 @@ def inline(s):
     s = wikilink(s)
     return s
 
+# A paragraph longer than this is split at a sentence boundary. Two reviewers
+# independently named the wall of text as the book's biggest defect: median
+# paragraph was 113 words, the longest 441.
+MAX_PARA_WORDS = 150
+
+def split_paragraph(text):
+    """Break a long paragraph into 2-3 at sentence boundaries.
+
+    Deterministic and lossless: it never rewrites a word, only inserts a break
+    after a full stop. A paragraph marked with a trailing <!-- keep --> is left
+    alone, because some long paragraphs are meant as one breath.
+    """
+    if len(text.split()) <= MAX_PARA_WORDS:
+        return [text]
+    # Split on sentence ends, keeping the delimiter.
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    if len(parts) < 2:
+        return [text]
+    out, cur = [], ""
+    for s in parts:
+        cand = (cur + " " + s).strip() if cur else s
+        # Close the paragraph when adding another sentence would pass the cap,
+        # but only if the current one has enough substance to stand alone.
+        if len(cand.split()) > MAX_PARA_WORDS and len(cur.split()) >= 40:
+            out.append(cur)
+            cur = s
+        else:
+            cur = cand
+    if cur.strip():
+        out.append(cur)
+    return out
+
+
 def paragraphs(text):
     """Split into blocks, keep prose as <p>. No bullets unless the author used them."""
     blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
     out = []
+    headings = []
     for i, b in enumerate(blocks):
-        if b.startswith("## ") or b.startswith("# "):
+        if b.startswith("#") and re.match(r"^#{1,3}\s+\S", b):
+            level = len(b) - len(b.lstrip("#"))
             title = b.lstrip("#").strip()
             # The page header already prints the chapter title. Drop the first
-            # heading when it just repeats it; keep later subheads.
-            if i == 0:
+            # H1/H2 when it just repeats it; keep later headings.
+            if i == 0 and level <= 2:
                 continue
-            out.append(f'<h3>{inline(title)}</h3>')
+            sid = slug(title)
+            # Keep ids unique if a chapter repeats a heading.
+            seen = {h[1] for h in headings}
+            base, n = sid, 2
+            while sid in seen:
+                sid = f"{base}-{n}"
+                n += 1
+            headings.append((title, sid))
+            out.append(f'<h3 id="{sid}">{inline(title)}</h3>')
             continue
         lines = b.split("\n")
         if all(l.lstrip().startswith(("-", "*")) for l in lines):
@@ -96,9 +139,26 @@ def paragraphs(text):
             out.append(f"<pre><code>{esc(body)}</code></pre>")
             continue
         # Join wrapped lines inside a paragraph.
+        keep = b.rstrip().endswith("<!-- keep -->")
         joined = " ".join(l.strip() for l in lines)
-        out.append(f"<p>{inline(joined)}</p>")
-    return "\n".join(out)
+        joined = joined.replace("<!-- keep -->", "").strip()
+        chunks = [joined] if keep else split_paragraph(joined)
+        for chunk in chunks:
+            out.append(f"<p>{inline(chunk)}</p>")
+    return "\n".join(out), headings
+
+def mini_toc(headings):
+    """An in-chapter contents list, only when it earns its place.
+
+    Two reviewers warned that a TOC on a chapter with one or two subheads is
+    clutter, so this is gated at three.
+    """
+    if len(headings) < 3:
+        return ""
+    items = "".join(
+        f'<li><a href="#{sid}">{esc(t)}</a></li>' for t, sid in headings
+    )
+    return f'<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul>{items}</ul></nav>'
 
 def read_chapter(ch):
     p = os.path.join(CHAPTERS, ch["id"] + ".md")
@@ -266,6 +326,33 @@ body {
   padding-left: 1rem;
   margin: 0;
 }
+
+/* In-chapter contents. Only rendered for chapters with 3+ subheads. */
+.mini-toc {
+  max-width: var(--measure);
+  margin: 2.2rem 0 2.6rem;
+  padding: 1rem 0 1rem 1.1rem;
+  border-left: 2px solid var(--rule);
+}
+.mini-toc h2 {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+.mini-toc ul { list-style: none; margin: 0; padding: 0; }
+.mini-toc li { margin: 0.28rem 0; }
+.mini-toc a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+.mini-toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+/* Anchored headings should not hide under the top of the viewport. */
+.prose h3 { scroll-margin-top: 1.5rem; }
 
 /* Prerequisite strip: quiet, so it orients without competing with the thesis. */
 .prereq {
@@ -1012,6 +1099,7 @@ the model's. The shape of the thing is not.</p>
         else:
             nav.append('<a href="../index.html">Contents &rarr;</a>')
 
+        prose_html, headings = paragraphs(txt)
         body = f"""
 <header class="chapter-head">
   <span class="num">{esc(c.get("part",""))} &middot; Chapter {c["number"]:02d}</span>
@@ -1020,8 +1108,10 @@ the model's. The shape of the thing is not.</p>
   {prereq_strip(c)}
 </header>
 
+{mini_toc(headings)}
+
 <article class="prose">
-{paragraphs(txt)}
+{prose_html}
 </article>
 
 {figure_for(c["id"])}

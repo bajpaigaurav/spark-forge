@@ -766,6 +766,21 @@ def main():
     else:
         print(f"LENGTH: PASS -- {words} words")
 
+    # Structure: a chapter needs resumption points. One H2 is the title; the
+    # subheads are what let a reader re-enter a chapter at the idea they want.
+    # Enforced here rather than generated at build time, because a regex cannot
+    # title a section and an invented heading relocates the slop problem.
+    subheads = re.findall(r"^###\s+\S", text, re.M)
+    want = max(3, words // 400)
+    if len(subheads) < 3:
+        print(f"STRUCTURE: FAIL -- {len(subheads)} subheadings, need at least 3")
+        failed = True
+    elif len(subheads) < want:
+        print(f"STRUCTURE: WARN -- {len(subheads)} subheadings for {words} words"
+              f" (aim for {want})")
+    else:
+        print(f"STRUCTURE: PASS -- {len(subheads)} subheadings")
+
     if uniq:
         print("\nnumbers with no provenance (add to textbook.json or sources.json, or"
               " rewrite the sentence without the figure):")
