@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -497,7 +519,7 @@ input[type=range] {
 <hr class="rule-short">
 </section>
 
-<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">38</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">67.6%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">73.8%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.4</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">78°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.2</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
+<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">35</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">69.4%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">73.8%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.5</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">80°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.1</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
 
 <section class="part"><h2 class="part-title">I. The raw material</h2><p class="part-count">3 of 3 written</p><ul class="toc">
 <li><a class="" href="chapters/01-tokens.html"><span class="t-num">01</span><span><span class="t-title">Text is not numbers yet</span><span class="t-status">published &middot; 2,512 words</span></span></a></li>
@@ -515,13 +537,13 @@ input[type=range] {
 <section class="part"><h2 class="part-title">III. The cache</h2><p class="part-count">6 of 6 written</p><ul class="toc">
 <li><a class="" href="chapters/10-kv-cache.html"><span class="t-num">10</span><span><span class="t-title">Why generation is slow and memory-hungry</span><span class="t-status">published &middot; 2,104 words</span></span></a></li>
 <li><a class="" href="chapters/11-mqa-gqa-mla.html"><span class="t-num">11</span><span><span class="t-title">Three generations of sharing the cache</span><span class="t-status">published &middot; 1,617 words</span></span></a></li>
-<li><a class="" href="chapters/12-paged-attention.html"><span class="t-num">12</span><span><span class="t-title">Virtual memory for the KV cache</span><span class="t-status">published &middot; 2,212 words</span></span></a></li>
+<li><a class="" href="chapters/12-paged-attention.html"><span class="t-num">12</span><span><span class="t-title">Virtual memory for the KV cache</span><span class="t-status">published &middot; 2,218 words</span></span></a></li>
 <li><a class="" href="chapters/13-prefix-caching.html"><span class="t-num">13</span><span><span class="t-title">Why the second request is cheaper</span><span class="t-status">published &middot; 2,195 words</span></span></a></li>
 <li><a class="" href="chapters/14-flash-attention.html"><span class="t-num">14</span><span><span class="t-title">Attention that never builds the matrix</span><span class="t-status">published &middot; 2,505 words</span></span></a></li>
 <li><a class="" href="chapters/15-sparse-sliding.html"><span class="t-num">15</span><span><span class="t-title">Not every token needs to see every token</span><span class="t-status">published &middot; 2,347 words</span></span></a></li>
 </ul></section>
 <section class="part"><h2 class="part-title">IV. The rest of the block</h2><p class="part-count">4 of 4 written</p><ul class="toc">
-<li><a class="" href="chapters/16-ffn.html"><span class="t-num">16</span><span><span class="t-title">Where most of the parameters actually live</span><span class="t-status">published &middot; 2,834 words</span></span></a></li>
+<li><a class="" href="chapters/16-ffn.html"><span class="t-num">16</span><span><span class="t-title">Where most of the parameters actually live</span><span class="t-status">published &middot; 2,844 words</span></span></a></li>
 <li><a class="" href="chapters/17-activations.html"><span class="t-num">17</span><span><span class="t-title">ReLU, GELU, and the gated turn</span><span class="t-status">published &middot; 1,953 words</span></span></a></li>
 <li><a class="" href="chapters/18-normalization.html"><span class="t-num">18</span><span><span class="t-title">Keeping the residual stream in range</span><span class="t-status">published &middot; 1,955 words</span></span></a></li>
 <li><a class="" href="chapters/19-moe.html"><span class="t-num">19</span><span><span class="t-title">More parameters without more arithmetic</span><span class="t-status">published &middot; 2,423 words</span></span></a></li>

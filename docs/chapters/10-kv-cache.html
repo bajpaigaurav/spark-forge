@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,6 +486,7 @@ input[type=range] {
   <span class="num">III. The cache &middot; Chapter 10</span>
   <h1>Why generation is slow and memory-hungry</h1>
   <p class="thesis">Decoding one token at a time means the model must remember every key and value it has already computed, and that memory is the real cost of long context.</p>
+  <p class="prereq">Assumes <a class="xref" href="09-quadratic-wall.html">09</a>.</p>
 </header>
 
 <article class="prose">

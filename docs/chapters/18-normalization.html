@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,6 +486,7 @@ input[type=range] {
   <span class="num">IV. The rest of the block &middot; Chapter 18</span>
   <h1>Keeping the residual stream in range</h1>
   <p class="thesis">Normalization placement is one of the quiet decisions that determines whether a deep model trains at all.</p>
+  <p class="prereq">Assumes <a class="xref" href="03-residual-stream.html">03</a>.</p>
 </header>
 
 <article class="prose">

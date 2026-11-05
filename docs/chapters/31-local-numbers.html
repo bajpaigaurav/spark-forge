@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,13 +486,14 @@ input[type=range] {
   <span class="num">VIII. Grounding it &middot; Chapter 31</span>
   <h1>The same book, measured on two small machines</h1>
   <p class="thesis">Every concept in this book lands somewhere concrete, and here is where it lands on a two-machine desk setup.</p>
+  <p class="prereq">Assumes <a class="xref" href="29-roofline.html">29</a>, <a class="xref" href="30-measurement.html">30</a>.</p>
 </header>
 
 <article class="prose">
 <p>Two GB10 boxes sit on a desk with a cable between them, and the model they serve is sharded across the pair: the aggregate footprint is 111.5 GB, so each rank holds roughly 55.8 GB. The question worth asking is whether the previous thirty chapters let you say what those boxes will do before you run anything. Prediction first, measurement second, and the places where the two disagree are the only places worth writing down.</p>
 <p>The engine's footprint across the pair is 111.5 GB, or 111,515,771,428 bytes, covering weights, KV caches and live streams together. On this hardware there is no separate VRAM to spill into. The GPU and the CPU draw from the same LPDDR5X, and the whole of it moves at 273 GB/s according to NVIDIA's DGX Spark hardware guide. Every byte of cache you allocate is a byte the host page cache cannot have. That is why the software carries a guard. memguard.sh reads MemAvailable from /proc/meminfo on a timer. If the reading falls below 2.5 GiB, it sends SIGKILL to the rank PID. SIGKILL cannot be caught, so the rank does not flush caches or close sockets cleanly. The kernel closes the sockets, in-flight requests get a connection reset, and the launcher restarts the rank. The model reloads its shard from disk, and the client retries the failed request. Unified memory is what makes a model this large fit on a desk, and it is also what collapses the memory budget into a single shared number instead of two.</p>
 <p>The model is split across the two ranks layer by layer, so each rank holds a shard of every weight matrix and the two have to agree on the activations at each boundary. The primitive is an all-reduce. Each transformer layer has two boundaries that cross the split, one after attention and one after the MLP, so a model with L layers needs 2L all-reduces per forward pass. The payload is the batch activation matrix in bf16. At decode the batch is at most 16 rows, so the payload is at most 16 × H × 2 bytes per boundary, where H is the hidden width. At prefill the same matrix has 130,659 rows, so the prefill payload is 130,659/16 = 8,166 times larger. The all-reduce is issued after the local matmul and before the next layer's matmul. It can overlap with the next layer's compute only if the scheduler has independent work, which at decode it usually does not. When one rank falls behind, the other waits inside the collective doing nothing. The pair has accumulated 120,000 ms of stall since start, recorded by tensorfold:pair_stall_ms. That counter is cumulative and not decomposed by collective or rank, so it cannot support a per-layer latency claim or an upper-bound claim. It is a separate term you have to measure.</p>
-<p>Start with decode, where the roofline chapter made its sharpest claim. That chapter said tokens per second is memory bandwidth divided by the bytes the engine touches per token. One stream on this pair produced 59.1 tok/s. The probe was four prompts of 400 completion tokens each, 1,600 tokens in total, run one after another in 27.1 s, and 1,600 divided by 27.1 is about 59.0. The roofline formula is tok/s = 273 GB/s ÷ bytes per token. If I plug in the measured 59.1 tok/s, the implied bytes per token is 273 / 59.1 = 4.62 GB. Plug that back in and 273 / 4.62 = 59.1. That is the instantiated formula. The 4.62 GB is the effective per-token byte rate implied by throughput — it folds in all-reduce stall and other non-memory time, so it is not a measured DRAM read The 111.5 GB total footprint includes caches and live streams that are not read once per token.</p>
+<p>Start with decode, where <a class="xref" href="29-roofline.html">the roofline chapter</a> made its sharpest claim. That chapter said tokens per second is memory bandwidth divided by the bytes the engine touches per token. One stream on this pair produced 59.1 tok/s. The probe was four prompts of 400 completion tokens each, 1,600 tokens in total, run one after another in 27.1 s, and 1,600 divided by 27.1 is about 59.0. The roofline formula is tok/s = 273 GB/s ÷ bytes per token. If I plug in the measured 59.1 tok/s, the implied bytes per token is 273 / 59.1 = 4.62 GB. Plug that back in and 273 / 4.62 = 59.1. That is the instantiated formula. The 4.62 GB is the effective per-token byte rate implied by throughput — it folds in all-reduce stall and other non-memory time, so it is not a measured DRAM read The 111.5 GB total footprint includes caches and live streams that are not read once per token.</p>
 <p>The same four prompts fired concurrently finished in 15.1 s, and 1,600 over 15.1 is 106.2 tok/s. The aggregate multiplier is 106.2 divided by 59.1, which comes to 1.80x. Under a pure bandwidth bound, batching should be close to free, because the weights are read once per step and reused across every row in the batch. Four streams ought to approach four times the single-stream rate before compute becomes the limit. The linear prediction is 4 × 59.1 = 236.4 tok/s. The measured 106.2 tok/s is 106.2/236.4 = 45% of that. Per stream, 106.2/4 = 26.55 tok/s, which is 26.55/59.1 = 45% of the single-stream rate. Getting 1.80x says the crossover arrived earlier than the model suggested. Two candidate explanations are clock and kernel width, but this run does not isolate them. Under load the SMs run at 2,197 MHz according to nvidia-smi clocks.sm on 2026-10-31. The silicon maximum is 3,003 MHz according to NVIDIA's GB10 documentation. I did not measure the reason for the gap. The pinned kit sets ROUND_ROWS=16, and its decode kernel processes at most 16 rows per step. Four streams with one base token plus three draft tokens each would fill 16 rows exactly. A full kernel does not permanently block another stream, but under sustained load the deferral is head-of-line blocking: repeated deferrals add queueing latency and can starve streams The arithmetic also shows that a full 16-row kernel would predict a much higher aggregate if bandwidth-bound, so the kernel is a constraint rather than the sole explanation. Only a sweep that varies clock and kernel width one at a time will tell you which candidate matters.</p>
 <p>Prefill went the other way. Across 98 sampled requests the engine sustained 39,237 tok/s of prompt processing, hundreds of times the decode rate. That is the shape the roofline predicted, because prefill is matrix-matrix work over the whole prompt and saturates the compute units rather than the memory bus. The chapter that said prefill would be fast was right. The chapter that said decode would be bandwidth-bound was right for one stream and incomplete for four.</p>
 <p>The prefix cache is where the arithmetic gets satisfying. Of 12,804,579 prompt tokens looked up, 12,285,952 were served from cache, which is 95.9%. At the measured prefill rate, 12,285,952 divided by 39,237 gives 313 seconds of prefill work the cache removed from the sampled window. The mechanism is the one from the caching chapter. KV blocks are keyed by a hash of the token prefix, so a request that opens with a span the server has already processed skips the matmuls for that span and instead references the cached KV blocks (only the block-table entries are copied, not the block contents). The workload is consistent with the hit rate. Mean prompt length across those 98 requests was 130,659 tokens, and a long shared opening is the pattern a prefix cache is built for. I did not run a controlled test to isolate the cause.</p>

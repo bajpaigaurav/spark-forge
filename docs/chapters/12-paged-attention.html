@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,6 +486,7 @@ input[type=range] {
   <span class="num">III. The cache &middot; Chapter 12</span>
   <h1>Virtual memory for the KV cache</h1>
   <p class="thesis">The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.</p>
+  <p class="prereq">Assumes <a class="xref" href="10-kv-cache.html">10</a>.</p>
 </header>
 
 <article class="prose">
@@ -474,7 +497,7 @@ input[type=range] {
 <p>Kwon and his coauthors at Berkeley measured the cost in 2023, running against FasterTransformer and Orca. Between 20 and 40 percent of the memory reserved for KV cache actually held token state. The rest was a reservation against a future that mostly did not arrive. Orca had already introduced continuous batching, which admits new requests as old ones finish and raises utilization considerably. Continuous batching fixed <em>when</em> memory was allocated. It did not fix <em>how much</em>.</p>
 <p>That distinction matters because decoding is bandwidth-bound. The DGX Spark's LPDDR5X unified memory moves 273 GB/s, shared between CPU and GPU, per NVIDIA's hardware guide for the machine. Every decode step reads the weights once and the KV cache of every active sequence. Write W for the bytes of weights, k for the KV bytes per token per sequence, and n for the batch. A step reads W + nk bytes and cannot finish faster than (W + nk) / 273×10⁹ seconds. The weights term is fixed; the cache term scales with n. Adding one more sequence adds k / 273×10⁹ seconds to the step and one more share of a weight read you were going to pay for anyway. Memory wasted on reservations is throughput you cannot buy back.</p>
 <p>The measured numbers on this pair follow the arithmetic. Four sequential requests of 400 tokens each finished in 27.1 s for 1,600 tokens, or 59.1 tok/s. The same four fired concurrently finished in 15.1 s, or 106.2 tok/s, a multiplier of 1.80. One run each, on 2026-10-31, so treat the ratio as a point estimate rather than a distribution. The gain is real and sublinear, which is what the bandwidth arithmetic predicts.</p>
-<p>The fix came from an operating system textbook. In virtual memory a process sees a flat, contiguous address space that has nothing to do with where its bytes live. Physical memory is divided into frames of a fixed size. A per-process page table maps each virtual page number to a physical frame number, and the hardware translates every access, consulting a TLB of recent translations and walking the table only on a miss. Because frames need not be adjacent, allocation means finding any free frame rather than finding a contiguous run, and fragmentation collapses to the unused tail of the last page.</p>
+<p>The fix came from an operating system textbook. In virtual memory a process sees a flat, contiguous address space that has nothing to do with where its bytes live. Physical memory is divided into frames of a fixed size. A per-process page table maps each virtual page number to a physical frame number, and the hardware translates every access, consulting a TLB of recent translations and walking the table only on a miss. Because frames need not be adjacent, allocation means finding any free frame rather than finding a contiguous run, and fragmentation collapses to the unused tail of the last page (<a class="xref" href="10-kv-cache.html">Why generation is slow and memory-hungry</a> sizes the buffer this replaces).</p>
 <p>PagedAttention, published by Kwon and colleagues at SOSP in October 2023 and shipped as vLLM, applies that arrangement to the KV cache. Physical memory is carved at startup into blocks holding a fixed number of token positions. Each physical block ID indexes the KV storage for those positions across all layers, with one per-layer slice per block, for one sequence. A sequence owns a single block table, an array indexed by logical block number whose entries are physical block numbers Growing a sequence past a block boundary means allocating one more block and writing one more pointer. Nothing is copied, and no contiguity is required. Internal fragmentation is bounded by the unused tail of a single block per sequence.</p>
 <p>The kernel that reads this layout works one query at a time. For a query at position p, the logical block is p / B and the offset within it is p mod B. The kernel walks the sequence's logical blocks in order, reads each physical block number from the table, loads that block's K and V, and computes Q·Kᵀ over at most B keys. Softmax has to span blocks, so the kernel carries a running maximum m and a running normalizer l, the online-softmax trick from Milakov and Gimelshein in 2018 and Dao's FlashAttention in 2022. For each block it computes the block's local max, rescales the accumulator by exp(m_old − m_new), adds the block's exponentials, and moves on. The final block is usually partial, so the kernel masks positions past the sequence length before taking the max. Block boundaries never split an attention computation; they only split the loop.</p>
 <p>Gathering through a table costs something. Each block is a separate memory transaction, and the table read is a dependent load that must complete before the K/V load can start. A contiguous run lets the prefetcher stream and lets the compiler emit one wide vectorized load; a gather cannot. The first paged kernels paid for this. One rewrite hoisted the block-table read into shared memory once per block per warp instead of once per query. Another double-buffered the next block's K/V while computing the current one, to hide the dependent-load latency. A third replaced a separate tail kernel with in-kernel masking of the partial block. In the reported benchmarks, those changes brought the paged kernel to parity with the contiguous one; parity is workload- and block-size-dependent, and small blocks or high concurrency can still make the dependent block-table gather lose</p>

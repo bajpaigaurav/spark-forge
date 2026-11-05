@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,6 +486,7 @@ input[type=range] {
   <span class="num">VII. Serving &middot; Chapter 29</span>
   <h1>What the hardware actually allows</h1>
   <p class="thesis">You can predict a model's tokens per second from its size and the memory bandwidth before you ever run it.</p>
+  <p class="prereq">Assumes <a class="xref" href="10-kv-cache.html">10</a>, <a class="xref" href="21-quantization.html">21</a>.</p>
 </header>
 
 <article class="prose">
@@ -477,7 +500,7 @@ input[type=range] {
 <p>KV_bytes = 2 × n_layers × n_kv_heads × d_head × dtype_bytes</p>
 <p>where the 2 covers K and V, and a sequence of L positions at batch b multiplies the result by L × b. The engine's config script records 0.9 GiB of KV per 1,048,576 positions, which works out to 0.9 × 2^30 ÷ 2^20 = 921.6 bytes per position. At two bytes per value that is 460.8 stored values, so the 0.9 GiB is a rounded budget rather than an exact allocation. The figure is the product above evaluated for this model, and it is the number to use whether or not you know the layer and head counts.</p>
 <p>Now a worked budget. The box described in NVIDIA's DGX Spark hardware guide (docs.nvidia.com/dgx/dgx-spark/hardware.html) lists 273 GB/s of LPDDR5X bandwidth in its memory specification, shared between CPU and GPU, so that figure is a peak for the memory subsystem rather than a rate either processor sees alone. The engine's device_memory_bytes gauge on this pair reads 111,515,771,428 bytes, or 111.5 GB, covering weights, caches and live streams. That is the engine's accounting rather than the box's full physical RAM, so treat it as usable capacity. A 70B model at FP16 stores 140 GB of weights—approximately the bytes read per decoded token—so it does not fit in the 111.5 GB usable capacity, and its bandwidth-bound ceiling is 273 ÷ 140 ≈ 1.95 tokens per second. At 4 bits it needs 35 GB and the ceiling rises to 7.8. A 7B model at FP16 needs 14 GB and tops out near 19.5; at 4 bits, 3.5 GB and 78. GPT-3, described by Brown and colleagues in 2020 at 175 billion parameters, would need 350 GB per token at FP16, could not exceed 0.78 tokens per second, and would not fit at that precision.</p>
-<p>Quantization is usually sold on the wrong grounds. It is pitched as a way to fit a model into memory; its larger effect on serving is proportional speed. Halving bytes per parameter doubles the bandwidth-bound ceiling, provided the kernel still reaches the same fraction of peak bandwidth and the arithmetic does not become the new constraint. It is not exact, because dequantization costs instructions, group scales cost bytes, and kernel efficiency at 4 bits is rarely the same as at 16.</p>
+<p><a class="xref" href="21-quantization.html">Quantization</a> is usually sold on the wrong grounds. It is pitched as a way to fit a model into memory; its larger effect on serving is proportional speed. Halving bytes per parameter doubles the bandwidth-bound ceiling, provided the kernel still reaches the same fraction of peak bandwidth and the arithmetic does not become the new constraint. It is not exact, because dequantization costs instructions, group scales cost bytes, and kernel efficiency at 4 bits is rarely the same as at 16.</p>
 <p>Group-wise quantization, as in GPTQ (Frantar and colleagues, 2022) and AWQ (Lin and colleagues, 2023), stores a scale per group of weights rather than per tensor. Both papers motivate this with outlier channels that dominate a per-tensor scale and leave the rest of the matrix with a coarse step size; smaller groups confine the damage. A group size of 128 with FP16 scales adds 2 bytes per 128 weights, or 0.0156 bytes per parameter, so four-bit weights cost 0.516 bytes each and the 70B ceiling drops from 7.8 to about 7.6 tokens per second.</p>
 <p>How close does real serving get? On the two-rank pair this book keeps returning to, single-stream decode measured 59.1 tokens per second over four sequential requests of 400 tokens each, 1,600 tokens in 27.1 s, distinct prompts, batch of one, on 2026-10-31. Invert the roofline and you learn something without knowing which model is loaded. Time is at least bytes divided by bandwidth, so bytes per token is at most 273 ÷ 59.1 = 4.6 GB. Whatever the engine reads per token, it does not read more than that, and at concurrency one it is plausibly close to the limit for that read. The bound holds whatever model and precision the engine is running, which is why it is worth stating when the model card is not in front of you. At 4 bits, 4.6 GB per token would imply roughly 9 billion active parameters; at FP16, roughly 2.3 billion. Either way the weight share is an upper bound, since KV and workspace sit inside the 4.6.</p>
 <p>The gap opens when you batch. Firing the same four prompts concurrently produced 106.2 tokens per second, a multiplier of 1.80 over the sequential run. If decode were purely weight-bandwidth-bound, four streams should give close to four times the aggregate, because one pass over the matrices serves all four rows. Do the per-step arithmetic. At 59.1 tokens per second a step takes 16.9 ms. At 106.2 aggregate across four streams the engine completes 26.6 steps per second, so a step takes 37.7 ms. Step cost rose 2.2 times while the work rose four times.</p>

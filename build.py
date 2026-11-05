@@ -27,15 +27,50 @@ FAVICON = ('<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w
            '<path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 '
            'stroke-linecap=%22round%22/></svg>">\n')
 
+# Chapter id -> title, filled by build() before any prose is rendered, so
+# [[id]] wiki-links can resolve to a real page and borrow its title.
+CHAPTER_TITLES = {}
+CHAPTER_NUMBERS = {}
+
+def slug(s):
+    """Anchor id from a heading: lowercase, alphanumerics, single hyphens."""
+    s = re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+    return s or "section"
+
+def wikilink(s):
+    """Resolve [[id]] / [[id|alias]] to an anchor on the target chapter.
+
+    Written as a separate pass after escaping so the brackets survive. An
+    unresolvable target is left as plain text rather than producing a dead link:
+    a wrong link is worse than none in a book whose whole claim is traceability.
+    """
+    def repl(m):
+        target = m.group(1).strip()
+        alias = m.group(2)
+        cid = target
+        # Allow a bare number: [[10]] -> 10-kv-cache
+        if re.fullmatch(r"\d{1,2}", target):
+            matches = [k for k in CHAPTER_TITLES if k.startswith(target.zfill(2) + "-")]
+            if len(matches) != 1:
+                return m.group(0)
+            cid = matches[0]
+        if cid not in CHAPTER_TITLES:
+            return m.group(0)
+        href = cid + ".html"
+        text = alias.strip() if alias else CHAPTER_TITLES[cid]
+        return f'<a class="xref" href="{href}">{esc(text)}</a>'
+    return re.sub(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]", repl, s)
+
 def esc(s):
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 def inline(s):
-    """Minimal inline markdown: bold, italic, code. Escaped first."""
+    """Minimal inline markdown: bold, italic, code, wiki-links. Escaped first."""
     s = esc(s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
     s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
+    s = wikilink(s)
     return s
 
 def paragraphs(text):
@@ -231,6 +266,28 @@ body {
   padding-left: 1rem;
   margin: 0;
 }
+
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
 
 .prose { max-width: var(--measure); }
 .prose h2 {
@@ -745,12 +802,31 @@ def provenance_for(text):
 """
 
 
+def prereq_strip(c):
+    """A header strip naming the chapters this one assumes.
+
+    Reads `prereqs` from the queue entry. Ids that are not published are
+    dropped, so the strip never points at a page that does not exist.
+    """
+    ids = [i for i in c.get("prereqs", []) if i in CHAPTER_TITLES]
+    if not ids:
+        return ""
+    links = ", ".join(
+        f'<a class="xref" href="{i}.html">{CHAPTER_NUMBERS[i]:02d}</a>' for i in ids
+    )
+    return f'<p class="prereq">Assumes {links}.</p>'
+
 def build():
     q = json.load(open(QUEUE, encoding="utf-8"))
     meta = q["meta"]
     os.makedirs(SITE, exist_ok=True)
 
     published = [c for c in q["chapters"] if c["status"] == "published"]
+    # Fill the link registry before rendering any prose, so [[id]] resolves.
+    for c in q["chapters"]:
+        if c["status"] == "published":
+            CHAPTER_TITLES[c["id"]] = c["title"]
+            CHAPTER_NUMBERS[c["id"]] = c["number"]
     total_words = 0
     for c in published:
         txt = read_chapter(c)
@@ -941,6 +1017,7 @@ the model's. The shape of the thing is not.</p>
   <span class="num">{esc(c.get("part",""))} &middot; Chapter {c["number"]:02d}</span>
   <h1>{esc(c["title"])}</h1>
   <p class="thesis">{esc(c["thesis"])}</p>
+  {prereq_strip(c)}
 </header>
 
 <article class="prose">

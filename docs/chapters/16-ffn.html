@@ -172,6 +172,28 @@ body {
   margin: 0;
 }
 
+/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
+.prereq {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0;
+  letter-spacing: 0.02em;
+}
+.prereq a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.prereq a:hover { border-bottom-style: solid; }
+
+/* Cross-references inside prose: a quiet underline, not a shout. */
+.prose a.xref, .prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
 .prose { max-width: var(--measure); }
 .prose h2 {
   font-size: 1.3rem;
@@ -464,6 +486,7 @@ input[type=range] {
   <span class="num">IV. The rest of the block &middot; Chapter 16</span>
   <h1>Where most of the parameters actually live</h1>
   <p class="thesis">Attention gets the attention, but the feed-forward network holds roughly two thirds of the weights and behaves like a key-value memory.</p>
+  <p class="prereq">Assumes <a class="xref" href="03-residual-stream.html">03</a>, <a class="xref" href="05-scaled-dot-product.html">05</a>.</p>
 </header>
 
 <article class="prose">
@@ -475,7 +498,7 @@ input[type=range] {
 <p>8Ld² / (12Ld² + cVd)</p>
 <p>where c is 2 when the embedding and unembedding matrices are separate and 1 when the weights are tied. Take d = 4096, L = 32 and V = 128,000. Attention comes to 32 × 4 × 16,777,216 = 2,147,483,648 parameters. The feed-forward pair comes to 32 × 8 × 16,777,216 = 4,294,967,296. Untied embeddings add 2 × 128,000 × 4096 = 1,048,576,000, for a total of 7,491,026,944 and a feed-forward share of 57.3 percent. Tie the embeddings and one matrix is shared, so the embedding term halves to 128,000 × 4096 = 524,288,000, and the total drops to 6,966,738,944, lifting the share to 61.7 percent. The fraction climbs toward two thirds as d grows, because the per-layer terms scale with d² while the embedding term scales with d.</p>
 <p>The four-times expansion is old. Vaswani and colleagues set the inner width to four times the model width in "Attention Is All You Need" in 2017, and their Table 3 varies individual hyperparameters—including d_ff 2048 vs 4096 and d_model 512 vs 1024—and reports BLEU/perplexity alongside parameter counts, not perplexity per parameter. Table 3 mostly varied model and inner widths together, but row (A) did test the ratio in isolation by raising d_ff from 2048 to 4096 at d_model = 512; that 8× inner width performed slightly worse than the 4× base (PPL 4.41 vs. 4.33, BLEU 26.0 vs. 26.4), so the 4× choice was not strongly established by that table. GPT-2 in 2019 and GPT-3 in 2020 kept it. T5, from Raffel and colleagues in 2019, kept four times in its base and large sizes but widened the inner layer to sixteen times at 3B parameters and sixty-four times at 11B, buying capacity with parameters rather than with depth.</p>
-<p>The gated variants that Shazeer described in 2020 change the count. A gated linear unit multiplies the expanded vector by a second projection of the same shape, so the sublayer holds three matrices of d by m instead of two. To keep the parameter budget at 8d², the inner width has to shrink to 8d/3, about 2.67d. That is where LLaMA's inner width comes from. With d = 4096, 8d/3 is 10,922.67, and LLaMA rounds it up to 11,008, a multiple of 256. The ratio is 2.69, and the parameter count matches a plain four-times FFN. The four-times rule is really a rule about 8d² of parameters per layer, and the inner width is whatever satisfies it.</p>
+<p>The gated variants that Shazeer described in 2020 change the count. A gated linear unit multiplies the expanded vector by a second projection of the same shape, so the sublayer holds three matrices of d by m instead of two. To keep the parameter budget at 8d², the inner width has to shrink to 8d/3, about 2.67d. That is where LLaMA's inner width comes from. With d = 4096, 8d/3 is 10,922.67, and LLaMA rounds it up to 11,008, a multiple of 256. The ratio is 2.69, and the parameter count matches a plain four-times FFN. The four-times rule is really a rule about 8d² of parameters per layer (see <a class="xref" href="19-moe.html">the mixture-of-experts chapter</a> for where that arithmetic goes next), and the inner width is whatever satisfies it.</p>
 <p>What does the pair compute? Take one token's residual vector, call it x. The first matrix has m rows, each a direction in the same d-dimensional space as x. Row i produces a scalar s_i = k_i · x, the dot product of that row with x, which measures how much the token's state points along that direction. Geva's group called those rows keys. A nonlinearity φ then acts on each scalar separately. In the original Transformer φ was ReLU, so any s_i below zero became exactly zero and that slot contributed nothing to the output. Modern blocks usually use GELU, which attenuates small negative scores instead of zeroing them, or SwiGLU, which multiplies the expanded vector by a second gated projection before the contraction. Under ReLU, roughly half the slots are silent for a given token. Under GELU, almost all of them contribute something, most of it tiny.</p>
 <p>The second matrix supplies, for each of the m hidden units, a vector v_i in d-space. Those are the values. The sublayer's output is</p>
 <p>y = Σ_i φ(k_i · x) v_i</p>
