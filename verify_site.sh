@@ -21,6 +21,12 @@ n_pub=$(python3 -c "import json;q=json.load(open('state/queue.json'));print(sum(
 n_html=$(ls site/chapters/*.html 2>/dev/null | wc -l)
 [ "$n_pub" -eq "$n_html" ] || { echo "MISMATCH: $n_pub published vs $n_html pages"; fail=1; }
 
+# total page count: index, about, glossary and paths at the top level, plus
+# one page per published chapter under chapters/
+n_all=$(find site -maxdepth 1 -name '*.html' | wc -l)
+[ "$((n_pub + 4))" -eq "$((n_all + n_html))" ] || { echo "PAGE COUNT: $((n_all + n_html)) pages, expected $((n_pub + 4)) ($n_pub chapters + index/about/glossary/paths)"; fail=1; }
+n_all=$((n_all + n_html))
+
 # no page repeats its own title as a heading
 for f in site/chapters/*.html; do
   t=$(grep -o '<h1>[^<]*</h1>' "$f" | head -1 | sed 's/<[^>]*>//g')
@@ -35,6 +41,70 @@ done
 grep -q 'src="site.js"' site/index.html || { echo "BAD SCRIPT PATH in index"; fail=1; }
 [ -f site/about.html ] || { echo "about page missing"; fail=1; }
 grep -q 'src="site.js"' site/about.html || { echo "BAD SCRIPT PATH in about"; fail=1; }
+
+# the paths page is built, linked from index and about, and every chapter id in
+# every path resolves to a published chapter
+[ -f site/paths.html ] || { echo "paths page missing"; fail=1; }
+grep -q 'src="site.js"' site/paths.html || { echo "BAD SCRIPT PATH in paths"; fail=1; }
+grep -q 'href="paths.html"' site/index.html || { echo "paths not linked from index"; fail=1; }
+grep -q 'href="paths.html"' site/about.html || { echo "paths not linked from about"; fail=1; }
+if [ -f content/paths.json ]; then
+  python3 - <<'EOF' || fail=1
+import json, os, re, sys
+paths = json.load(open('content/paths.json', encoding='utf-8'))
+q = json.load(open('state/queue.json', encoding='utf-8'))
+published = {c['id'] for c in q['chapters'] if c['status'] == 'published'}
+if not paths:
+    print('PATHS: content/paths.json is empty')
+    sys.exit(1)
+bad = 0
+for p in paths:
+    chs = p['chapters']
+    if not chs:
+        print('PATHS: empty chapter list in', p['id'])
+        bad = 1
+    if len(chs) != len(set(chs)):
+        dup = sorted({c for c in chs if chs.count(c) > 1})
+        print('PATHS: duplicate chapters in', p['id'], dup)
+        bad = 1
+    unknown = [c for c in chs if c not in published]
+    if unknown:
+        print('PATHS: not published in', p['id'], ', '.join(unknown))
+        bad = 1
+    for field in ('id', 'title', 'who', 'why'):
+        if not p.get(field):
+            print('PATHS: missing', field, 'in', p.get('id'))
+            bad = 1
+ids = [p['id'] for p in paths]
+if len(ids) != len(set(ids)):
+    print('PATHS: duplicate path id')
+    bad = 1
+html = open('site/paths.html', encoding='utf-8').read()
+for p in paths:
+    if f'id="{p["id"]}"' not in html:
+        print('PATHS: path missing from page:', p['id'])
+        bad = 1
+    for c in p['chapters']:
+        if f'href="chapters/{c}.html"' not in html:
+            print('PATHS: chapter link missing on page:', c)
+            bad = 1
+# the index strip must carry one link per path, each with a time estimate
+idx = open('site/index.html', encoding='utf-8').read()
+strip = re.search(r'<nav class="paths-strip".*?</nav>', idx, re.S)
+if not strip:
+    print('PATHS: no strip on the front page')
+    bad = 1
+else:
+    n = len(re.findall(r'href="paths\.html#', strip.group(0)))
+    if n != len(paths):
+        print('PATHS: strip has', n, 'links for', len(paths), 'paths')
+        bad = 1
+    if len(re.findall(r'class="p-when">about ', strip.group(0))) != len(paths):
+        print('PATHS: strip is missing time estimates')
+        bad = 1
+sys.exit(bad)
+EOF
+fi
 
 # the glossary is built and every chapter pointer on it resolves
 [ -f site/glossary.html ] || { echo "glossary page missing"; fail=1; }
@@ -87,7 +157,7 @@ for f in content/chapters/*.md; do
 done
 
 if [ "$fail" -eq 0 ]; then
-  echo "OK: $n_html pages, gates clean"
+  echo "OK: $n_all pages, gates clean"
 else
   echo "SITE CHECKS FAILED"
 fi

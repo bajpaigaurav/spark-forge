@@ -20,6 +20,12 @@ CHAPTERS = os.path.join(ROOT, "content", "chapters")
 SITE = os.path.join(ROOT, "site")
 QUEUE = os.path.join(ROOT, "state", "queue.json")
 GLOSSARY = os.path.join(ROOT, "content", "glossary.json")
+PATHS = os.path.join(ROOT, "content", "paths.json")
+
+# Words per minute used for every time estimate on the site. Not a claim about
+# reading speed, just the divisor: estimates are computed from real word counts
+# so they cannot drift away from the prose the way a hand-written number would.
+WPM = 220
 
 # A small inline SVG favicon: a token-shaped square in the book's accent colour.
 # Inline so it costs no extra request and survives a clone with no assets.
@@ -474,6 +480,112 @@ body {
 }
 .glossary dd .src a:hover { border-bottom-style: solid; }
 .glossary dl { margin: 0; }
+
+/* ---- reading paths ---- */
+/* The strip on the front page. Quiet: same voice as .part-count, one row per
+   path, time on the left so the reader can skip on time alone. */
+.paths-strip {
+  margin: 0 0 3rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.1rem 0 1.2rem;
+}
+.paths-kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.7rem;
+}
+.paths-kicker a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.paths-strip ul { list-style: none; margin: 0; padding: 0; }
+.paths-strip li { margin: 0.3rem 0; }
+.paths-strip a {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 1rem;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.paths-strip a:hover .p-what { color: var(--accent); }
+.p-when {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.p-what { font-size: 0.95rem; }
+
+/* The paths page. Each path is a brief with its own list, not a card. */
+.paths-intro { max-width: var(--measure); }
+.path { max-width: var(--measure); margin: 3rem 0 0; }
+.path-title {
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.3rem;
+}
+.path-who {
+  font-style: italic;
+  color: var(--ink-soft);
+  margin: 0 0 0.25rem;
+}
+.path-when {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.1rem;
+}
+.path-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  counter-reset: pathstep;
+}
+.path-list li {
+  counter-increment: pathstep;
+  border-top: 1px solid var(--rule);
+}
+.path-list li:last-child { border-bottom: 1px solid var(--rule); }
+.path-list a {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.path-list a:hover .p-title { color: var(--accent); }
+.p-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.p-title { font-size: 1rem; }
+.path-why {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--rule);
+  padding-left: 1rem;
+  margin: 0 0 3rem;
+}
+
+@media (max-width: 640px) {
+  .paths-strip a { grid-template-columns: 1fr; gap: 0.1rem; }
+  .path-title { font-size: 1.15rem; }
+}
 
 /* Cross-references inside prose: a quiet underline, not a shout. */
 .prose a.xref, .prose a {
@@ -1010,6 +1122,118 @@ def prereq_strip(c):
     )
     return f'<p class="prereq">Assumes {links}.</p>'
 
+def chapter_words(cid):
+    """Word count of a chapter's prose, by the same rule the TOC uses."""
+    txt = read_chapter({"id": cid})
+    return len(re.findall(r"\S+", txt)) if txt else 0
+
+def minutes_for(ids):
+    return sum(chapter_words(c) for c in ids) / WPM
+
+def human_time(minutes):
+    """Round a computed duration to something a reader can act on.
+
+    Below 45 minutes the figure is rounded to five minutes, because a path
+    that claims 43 minutes is not more useful than one that claims 45. Past
+    that, whole or half hours; the half only appears when it is earned.
+    """
+    if minutes < 45:
+        return f"about {max(5, int(round(minutes / 5.0)) * 5)} minutes"
+    halves = round(minutes / 30.0) / 2.0
+    if halves == int(halves):
+        n = int(halves)
+        return f"about {n} hour" if n == 1 else f"about {n} hours"
+    return f"about {int(halves)} and a half hours"
+
+def load_paths():
+    """Reading paths from content/paths.json, with their chapters resolved.
+
+    A path chapter that is not published is dropped rather than rendered as a
+    dead link; a path left with nothing is dropped too, so the page never
+    advertises a route through a chapter that does not exist yet.
+    """
+    if not os.path.exists(PATHS):
+        return []
+    raw = json.load(open(PATHS, encoding="utf-8"))
+    out = []
+    for p in raw:
+        ids = [c for c in p["chapters"] if c in CHAPTER_TITLES]
+        if not ids:
+            continue
+        p = dict(p)
+        p["chapters"] = ids
+        p["minutes"] = minutes_for(ids)
+        out.append(p)
+    return out
+
+def paths_strip(paths):
+    """The quiet strip on the front page: one line per path, time first.
+
+    Deliberately not cards. The front page already has a masthead, a
+    frontispiece and a long TOC; this only has to answer 'which of these is
+    me' before the reader starts scrolling.
+    """
+    if not paths:
+        return ""
+    rows = "".join(
+        f'<li><a href="paths.html#{p["id"]}">'
+        f'<span class="p-when">{esc(human_time(p["minutes"]))}</span>'
+        f'<span class="p-what">{esc(p["title"])}</span></a></li>'
+        for p in paths
+    )
+    return f"""<nav class="paths-strip" aria-label="Reading paths">
+<p class="paths-kicker">Reading paths &middot; <a href="paths.html">all four</a></p>
+<ul>{rows}</ul>
+</nav>"""
+
+def paths_page(paths):
+    """Write docs/paths.html: each path as a short brief, not a card grid."""
+    if not paths:
+        return 0
+    blocks = []
+    for p in paths:
+        items = "\n".join(
+            f'<li><a href="chapters/{cid}.html">'
+            f'<span class="p-num">{CHAPTER_NUMBERS[cid]:02d}</span>'
+            f'<span class="p-title">{esc(CHAPTER_TITLES[cid])}</span></a></li>'
+            for cid in p["chapters"]
+        )
+        blocks.append(f"""<section class="path" id="{p['id']}">
+<h2 class="path-title">{esc(p['title'])}</h2>
+<p class="path-who">For {esc(p['who'])}</p>
+<p class="path-when">{len(p['chapters'])} chapters &middot; {esc(human_time(p['minutes']))}</p>
+<ol class="path-list">
+{items}
+</ol>
+<p class="path-why">{esc(p['why'])}</p>
+</section>""")
+    body = f"""
+<header class="chapter-head">
+  <span class="num">Reading paths</span>
+  <h1>Four ways through the book</h1>
+  <p class="thesis">Nobody arrives wanting all thirty-one chapters in order. They arrive with an afternoon and a problem.</p>
+</header>
+
+<article class="prose paths-intro">
+<p>Each path is a different argument, not the same table of contents shuffled. What is
+left out matters as much as what is kept, so every path says what it skips and why that
+is safe. Times are computed from the real word count of the chapters included, at about
+{WPM} words a minute.</p>
+</article>
+
+{chr(10).join(blocks)}
+
+<nav class="chapter-nav">
+  <a href="index.html">&larr; Contents</a>
+  <a href="glossary.html">Glossary</a>
+</nav>
+"""
+    open(os.path.join(SITE, "paths.html"), "w", encoding="utf-8").write(
+        page("Reading paths", body,
+             description="Four ways through The Shape of a Token, each with a computed reading time and what it deliberately skips.",
+             canonical="https://bajpaigaurav.github.io/spark-forge/paths.html"))
+    return len(paths)
+
 def glossary_page(entries):
     """Write docs/glossary.html: every term, alphabetically, with its source.
 
@@ -1111,6 +1335,8 @@ def build():
         )
     toc_html = "\n".join(toc_html)
 
+    paths = load_paths()
+
     index_body = f"""
 <header class="masthead">
   <p class="kicker">Field notes from a two-machine inference pair</p>
@@ -1149,6 +1375,8 @@ def build():
 <hr class="rule-short">
 </section>
 
+{paths_strip(paths)}
+
 {figures_panel()}
 
 {toc_html}
@@ -1157,6 +1385,7 @@ def build():
 <p>Every figure in this document was read from the live engine, a log line, or a timed
 request. The last chapter explains how, so the rest can be checked.</p>
 <p><a href="about.html" style="color:var(--accent)">How this was made</a>
+&middot; <a href="paths.html" style="color:var(--accent)">Reading paths</a>
 &middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
 </footer>
 """
@@ -1220,6 +1449,7 @@ the model's. The shape of the thing is not.</p>
 
 <nav class="chapter-nav">
   <a href="index.html">&larr; Contents</a>
+  <a href="paths.html">Reading paths</a>
   <a href="glossary.html">Glossary</a>
 </nav>
 """
@@ -1283,6 +1513,9 @@ the model's. The shape of the thing is not.</p>
                  canonical=f"https://bajpaigaurav.github.io/spark-forge/chapters/{c['id']}.html"))
 
     print(f"built: {len(published)} chapters, {total_words:,} words -> {SITE}")
+    n_paths = paths_page(paths)
+    if n_paths:
+        print(f"paths: {n_paths} reading paths -> {os.path.join(SITE, 'paths.html')}")
     n_terms = glossary_page(glossary)
     if n_terms:
         print(f"glossary: {n_terms} terms -> {os.path.join(SITE, 'glossary.html')}")

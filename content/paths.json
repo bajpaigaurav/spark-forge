@@ -1,0 +1,76 @@
+[
+  {
+    "id": "skip-the-basics",
+    "title": "Skip the basics: start at the cache",
+    "who": "you already know what attention is and why it is quadratic.",
+    "chapters": [
+      "10-kv-cache",
+      "11-mqa-gqa-mla",
+      "12-paged-attention",
+      "13-prefix-caching",
+      "14-flash-attention",
+      "15-sparse-sliding",
+      "29-roofline",
+      "30-measurement"
+    ],
+    "why": "Skips 01-09, and that is the whole point of this path. The quadratic wall is restated inside 10 with the numbers that actually bite, so 09 is a story you have already heard. What is left is the cache as a subject in its own right: why it grows, how it is shared, how it is paged, how it is reused across requests, and how attention is computed without ever materialising it. 14 and 15 are included rather than skipped because they are cache-adjacent arguments a serving reader will be asked about. Closes on 29 and 30 so the claims are arithmetic and measurement, not folklore."
+  },
+  {
+    "id": "the-whole-arc",
+    "title": "The whole arc, spine only",
+    "who": "a reader who wants the shape of the machine, not the tuning knobs.",
+    "chapters": [
+      "01-tokens",
+      "02-embeddings",
+      "03-residual-stream",
+      "05-scaled-dot-product",
+      "07-softmax",
+      "09-quadratic-wall",
+      "10-kv-cache",
+      "12-paged-attention",
+      "16-ffn",
+      "18-normalization",
+      "20-precision",
+      "21-quantization",
+      "23-logits",
+      "24-sampling",
+      "26-prefill-decode",
+      "29-roofline",
+      "30-measurement"
+    ],
+    "why": "Skips 04, 06, 08, 11, 13, 14, 15, 17, 19, 22, 25, 27, 28 and 31. This is the spine: tokenizer, stream, attention, cache, block, precision, sampler, serving. Every omission is a refinement of something kept - multi-head refines scaled dot-product, MQA refines the cache, MoE refines the FFN - so nothing later is unintelligible. 04 is the one real cut: the pre-attention bottleneck is history, and its consequence survives in 09."
+  },
+  {
+    "id": "serving",
+    "title": "I serve inference and need the cost model",
+    "who": "engineers running a model in production.",
+    "chapters": [
+      "10-kv-cache",
+      "12-paged-attention",
+      "13-prefix-caching",
+      "26-prefill-decode",
+      "27-batching",
+      "28-parallelism",
+      "29-roofline",
+      "30-measurement",
+      "31-local-numbers"
+    ],
+    "why": "Skips 01-09 and every chapter from 11 to 25 except 12 and 13. You are not choosing a token; you are deciding how many requests fit. 10 is the memory budget, 12 and 13 are the two things you can actually deploy that change it, 26-28 are the scheduler and the sharding, and 29-31 tell you whether any of it can hit your latency target. 11 is cut because architecture choice is made before you arrive; 14 and 15 are cut because kernel selection does not change the cost model you are building here."
+  },
+  {
+    "id": "precision",
+    "title": "Making it fit: precision and quantization",
+    "who": "someone trying to run a model on hardware it was not sized for.",
+    "chapters": [
+      "16-ffn",
+      "19-moe",
+      "20-precision",
+      "21-quantization",
+      "22-why-4bit-works",
+      "10-kv-cache",
+      "29-roofline",
+      "31-local-numbers"
+    ],
+    "why": "Skips 01-15, 17, 18 and 23-30. Precision is meaningless until you know where the parameters live, so it opens on 16 and 19 rather than on dtype tables. 10 is here because the cache, not the weights, is often what stops a model fitting. 29 and 31 close it with the bandwidth arithmetic and the measured result, so the claim that four bits is enough is checked against a real machine instead of asserted."
+  }
+]
