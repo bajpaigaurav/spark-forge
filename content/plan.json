@@ -1,0 +1,329 @@
+{
+  "meta": {
+    "project": "The Shape of a Token",
+    "subtitle": "How a language model actually works, from the tokenizer to the sampler",
+    "voice": "A working engineer who has read the papers, remembers what the field was like before each idea landed, and has opinions about which ones survived."
+  },
+  "parts": [
+    "I. The raw material",
+    "II. Attention",
+    "III. The cache",
+    "IV. The rest of the block",
+    "V. Precision",
+    "VI. Producing a token",
+    "VII. Serving",
+    "VIII. Grounding it"
+  ],
+  "chapters": [
+    {
+      "id": "01-tokens",
+      "number": 1,
+      "part": "I. The raw material",
+      "title": "Text is not numbers yet",
+      "thesis": "A tokenizer is a compression scheme wearing a linguistic costume, and every downstream oddity of language models starts here.",
+      "cover": "BPE as byte-pair compression (Gage 1994) and its 2016 revival for NMT (Sennrich). Byte-level BPE and why GPT-2 chose 50257. SentencePiece and the whitespace problem. The merge algorithm itself, step by step. Vocabulary size as a trade: sequence length against embedding table and softmax cost. Llama 3 at 128256. Tokenization as the cause of arithmetic failure, the 'glitch token' phenomenon, and fertility across languages.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "02-embeddings",
+      "number": 2,
+      "part": "I. The raw material",
+      "title": "A vector is a coordinate, not a meaning",
+      "thesis": "An embedding table is a lookup, and the geometry that makes it useful was discovered before transformers existed.",
+      "cover": "One-hot to dense. word2vec 2013 and the skip-gram objective. Cosine similarity and why direction carries meaning while magnitude does not. The anisotropy problem: embeddings occupy a narrow cone, so raw cosine overstates similarity. Tied embeddings between input and output. The memory arithmetic: vocab times dimension, and why a 128k vocabulary at 4096 dimensions is a gigabyte before any weights load.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "03-residual-stream",
+      "number": 3,
+      "part": "I. The raw material",
+      "title": "The one lane everything writes into",
+      "thesis": "Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks.",
+      "cover": "Residual connections from ResNet 2015 and why depth became trainable. The residual stream as a shared bus with fixed width. Attention and the feed-forward network as readers and writers, not as sequential stages. Pre-norm placement and its consequence for the stream's magnitude. The logit lens: projecting the stream at each depth to see what the model believes so far. Why this framing makes interpretability tractable.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "04-before-attention",
+      "number": 4,
+      "part": "II. Attention",
+      "title": "The bottleneck attention was invented to fix",
+      "thesis": "Attention was not invented for transformers; it was invented to stop an RNN from forgetting the beginning of a sentence.",
+      "cover": "Encoder-decoder seq2seq and the fixed-size context vector. Why a single vector cannot hold a long sentence. Bahdanau, Cho and Bengio 2014: additive attention, alignment weights, and the soft search over encoder states. Luong 2015 and the switch to dot-product scoring. Why additive attention used a small network instead of a dot product, and what changed when hardware caught up.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "05-scaled-dot-product",
+      "number": 5,
+      "part": "II. Attention",
+      "title": "The 2017 move: drop the recurrence",
+      "thesis": "Scaled dot-product attention is a differentiable lookup table, and the scaling factor is there for a reason you can compute on paper.",
+      "cover": "Vaswani et al. 2017. Queries, keys and values as three learned projections of the same vector. The score matrix, softmax over keys, weighted sum of values. The variance argument for dividing by the square root of the key dimension: dot products of independent unit-variance vectors have variance d, so softmax saturates without scaling. Complexity of n squared times d, and the FLOP accounting. Why removing recurrence made the whole sequence computable in one pass.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "06-multi-head",
+      "number": 6,
+      "part": "II. Attention",
+      "title": "Why many small heads beat one large one",
+      "thesis": "Splitting attention into heads is not parallelism for its own sake; each head is a separate subspace where a different relation can be expressed.",
+      "cover": "Head dimension equals model dimension divided by head count. The original transformer at 512 with 8 heads of 64. Concatenation and the output projection. What heads actually learn: induction heads, previous-token heads, syntactic and coreference heads. Attention head superposition and the difficulty of reading individual heads. Head pruning results showing many heads can be removed with little loss.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "07-softmax",
+      "number": 7,
+      "part": "II. Attention",
+      "title": "The function that turns scores into shares",
+      "thesis": "Softmax is where attention decides how much to care, and its saturation is the reason attention sometimes stops learning.",
+      "cover": "The exponential and the normalization. Why exponentials rather than any other monotone function. Numerical stability: subtracting the row maximum before exponentiating, and what happens without it in fp16. Temperature as a divisor inside the exponent. Entropy of an attention row as a measure of focus. Attention sink behaviour and why some heads dump mass on the first token.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "08-positions",
+      "number": 8,
+      "part": "II. Attention",
+      "title": "Attention has no idea where it is",
+      "thesis": "Self-attention is permutation invariant, so position has to be injected deliberately, and the four generations of doing so explain a lot of modern behaviour.",
+      "cover": "Permutation invariance proof sketch. Sinusoidal encodings from 2017 and the intuition about relative offsets. Learned absolute embeddings and their failure beyond training length. Relative position representations (Shaw 2018). Rotary position embedding (Su 2021): rotating query and key pairs by an angle proportional to position, so the dot product depends only on the offset. ALiBi and its linear bias. Why RoPE won. Context extension: NTK-aware scaling, YaRN, and what breaks when you stretch it.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "09-quadratic-wall",
+      "number": 9,
+      "part": "II. Attention",
+      "title": "The cost that defines the field",
+      "thesis": "Every architectural decision in modern inference is a response to the fact that attention cost grows with the square of sequence length.",
+      "cover": "Where the n squared term comes from: every token scores against every other. FLOP and memory accounting for a single layer at increasing context. What 128k context implies for the attention matrix alone. Why the wall drove Flash Attention, sparse patterns, linear attention variants, and state-space models. The honest comparison: subquadratic methods trade exactness or recall for asymptotics.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "10-kv-cache",
+      "number": 10,
+      "part": "III. The cache",
+      "title": "Why generation is slow and memory-hungry",
+      "thesis": "Decoding one token at a time means the model must remember every key and value it has already computed, and that memory is the real cost of long context.",
+      "cover": "Autoregressive decoding: each step produces one token and appends it. Without a cache, every step would recompute attention over the whole prefix. With a cache, keys and values for past positions are stored per layer and reused. The size formula: two tensors, times layers, times key-value heads, times head dimension, times sequence length, times bytes per element. A worked example at realistic numbers. Why this is why long context is expensive and why it is a bandwidth problem, not a compute problem.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "11-mqa-gqa-mla",
+      "number": 11,
+      "part": "III. The cache",
+      "title": "Three generations of sharing the cache",
+      "thesis": "The KV cache grew to dominate memory, so the field spent six years learning how to store less of it without losing quality.",
+      "cover": "Multi-head attention as the baseline: one key-value pair per head. Multi-query attention (Shazeer 2019): a single key-value head shared by all query heads, cutting cache size by the head count at some quality cost. Grouped-query attention (Ainslie 2023): an interpolation with G groups, and the uptraining recipe to convert an existing checkpoint. Multi-head latent attention (DeepSeek-V2 2024): compress keys and values into a low-rank latent and add a decoupled RoPE dimension. The quality-versus-cache curve across all three, and where modern models land.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "12-paged-attention",
+      "number": 12,
+      "part": "III. The cache",
+      "title": "Virtual memory for the KV cache",
+      "thesis": "The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.",
+      "cover": "The fragmentation problem: reserving max sequence length per request wastes most of it. Internal and external fragmentation, and the observation that only 20 to 40 percent of reserved cache was actually used. The OS analogy: pages, page tables, virtual addresses. Block tables mapping logical token positions to physical blocks. Copy-on-write for parallel sampling and beam search. The vLLM result: two to four times throughput at the same hardware. Why this is the single most influential systems idea in inference.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "13-prefix-caching",
+      "number": 13,
+      "part": "III. The cache",
+      "title": "Why the second request is cheaper",
+      "thesis": "If two requests share a prefix, the keys and values for that prefix are identical, so computing them twice is pure waste.",
+      "cover": "Hashing blocks of tokens and storing them in a radix tree keyed by content. On a new request, walk the tree, reuse matching blocks, compute only the remainder. Why a fixed system prompt becomes free after the first call. Cache hit accounting: hits over queries. Eviction policy and why LRU on blocks rather than on requests. The measurement consequence: prefill throughput numbers become meaningless unless you report hit rate alongside them.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "14-flash-attention",
+      "number": 14,
+      "part": "III. The cache",
+      "title": "Attention that never builds the matrix",
+      "thesis": "The attention matrix is rarely the bottleneck; writing it to memory and reading it back is.",
+      "cover": "GPU memory hierarchy: registers, shared memory, HBM, and the bandwidth gap between them. Standard attention materializes the full score matrix in HBM, reads it back for softmax, writes it again. Flash Attention (Dao 2022) tiles the computation so each block fits in shared memory and never leaves. The online softmax trick: maintain a running maximum and running sum so tiles can be combined correctly. Recomputation in the backward pass instead of storage. Flash Attention 2 and 3 improvements: better work partitioning, warp specialization, fp8 support. Why the result is exact, not an approximation.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "15-sparse-sliding",
+      "number": 15,
+      "part": "III. The cache",
+      "title": "Not every token needs to see every token",
+      "thesis": "Sparse attention is a bet that most of the n squared interactions are wasted, and the bet is usually right for long documents but wrong for retrieval.",
+      "cover": "Sliding window attention (Longformer 2020, Mistral 2023): each token attends to a fixed local window, with information propagating through layers. Dilated and global-token patterns. Attention sinks and streaming generation. The trade: a window of W gives effective receptive field of W times layers, which is not the same as full attention. Where sparse patterns lose: exact retrieval of a specific fact from far back. Hybrid approaches mixing local and full layers.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "16-ffn",
+      "number": 16,
+      "part": "IV. The rest of the block",
+      "title": "Where most of the parameters actually live",
+      "thesis": "Attention gets the attention, but the feed-forward network holds roughly two thirds of the weights and behaves like a key-value memory.",
+      "cover": "The expansion to four times the model dimension and the contraction back. Parameter accounting: two matrices of d by 4d per layer, which dominates the count. Geva 2021: the first matrix writes patterns into an intermediate space, the second reads them out, so the pair acts as a set of key-value memories. Why this is where factual knowledge concentrates, and what that implies for editing and for quantization.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "17-activations",
+      "number": 17,
+      "part": "IV. The rest of the block",
+      "title": "ReLU, GELU, and the gated turn",
+      "thesis": "The nonlinearity inside the feed-forward network looks like a detail and turns out to change both quality and parameter count.",
+      "cover": "Why a nonlinearity is needed at all. ReLU and its dead-unit problem. GELU (Hendrycks 2016) as a smooth approximation and why it became the default. GLU variants (Shazeer 2020): splitting the projection into a gate and a value, multiplying them. SwiGLU as the winner and the consequence: three matrices instead of two, so the intermediate dimension is reduced to two thirds of four d to keep the parameter count constant. Where each activation is still used.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "18-normalization",
+      "number": 18,
+      "part": "IV. The rest of the block",
+      "title": "Keeping the residual stream in range",
+      "thesis": "Normalization placement is one of the quiet decisions that determines whether a deep model trains at all.",
+      "cover": "LayerNorm (Ba 2016): normalize across features, then scale and shift with learned parameters. RMSNorm (Zhang and Sennrich 2019): drop the mean subtraction, keep the root mean square, because centering turned out not to matter and the saving is real. Post-norm as in the original transformer versus pre-norm, and why pre-norm became universal at scale: it keeps the residual stream's gradient path clean. QK-norm as a modern addition for stability in low precision.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "19-moe",
+      "number": 19,
+      "part": "IV. The rest of the block",
+      "title": "More parameters without more arithmetic",
+      "thesis": "Mixture of experts decouples parameter count from compute per token, and that decoupling is why frontier models can be enormous and still affordable to run.",
+      "cover": "Shazeer 2017 and the original sparsely-gated mixture. A router producing scores per expert, top-k selection, and the weighted combination. Capacity factor and token dropping. The load-balancing auxiliary loss and why it is necessary: without it the router collapses onto a few experts. Switch Transformer (2021) with top-1 routing. Expert parallelism and the all-to-all communication cost. Why MoE decode is bandwidth-bound: you fetch only the selected experts, but which experts are selected changes every token.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "20-precision",
+      "number": 20,
+      "part": "V. Precision",
+      "title": "From fp32 to bf16 to fp8",
+      "thesis": "Reducing precision is not a compromise; it is a deliberate trade of mantissa bits for throughput, and the exponent is the part that must not shrink.",
+      "cover": "Floating point anatomy: sign, exponent, mantissa. fp32 at 8 exponent and 23 mantissa bits. fp16 with 5 exponent bits and its overflow problem during training. bfloat16 with 8 exponent bits and 7 mantissa bits, which keeps fp32's range and became the training default. fp8 in two flavours, e4m3 for weights and e5m2 for gradients. Why accumulation stays in fp32 even when inputs are lower precision.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "21-quantization",
+      "number": 21,
+      "part": "V. Precision",
+      "title": "Four bits and the outlier problem",
+      "thesis": "Quantization works because weights are redundant, and it fails in specific, predictable places where a few values are much larger than the rest.",
+      "cover": "Affine quantization: scale and zero point, and the mapping from floats to integers. Per-tensor versus per-channel versus per-group scaling, and why group size of 128 became standard. The outlier problem: a small number of weight channels carry huge magnitudes, so a single scale either clips them or crushes everything else. GPTQ (2022): layer-wise reconstruction with error compensation. AWQ (2023): protecting the salient channels identified by activation magnitude. GGUF k-quants as a mixed-precision scheme. Where the quality cliff actually is.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "22-why-4bit-works",
+      "number": 22,
+      "part": "V. Precision",
+      "title": "Why four bits is enough",
+      "thesis": "Weight quantization survives because the function a layer computes is robust to small perturbations, but activation quantization is a different and harder problem.",
+      "cover": "The distribution of trained weights: approximately Gaussian with a long tail. Error propagation through a residual stream that averages many contributions. Why decode tolerates weight error: the output is a sum over thousands of terms, so independent errors partially cancel. Why activation quantization is harder: activations have channel-specific outliers that are consistent across tokens, so you cannot average them away. The practical consequence for KV cache quantization specifically.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "23-logits",
+      "number": 23,
+      "part": "VI. Producing a token",
+      "title": "From a vector to a word",
+      "thesis": "The final projection turns the residual stream into one score per vocabulary entry, and everything about sampling operates on that list.",
+      "cover": "The language model head as a matrix of vocabulary size by model dimension, often tied to the input embedding. Logits as unnormalized scores. The softmax that turns them into a distribution. Why logit scale matters for sampling and for distillation. The long tail: most of the vocabulary has near-zero probability at any step, and that tail is where hallucination and repetition live.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "24-sampling",
+      "number": 24,
+      "part": "VI. Producing a token",
+      "title": "Temperature, top-k, top-p, and what each one does",
+      "thesis": "Sampling parameters are not knobs on a single dial; each one cuts the distribution in a different place.",
+      "cover": "Greedy decoding and its degeneration into loops. Temperature as division of logits before softmax, and the limit cases at zero and infinity. Top-k: keep the k highest, renormalize. Top-p, nucleus sampling (Holtzman 2019): keep the smallest set whose cumulative probability exceeds p, which adapts to distribution shape where top-k does not. Min-p as a relative floor. Repetition and frequency penalties operating on logits rather than probabilities. Beam search and why it is rarely used for open-ended generation.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "25-speculative",
+      "number": 25,
+      "part": "VI. Producing a token",
+      "title": "Guessing ahead and checking cheaply",
+      "thesis": "Speculative decoding turns spare compute into lower latency by drafting several tokens and verifying them in one pass.",
+      "cover": "The observation that verification of k tokens costs about the same as generating one, because decode is bandwidth-bound and the weights are already loaded. A draft model proposes k tokens; the target model scores all of them in a single forward pass; a rejection rule accepts the longest correct prefix. The acceptance sampling argument that makes the output distribution identical to the target model's. Leviathan 2022 and Chen 2023. Medusa's multiple heads, EAGLE's feature-level drafting, and multi-token prediction heads trained into the model itself. Why acceptance rate, not draft speed, is the number that matters.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "26-prefill-decode",
+      "number": 26,
+      "part": "VII. Serving",
+      "title": "Two regimes in one machine",
+      "thesis": "Prefill and decode stress completely different parts of the hardware, which is why a single throughput number for a model is meaningless.",
+      "cover": "Prefill processes the whole prompt at once: large matrix-matrix products, high arithmetic intensity, compute-bound. Decode processes one token per stream: matrix-vector products, low arithmetic intensity, bandwidth-bound. Arithmetic intensity in FLOPs per byte, and the machine balance point where the regime flips. Why time to first token tracks prefill and inter-token latency tracks decode. The consequence for batching: decode benefits from more streams, prefill does not.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "27-batching",
+      "number": 27,
+      "part": "VII. Serving",
+      "title": "Continuous batching and the scheduler",
+      "thesis": "Static batching wastes most of the hardware; continuous batching treats the batch as a queue that changes every step.",
+      "cover": "Static batching: pad every request to the longest, wait for the slowest, then start over. The waste in both directions. Orca (2022) and iteration-level scheduling: admit and retire requests at every decode step. Chunked prefill to interleave a long prompt with ongoing decodes. The scheduler's real job: admission control, fairness, and keeping the memory footprint under the KV pool ceiling. Why the per-stream context ceiling is an admission decision rather than a hardware limit.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "28-parallelism",
+      "number": 28,
+      "part": "VII. Serving",
+      "title": "Splitting a model across devices",
+      "thesis": "There are two ways to cut a transformer across machines, and they fail for opposite reasons.",
+      "cover": "Tensor parallelism: split each matrix by rows or columns, so every device holds a slice of every layer. Requires an all-reduce per layer, so it wants fast interconnect and small node counts. The column-then-row pattern that keeps only one collective per block. Pipeline parallelism: split by layer, so each device holds whole layers, with micro-batches to fill the pipeline. The bubble: idle time at start and end, proportional to pipeline depth. Sequence parallelism and expert parallelism as the modern additions. Why a two-machine setup usually means pipeline or a hybrid.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "29-roofline",
+      "number": 29,
+      "part": "VII. Serving",
+      "title": "What the hardware actually allows",
+      "thesis": "You can predict a model's tokens per second from its size and the memory bandwidth before you ever run it.",
+      "cover": "The roofline model: attainable performance is the minimum of peak compute and bandwidth times arithmetic intensity. For decode, bytes read per token approximate the active parameter count times bytes per parameter. Divide bandwidth by bytes per token and you have an upper bound on tokens per second. Worked examples at several model sizes. Why quantization raises the ceiling proportionally. Why the ceiling is rarely reached: kernel overhead, KV cache reads, and imperfect batching.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "30-measurement",
+      "number": 30,
+      "part": "VIII. Grounding it",
+      "title": "How to know any of this is true",
+      "thesis": "A performance claim without a methodology is a rumour, and most published numbers are not comparable to each other.",
+      "cover": "Counters versus logs versus wall-clock timing, and what each can and cannot tell you. Why averaging over requests hides the distribution: report percentiles. Prefix cache hit rate as a confound in every prefill number. Warm-up effects and the first-request penalty. The difference between throughput at concurrency one and at concurrency four, and why quoting either alone is misleading. A short checklist for a benchmark someone else can reproduce.",
+      "status": "pending",
+      "runs": 0
+    },
+    {
+      "id": "31-local-numbers",
+      "number": 31,
+      "part": "VIII. Grounding it",
+      "title": "The same book, measured on two small machines",
+      "thesis": "Every concept in this book lands somewhere concrete, and here is where it lands on a two-machine desk setup.",
+      "cover": "The rig: two GB10 systems, a model split across them, a unified memory pool. Decode and prefill rates, cache hit rates, speculative acceptance, and the derived ceilings from the roofline chapter. Which numbers matched the prediction and which did not, and what the gaps imply. Why this is a case study rather than a benchmark: one workload, one configuration.",
+      "status": "pending",
+      "runs": 0
+    }
+  ]
+}

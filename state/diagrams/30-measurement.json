@@ -1,0 +1,26 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Request lifecycle and measurement points",
+  "why": "Shows where counters and logs take their measurements relative to the client-server boundary, explaining why numbers from different methods are not comparable.",
+  "nodes": [
+    "Client sends request",
+    "Network",
+    "Server receives",
+    "Prefill",
+    "Decode",
+    "Response sent",
+    "Client receives response"
+  ],
+  "notes": "Arrows show request flow. Counters increment at server during prefill and decode (e.g., prompt_tokens_total, request_prefill_seconds_sum). Logs timestamp at server receive and response send. Client-side timestamps would be at client send and receive; clock skew between client and server appears as latency. Labelled quantities from the chapter: 59.1 tokens/sec aggregate decode at concurrency 1 from 4 sequential requests of 400 tokens each (1,600 tokens in 27.1s wall clock); mean prefill 3.33s from request_prefill_seconds_sum / _count over 98 requests. | Horizontal axis is elapsed seconds for one request; stages flow left to right into wall-clock completion. Label prefill at 3.33 s and decode at 8.38 s from the counters; label mean time to first token at 3.46 s over 98 requests, so the pre-first-token queueing/overhead bracket is about 0.13 s; label total wall clock as nearly 12 s. A side note can contrast the two throughput definitions: 607 generated tokens over 8.38 decode seconds gives 72.4 tokens/s, while the concurrency-one benchmark reports 59.1 tokens/s because its wall-clock figure divides 1,600 tokens by 27.1 s of total request time including prefill. Do not add unlabelled quantities. | Flow runs left to right: prompt tokens are split into fixed-size blocks; each block hash includes the previous block hash, so a match at block k implies earlier matches. Lookup walks the chain from the root until a hash is absent; matched blocks are reused and the first miss plus everything after is recomputed. Label the sampled window quantities where they enter the accounting: prompt_tokens_total 12,804,579; cache hit rate 95.9 percent; cached tokens 12,285,952; uncached tokens 518,627; mean prefill duration 3.33 s over 98 requests; total prefill time 326.34 s; apparent rate 39,237 tokens/s; computed rate 1,589 tokens/s. Do not label block size with a number; it is a configuration constant not given in the verified metrics. | Horizontal time axis from process start to first token. Segments between consecutive timestamps correspond to graph capture cost, allocator growth cost, autotune cost, and any remaining deferred loader/weight-paging cost before first token. Each boundary is a logged timestamp; the first-request penalty is the full span and is reported separately from steady-state throughput. No numeric values are labelled beyond the structural stages. | Bar chart: x-axis is configuration (concurrency 1, concurrency 4 aggregate, concurrency 4 per-stream, perfect batched ceiling); y-axis is tokens per second. The 236.4 ceiling is labelled as 4 \u00d7 59.1 under the assumption that KV reads are small compared with W. The 45% label is 106.2 / 236.4. The section also supplies B = 273 GB/s and implied 4.62 GB per token at concurrency one; these can be annotations, not separate bars. No other quantities are invented. | No axes; a two-column comparison. The held constants apply to both runs. Decode seconds is the measured comparison quantity. Acceptance rate is labelled as a covariate: 67.6 percent, 42,181 out of 62,390 drafted tokens. The 59.1 tokens-per-second claim is attributed only through the counterfactual, not from acceptance alone. | No axes; the figure is a partition diagram. The total pool is split evenly across 4 streams to give 65,536 positions per stream. From each stream share, subtract MAX_TOKENS 32,768, ROUND_ROWS 16, and 2, yielding the admission ceiling 32,750. A second branch shows the same partition for a 1,048,576-position pool, yielding 229,358 tokens per stream and 0.68 GiB extra KV memory per rank. All quantities are taken directly from the chapter's arithmetic.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

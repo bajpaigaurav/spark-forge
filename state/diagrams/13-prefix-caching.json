@@ -1,0 +1,25 @@
+{
+  "needed": true,
+  "kind": "layout",
+  "title": "Shared prefix KV blocks and the cache key that validates them",
+  "why": "It shows the memory structure behind prefix reuse: two requests' token sequences, the per-layer K/V tensors for the shared prefix, and the metadata that must match before those blocks can be shared.",
+  "nodes": [
+    "Request A token sequence",
+    "Request B token sequence",
+    "shared prefix starting at position 0",
+    "prefill through each layer",
+    "query/key/value per token",
+    "KV cache blocks for shared prefix",
+    "cache key: model weights/version, tokenizer, adapter or LoRA identity, dtype, block size, starting position or block index",
+    "decode attends to cached K/V"
+  ],
+  "notes": "Left-to-right token positions; shared prefix occupies the same absolute positions in both requests. Per layer, token i produces Q/K/V depending on tokens 1..i; only K and V are stored. The cache key is drawn as a metadata box gating reuse of the shared KV blocks. Labels are structural: position 0, token i, layer, block index, and the listed cache-key fields; no numeric values beyond these structural constants. | Left-to-right flow: a request's logical blocks are mapped by its block table to physical KV blocks; a physical block ID refers to the same offset across every layer and head's K/V arrays, with vectors of dimension d_head. The hash for each block combines its token IDs with the previous block's hash and namespace fields, so identical tokens after different prefixes do not collide. The hash table returns candidate physical blocks; stored token IDs or a strong fingerprint are checked before reuse. The worked example uses block size 2 tokens: A=[A1,A2][B1,B2], B=[C1,C2][B1,B2] gives different second-block hashes, while C matching A reuses both blocks. No other quantities are labelled. | Flow is left-to-right: request tokens enter the radix-tree walk; matched complete blocks flow to reused physical blocks, while the block-aligned remainder flows to new allocation and K/V writes. The block table maps logical blocks to physical block IDs and carries reference counts; shared blocks are counted per block-table reference, e.g. two requests holding one physical block give count two, dropping to one when one finishes. Label the block-size trade-off with the chapter's common choice of 16 tokens, noting it is not universal; label divergence-inside-a-block as forcing recomputation of the entire block. | Horizontal axis is request lifecycle stages; rows are cache blocks S1, S2, UA, UB. Labels are refcounts 1, 2, and 0 exactly as in the chapter. The tree panel shows parent-child order: S1 parent of S2, S2 parent of UA and UB; only zero-reference leaf nodes are eviction candidates, and a parent with a live child remains. No other quantities are labelled. | The figure is a tree/layout diagram, not a plot with axes. Tree nodes represent token spans; KV cache blocks are attached to shared nodes. Request A flows into the tree first and populates the shared path; Request B traverses the same shared nodes, then branches at the first divergent token. Labels mark where reuse occurs and where new KV computation begins. No numeric quantities are invented; any hit-rate or throughput numbers would come from the chapter's reported measurements, not the diagram.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    6
+  ]
+}

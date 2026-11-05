@@ -1,0 +1,31 @@
+# Secrets — the gateway virtual key
+.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Scratch/backup files. History lives in git now, so these are not kept.
+*.bak
+*.bak-*
+*.bak2
+*.bak3
+*.bak4
+*.pre-revise
+
+# The generated site is not committed. GitHub Pages builds it in CI from
+# content/chapters + diagrams, so the HTML never goes stale in the tree.
+site/
+
+# Live run output — noisy, machine-local, no value to a reader
+logs/
+state/forge_skips.log
+state/queue.lock
+state/.forge_tick.lock
+
+# Review working state. Regenerable, and it is the model's own scratch output
+# (raw findings, verdicts, gate reports) rather than source. The one exception is
+# state/diagrams/ below: those specs are a build input for diagrams.py.
+state/reviews/
+state/verdicts/
+state/reports/

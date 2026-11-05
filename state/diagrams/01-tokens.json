@@ -1,0 +1,26 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Byte-pair encoding as a compression loop feeding token IDs into the model",
+  "why": "It shows the sequential dataflow from UTF-8 bytes through repeated pair-counting and merging to token IDs, and the tradeoff between shorter sequences and a larger vocabulary.",
+  "nodes": [
+    "UTF-8 byte stream",
+    "count adjacent pairs",
+    "merge most frequent pair",
+    "add new symbol to dictionary",
+    "repeat until desired vocabulary size",
+    "token IDs",
+    "embedding matrix: vocabulary size by model width",
+    "model"
+  ],
+  "notes": "Left-to-right flow. The loop is the BPE compressor: each round removes one symbol from the stream and adds one dictionary entry, so sequence length falls while vocabulary size rises. UTF-8 byte widths are labelled as 1 byte for ASCII, 2 bytes for many accented and Cyrillic characters, and 4 bytes for emoji. The embedding matrix is labelled with its structural shape, vocabulary size by model width; weights are stored in fp16 at two bytes per parameter. No numeric vocabulary or sequence lengths are invented. | Flow is a loop: corpus state feeds pair counting, selection, rank assignment, and rewriting, then returns to counting. The concrete trace labels states: initial symbols l o w </w>, l o w e r </w>, l o w e s t </w>; pair l o occurs 8 times and o w occurs 8 times, tie-break picks l o as rank 0; then lo w occurs 8 times as rank 1; low </w> occurs 5 times as rank 2; low e occurs 3 times as rank 3; lowe r and r </w> occur 2 times, tie-break picks lowe r as rank 4; lower </w> occurs 2 times as rank 5. The base alphabet is characters in the original formulation and 256 byte values in the byte-level variant. No axes; the figure is a dataflow with corpus states and merge ranks labelled. | Flow: raw text enters regex; regex outputs chunks; chunks enter merge loop; merge loop outputs tokens. Branch at regex: GPT-2 groups all consecutive digits into one chunk; Llama 3 groups digits in runs of up to three (e.g. 1234 -> 123 and 4). Label GPT-2 vocab arithmetic: 50,257 = 256 base byte tokens + 50,000 learned merges + 1 end-of-text marker. Inset conflict example: rank 0 a b -> ab, rank 1 b c -> bc; rank order on abc gives ab c, longest-match-first gives a bc. No axes; quantities are structural constants from chapter. | Left-to-right flow. Normalization can alter the string before tokenization, so round-tripping is not always byte-identical. The segmentation stage has two alternative algorithm branches: BPE learns an ordered merge list; Unigram starts with a large candidate vocabulary, assigns probabilities, prunes low-likelihood pieces to the target size, then chooses the most probable segmentation. Byte fallback is a side path for characters outside the vocabulary and preserves reversibility. No quantities are labelled in this figure; vocabulary-size tradeoff arithmetic is left to prose. | Rows are tokenizer configurations; columns show input text, byte count, and resulting token sequence. Labelled quantities come from the chapter: 44 bytes, 88 bytes, 44 tokens, 88 tokens, and the digit groupings 123/4 and 567/8. | No axes. Flow: tokenizer corpus -> vocabulary; model corpus -> which vocabulary rows appear in input; cross-entropy loss -> gradient only on rows for tokens in input; token in vocabulary but absent from model corpus -> row stays at initialization; later work uses embedding norm to mark under-trained rows. Also note byte-level BPE attaches leading space, so 'hello' and ' hello' are distinct token strings/rows; trailing-space normalization changes the final token.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

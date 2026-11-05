@@ -1,0 +1,24 @@
+{
+  "needed": true,
+  "kind": "layout",
+  "title": "Equal-share KV pool reservation and fragmentation",
+  "why": "It shows the pool split into four fixed shares, the constants subtracted to get each stream's ceiling, and where internal and external fragmentation sit in memory.",
+  "nodes": [
+    "KV pool: 262,144 positions",
+    "4 stream shares: 65,536 positions each",
+    "reply budget: 32,768",
+    "decode batch margin: 16 rows",
+    "position slack: 2",
+    "per-stream ceiling: 32,750 positions",
+    "internal fragmentation: reserved minus used",
+    "external fragmentation: holes between contiguous buffers"
+  ],
+  "notes": "Horizontal memory-position axis from 0 to 262,144, divided into four equal 65,536-position stream shares. Within one share, label the subtraction chain 65,536 \u2212 32,768 \u2212 16 \u2212 2 = 32,750 and mark the admitted ceiling versus unused reserved positions. Show a short request holding its whole share, leaving internal fragmentation, and show departing-request holes between contiguous buffers as external fragmentation. All quantities come from the chapter. | Virtual page numbers flow into the page table, which maps each to a physical frame number; physical frames need not be adjacent, so allocation finds any free frame and fragmentation is only the unused tail of the last page. The TLB sits on the translation path and caches recent VPN-to-PFN mappings. Page and frame size are structural constants; no numeric quantities are invented. The chapter's 20-40% KV-cache utilization measurement is not labelled on this layout figure. | Left side: memory layout. Logical blocks are indexed 0,1,2,...; each entry in the per-layer block table points to a physical block number. Physical blocks are fixed-size slots of B token positions for one layer of one sequence; no contiguity is required. Right side: kernel dataflow. For query position p, compute logical block p / B and offset p mod B, read the physical block number from the table, load that block's K and V, compute Q\u00b7K\u1d40 over at most B keys, then update running max m and normalizer l using online softmax: local max, rescale accumulator by exp(m_old - m_new), add block exponentials. The final block is partial and is masked past sequence length before the max. Arrows: block table entry -> physical block -> K/V load -> attention over block -> online-softmax update -> next logical block. Labels are structural: B, p, p / B, p mod B, m, l, m_old, m_new. No numeric values beyond those in the chapter. | Rows are the two sequences' logical block tables; columns/boxes are physical blocks. Arrows run from each logical entry to its physical block. Label the prompt as 100 tokens in 16-position blocks: seven blocks, six full and one holding four tokens. Show refcounts on physical blocks: 1 before fork, 2 after fork, then 41->1 and 55->1 after copy-on-write. A's table is unchanged. No axes; the figure is a memory layout with before/after states.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4
+  ]
+}

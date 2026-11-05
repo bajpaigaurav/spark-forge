@@ -1,0 +1,25 @@
+{
+  "needed": true,
+  "kind": "curve",
+  "title": "Roofline plot with decode at low arithmetic intensity",
+  "why": "It shows the roofline structure the prose describes: a rising bandwidth roof meeting a flat compute roof, with decode placed far to the left near intensity 1.",
+  "nodes": [
+    "log arithmetic intensity (FLOPs per byte)",
+    "attainable performance",
+    "bandwidth roof: rising line",
+    "compute roof: flat ceiling",
+    "decode: intensity near 1",
+    "batching shifts decode rightward"
+  ],
+  "notes": "Axes are log performance versus log arithmetic intensity. The rising bandwidth roof meets the flat compute roof; decode sits far left because each token streams the active weights once and does about 2 FLOPs per 2 bytes at FP16, giving intensity near 1. The chapter's 70B FP16 example is 140 GB, larger than any device cache. Batching amortizes the weight read across b rows, raising FLOPs per byte and moving the decode point right without changing the arithmetic per token. | Horizontal axis: bytes per token (weights at the stated precision). Vertical axis: tokens per second ceiling from 273 GB/s divided by bytes per token. A vertical capacity line at 111.5 GB marks the engine's usable device_memory_bytes; GPT-3 FP16 lies beyond it. KV context is a separate additive term: 921.6 bytes per position from 0.9 GiB per 1,048,576 positions, multiplied by L \u00d7 b. | Two side-by-side bars or panels: left axis step time in ms for batch=1 and batch=4; right axis aggregate tokens/s for the same two configurations. Label the 1.80\u00d7 throughput multiplier and the 2.2\u00d7 step-cost increase. The 4.6 GB/token bound is an annotation derived from 273 \u00f7 59.1, not a plotted axis. All quantities come from the chapter's measured runs and arithmetic. | x-axis: batch size b (streams); y-axis: step time in ms. The line is w + b\u00d7s, fitted from the two points b=1 and b=4. The shared weight term w=10.0 ms is constant; the unshared term s=6.9 ms per stream grows linearly. At b=4 the shared part is about 27% of the 37.7 ms step. The tokens-per-second asymptote is 1/s \u2248 145, the reciprocal of the slope, not a point on the ms axis. | x-axis: arithmetic intensity in FLOPs per byte, log scale; y-axis: achieved FLOP/s. Bandwidth roof is a line with slope 3.35 TB/s HBM3; compute roof is flat at 989 TFLOP/s dense FP16. The ridge where they meet is 295 FLOPs/byte. Plot decode at intensity 1 and prefill at 130,000, both from the chapter. Annotate the request timing split: TTFT 3.46 s mean, prefill 3.33 s, decode 8.38 s over 98 requests, and sustained prefill 39,237 tokens/s. | Two panels. Left: prompt tokens flow into block hashes, then cache lookup; a hit reuses stored KV, a miss invalidates the remaining prefix. Label 12,285,952/12,804,579 hits (95.9%), 39,237 tokens/s, and 313 s of prefill removed. Right: draft model emits k tokens, main model verifies them in one pass, and the accepted prefix plus one bonus token is emitted. Label acceptance 67.6% (42,181/62,390), a=0.676, a\u00b2=45.7%, a\u00b3=30.9%, a\u2074=20.9%, and cumulative yield 1+a+...+a^k approaching 3.09 tokens per weight read. No continuous axes; probabilities sit on the acceptance arrows and the yield bound is a labelled ceiling. | Left panel compares two configurations as columns: unified LPDDR5X vs H100 SXM. Rows are bandwidth, capacity, single-stream token ceiling, and whether a 70B model fits at FP16 or 4 bits. Right panel is a memory-budget layout: the context pool is split equally across 4 streams, then the reply budget, decode rows, and boundary overhead are subtracted to show the per-stream token ceiling for 262,144 and 1,048,576 positions. Label the KV cost and memguard floor against total memory. All quantities come from the chapter.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

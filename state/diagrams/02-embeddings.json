@@ -1,0 +1,22 @@
+{
+  "needed": true,
+  "kind": "layout",
+  "title": "Embedding table lookup: vocabulary id selects one row of d learned numbers",
+  "why": "It shows the memory layout and dataflow from token id to dense row, contrasting the V-length one-hot vector with the V-by-d lookup table the prose describes in sequence.",
+  "nodes": [
+    "token id (integer from BPE merge order)",
+    "one-hot vector of length V",
+    "embedding table: V rows by d columns",
+    "selected row vector of width d"
+  ],
+  "notes": "Rows are indexed by vocabulary id; columns are embedding dimensions. The lookup selects exactly one row, so the table is a memory layout, not a geometric operation. V is vocabulary size and d is embedding width (a few thousand in the chapter); no numeric values are invented. The one-hot branch has length V with a single 1 and no learned geometry; the dense branch has V learned rows of width d. | No axes; arrows flow left to right. Label the 2D example on the vectors: v_c=(0.5,-0.2), u_o=(0.3,0.4); score 0.07; \u03c3(0.07)=0.517; positive loss 0.659; gradient (-0.241,0.097); \u03b7=0.1; updated u_o=(0.324,0.390); new score 0.084. Inset compares per-pair cost: softmax needs one exponential per vocabulary entry, illustrated by 50,000 tokens and on the order of a hundred trillion exponentials over a few billion pairs; negative sampling needs k+1 sigmoid evaluations, with k=5 giving roughly an 8,000x factor. Negative samples are drawn from the unigram distribution raised to 0.75. | No axes; three parallel pipelines feed a common vector space. Label fastText composition for 'running': <ru, run, unn, nni, nin, ing, ng> plus whole word. Label n range 3\u20136. Cosine examples are arithmetic and omitted. | Axes are the two coordinates of the toy table. Draw raw a and b as arrows from the origin, plus m=(1,1); label their cosine 0.917. Then draw centered a' and b' after subtracting m; label their cosine 0.166. The flow is raw rows -> subtract mean m -> centered rows -> remove projections onto top principal components -> check mean cosine on random pairs. Only the chapter's numbers are labelled. | Flow diagram, no axes. Left: token id enters E of shape V\u00d7d, producing hidden h of width d. Right: h enters W of shape d\u00d7V, producing logits over V vocabulary items. A tie arrow labels W = E\u1d40, so the same matrix is used for reading and writing. Two gradient arrows converge on E: one scatters the lookup gradient into rows that appeared in the batch; the other forms an outer product of the logits gradient with h and transposes it into E's shape; both sum on E. A side box lists the parameter counts already given: GPT-2 small V=50,257, d=768 gives 38,597,376 embedding parameters, counted once in the published ~124M tied total; untied would add a second 38.6M copy, taking it to ~163M, saving roughly 24 percent. LLaMA-7B V=32,000, d=4,096 gives 131M embedding parameters and is untied. | Draw the table as a tall rectangle of V rows, each row d wide. Label total numbers V\u00d7d = 525,336,576. Show a batch path selecting at most B\u00d7T distinct rows via direct indexing/gather, with only those rows marked as receiving gradient. Label bytes-per-element axis or side note: 2 bytes gives about 1.05 GB, 4 bytes doubles. No axes needed; quantities come from the chapter.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

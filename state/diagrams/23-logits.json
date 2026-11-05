@@ -1,0 +1,24 @@
+{
+  "needed": true,
+  "kind": "shapes",
+  "title": "Final projection: residual vector to vocabulary logits",
+  "why": "It carries the tensor-shape dataflow from h through W to logits and probabilities, which the prose describes in sequence.",
+  "nodes": [
+    "h: last-position residual vector, length d_model",
+    "W: output matrix, V rows by d_model columns",
+    "s = h W^T: logits vector, length V",
+    "softmax(s): probability distribution over V entries",
+    "batch form: B by d_model hidden states -> B by V logits"
+  ],
+  "notes": "Left-to-right flow: h (d_model) multiplied by W^T (d_model by V) yields s (V); softmax normalizes s into probabilities over the vocabulary. Batch path labels B sequences and T positions, with last non-padding position selected to form B by d_model, then B by V logits. W's V rows are directions in d_model space; row w gives score h\u00b7W_w. Optional bias b is length V. Quantities labelled: d_model, V, B, T; no numeric values invented. | Flow is left to right: h multiplies the vocabulary rows to produce one logit per token ID, softmax turns logits into p, and cross-entropy sends gradients back to W and h. Row i of W corresponds to token ID i; V is the fixed tokenizer vocabulary size and d is the residual width. Training moves row W_y toward h and non-target rows away, while h moves toward W_y and away from other rows. Quantities labelled are h, W_j, s_j, p_j, y, L, and the gradient expressions; no numeric values are invented. | Left-to-right flow: h enters the tied matrix, producing one score per vocabulary entry; softmax turns the V logits into V probabilities. Label shapes d_model and V, and note that E and W are the same V\u00d7d_model block when tied. The chapter's concrete example uses V = 50,000 and d_model = 4,096, giving a head of 50,000 \u00d7 4,096 = 204,800,000 parameters, about 205 million, removed by tying. The softmax example scores 2, 1, 0 yield exponentials about 7.389, 2.718, 1, sum about 11.107, and probabilities about 0.665, 0.245, 0.090; shifting all scores by the same amount leaves the distribution unchanged. | Left-to-right dataflow. Label the head matvec as d_model \u00d7 V multiply-adds, or 2 d_model V FLOPs; at d_model = 4,096 and V = 50,000 this is 204,800,000 multiply-adds per token. Label the comparison to one transformer layer at the same width with a 4d feedforward block: about 12 d_model\u00b2 multiply-adds, about 201,300,000. Temperature acts after logits: show the same three logits 2, 1, 0 scaled by T = 0.5 to 4, 2, 0 and by T = 2 to 1, 0.5, 0, feeding the softmax to produce the stated probabilities. No axis; the flow is vector shape [d_model] into matrix [d_model \u00d7 V] into vector [V], then reweighting over the same V entries. | Left-to-right flow: residual vector enters final projection, producing a logit vector with one entry per vocabulary item; softmax turns it into a distribution. The distribution then branches into decoding variants: greedy takes argmax and admits no tail; top-k keeps a fixed count k; top-p keeps a variable count until cumulative probability reaches p; temperature divides logits by T before softmax and changes the distribution shape before any cut. No axes; labels are structural parameters k, p, and T, plus the vocabulary dimension. No numeric values are shown. | Left-to-right flow: logits enter softmax, producing probabilities that feed greedy or top-p decoding; the chosen token is appended to the KV cache and can be attended to at the next decode step, producing a new hidden state and logits. A repetition penalty is shown as an edit on the logit vector before softmax. Label the hallucination example on the logits/probabilities: correct logit 5, generic logit 6, 100 others at 0; probabilities about 0.228, 0.619, 0.153; top-p threshold 0.6 keeps only the generic token. Label the repetition-penalty example: logits 2,1,0 for A,B,C; A and B present; \u03b4=1 gives edited logits 1,0,0 and probabilities about 0.576,0.212,0.212, versus pre-penalty about 0.665,0.245,0.090. No axes; arrows carry the dataflow and the cache-feedback loop. | Left-to-right dataflow: a d_model vector is multiplied by the d_model \u00d7 V head to produce V scores, softmax turns those into a distribution, and a decoding rule chooses. Annotate two invocation paths: prefill processes the prompt in one pass and applies the head once per request; decode applies the head once per generated token. Label the average request counts from the chapter: 130,659 prompt tokens and 607 generated tokens, so the head ran 607 times while prefill ran once. Also label the two cost scalings: attention during decode O(n d_model) per layer per token, head O(d_model V) per token, with n the current context length. No axes; quantities are tensor dimensions and invocation counts.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

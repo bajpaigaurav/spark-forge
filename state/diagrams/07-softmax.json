@@ -1,0 +1,20 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Stable softmax: subtract row max, exponentiate, normalize",
+  "why": "It shows the sequence of row-wise operations and where overflow/underflow thresholds enter, which the prose describes in order.",
+  "nodes": [
+    "scores s_i in a row",
+    "row maximum m",
+    "shifted scores s_i - m",
+    "exp(s_i - m)",
+    "sum of exponentials",
+    "shares p_i"
+  ],
+  "notes": "Flow left to right: scores enter max-reduction, then subtraction, then exponentiation, then sum, then division. Label the overflow ceiling on the exponentiation stage: fp16 tops out at 65,504 and exp(11.09)=65,536; fp32 ceiling at exp(88.7). Label underflow at exp(-20) ~ 2e-9. Temperature T is a divisor inside the exponent: exp(s_i/T), with T=1 unchanged, T=0.5 doubles scores, T=2 halves them. All quantities come from the chapter. | x-axis: relative score gap among keys in a row; y-axis: softmax share p_i and its derivative p_i(1-p_i). The share curve rises toward 1 as one key dominates; the gradient curve peaks at p_i=0.5 and falls to 0 at p_i=0 and p_i=1. Label the endpoints structurally: p_i\u21921 gives gradient\u21920; p_i=0.5 gives maximum p_i(1-p_i). Optionally annotate the chapter's three-key example with H\u22480.85 nats against ln 3\u22481.10, but no other numeric values are introduced.",
+  "section": 2,
+  "sections": [
+    2,
+    3
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "needed": true,
+  "kind": "comparison",
+  "title": "Static batching versus iteration-level scheduling across decode steps",
+  "why": "It shows the batch as a changing queue of slots over time, contrasting padded static rows and idle finished sequences with per-step retirement and admission.",
+  "nodes": [
+    "Static batch: prompts padded to longest prompt (up to 130,659 tokens)",
+    "Static decode: all rows held until slowest sequence finishes",
+    "Finished sequence after 607 tokens still occupies a row and KV cache",
+    "Continuous scheduler: active sequence set at each step",
+    "Select subset fitting memory budget",
+    "Run one forward pass",
+    "Sample one token per sequence and append",
+    "Retire on end-of-sequence or length budget",
+    "Admit new requests into freed slots",
+    "Batch dimension changes every step"
+  ],
+  "notes": "Axes: horizontal = decode step, vertical = batch slot/row. Top panel shows static batching with padding and a finished row idling until the slowest member completes. Bottom panel shows continuous batching rebuilding the batch each step: a request can join at step 40 and leave at step 41, while another holds a slot from step 41 to step 900. Labelled quantities come from the chapter: 130,659-token longest prompt, 607-token finished sequence, steps 40, 41, and 900. Arrows flow from active set to memory-budget subset to forward pass to sample/append to retire/admit. | Left-to-right dataflow: batch rows flow through shared projections, then split by sequence for attention using position ids and a block-diagonal mask, then rejoin. A lower timeline shows a long prompt split into chunks interleaved with decode steps. Label only quantities from the chapter: 39,237 tokens/s prefill throughput, 130,659-token prompt occupying 3.33 s, decode step times 37.7 ms at concurrency 4 vs 16.9 ms at concurrency 1, arithmetic intensity B to 2B at B=4 (4 to 8) vs about 2L for a 2,048-token chunk (near 4,096), and the 273 GB/s LPDDR5X pool as the memory level below SRAM. | Left-to-right flow, one iteration per step. Label the prefill cap C on the fourth stage; annotate that a prompt of length L needs ceil(L/C) iterations and adds at most C/39,237 s per step (C=128 gives 3.3 ms and 1,021 iterations for the 130,659-token mean prompt; C=512 gives 13.0 ms and 256 iterations). At the admission stage show the memory arithmetic as a side box: 262,144-position KV pool / 4 streams = 65,536; minus 32,768 reply budget, minus 16-row kernel granularity, minus 2 boundary tokens = 32,750 positions per stream. Decode and prefill chunk both feed the single forward pass. | Left-to-right decision flow: arrival hits a full pool, then branches to refuse/queue, swap, or drop/recompute. Label swap cost as 2 \u00d7 22.8 MB at 273 GB/s \u2248 167 \u00b5s for a 32,750-position sequence at 696 bytes per position; label recompute as 0.835 s at 39,237 tokens per second; label the ratio as about five thousand. Separately show a sequence cache split into 16-token blocks, with at most one partial block wasting 15 tokens \u00d7 696 bytes \u2248 10 KiB, contrasted with contiguous reservation for a request declaring 32,768 tokens and generating 607. | x-axis: resident sequences (rows) in the batch, marked at 4 and 16; y-axis: relative step time and KV traffic. Step time stays roughly flat while rows fit one 16-row kernel launch; at concurrency 4 the 12 padding rows consume registers and issue slots but no KV bytes. Past 16 rows a second wave re-reads weights, so step time roughly doubles. KV traffic grows with every resident sequence and is bounded by the same 273 GB/s. Inset comparison: equal-split reservation of 32,768 reply tokens per stream vs 607 average generated tokens, within 262,144 positions; the chapter's 32,750 reserved positions illustrate the gap. All quantities are from the chapter.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    6
+  ]
+}

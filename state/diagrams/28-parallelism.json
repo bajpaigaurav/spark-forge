@@ -1,0 +1,25 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Tensor parallelism: column-parallel f followed by row-parallel g",
+  "why": "It shows the dataflow and tensor shapes through the f/g pair, including where the single all-reduce sits and why two pairs per transformer block give two collectives.",
+  "nodes": [
+    "x: B\u00d7H",
+    "W split by columns into N slices W_i: H\u00d7(K/N)",
+    "rank i computes y_i = xW_i: B\u00d7(K/N)",
+    "concatenate y_i along features -> y: B\u00d7K",
+    "V split by rows into N slices V_i: (K/N)\u00d7M",
+    "rank i computes z_i = y_i V_i: B\u00d7M",
+    "all-reduce sum across ranks -> z: B\u00d7M",
+    "transformer block: QKV f + attention-output g, MLP-up f + MLP-down g => two all-reduces per block"
+  ],
+  "notes": "Flow runs left to right: x enters column-parallel f, each rank produces a feature slice with no collective, slices concatenate to y; y enters row-parallel g, each rank produces a partial B\u00d7M sum, and one all-reduce sums them. Shapes B, H, K, M, N are labelled at each stage. The block annotation shows the two f/g pairs and the resulting two all-reduces per block; no volume numbers are drawn. | Left panel: a 16.9 ms forward-pass bar divided into 64 collective slots, each labelled 264 \u00b5s; this is the latency budget a tensor-parallel all-reduce must fit under. Right panel: a grid with stages 0\u20133 as rows and pipeline slots 1\u201311 as columns for M=8 micro-batches; active micro-batch cells fill the middle, with P\u22121=3 bubble slots at fill and drain, annotated 3/11=27.3%. A second annotation gives M=16: 3/19=15.8%, showing the bubble shrinks by about 1.7\u00d7, not half. Quantities come from the chapter: 59.1 tokens/s, 16.9 ms, 32 blocks, 64 collectives, 264 \u00b5s, P=4, M=8 and 16. | Left-to-right dataflow. Labels: B batch, S sequence length, H hidden width, N tensor-parallel device count. The figure carries only structural shapes and collective order from the chapter; no new quantities. It can also annotate that pipeline sends M(P\u22121) messages per step and tensor parallelism issues 2L collectives per micro-batch, i.e. 2LM per step, with P=2 and L=32 giving 64 tensor collectives per pipeline send. | Flow is left-to-right: each token is routed to a few experts; devices exchange tokens via all-to-all; traffic matrix is asymmetric because routing counts vary by expert and batch. Label capacity factor c and average tokens per expert at the capacity stage. Overflow branch shows dropped or second-expert routing. The final stage highlights one device becoming the bottleneck while others idle. No numeric values beyond structural constants c and 'few experts' are invented. | x-axis: stall S as a fraction of compute C, from 0 to 1. y-axis: total time in units of C. Baseline line is 1 + s; split line is 0.5 + 2s. They cross at s = 0.5. Mark the measured point at S \u2248 15% of decode, which the chapter places below C/2, so the split still pays. Quantities: C compute, S stall, 15% from the sampled window; crossover S=C/2 is structural.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ]
+}

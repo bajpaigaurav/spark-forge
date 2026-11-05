@@ -1,0 +1,1258 @@
+{
+ "note": "Published constants a book about LLMs needs to cite. Each carries its source.",
+ "constants": [
+  {
+   "value": 1994,
+   "unit": "year",
+   "display": "1994",
+   "source": "Gage, 'A New Algorithm for Data Compression', C Users Journal",
+   "context": "Byte-pair encoding published as a compression scheme, decades before NLP used it."
+  },
+  {
+   "value": 2016,
+   "unit": "year",
+   "display": "2016",
+   "source": "Sennrich, Haddow and Birch, 'Neural Machine Translation of Rare Words with Subword Units', ACL",
+   "context": "BPE adapted for subword tokenization in NMT."
+  },
+  {
+   "value": 50257,
+   "unit": "tokens",
+   "display": "50,257 tokens",
+   "source": "GPT-2 vocabulary size, Radford et al. 2019",
+   "context": "Byte-level BPE vocabulary used by GPT-2 and GPT-3."
+  },
+  {
+   "value": 128256,
+   "unit": "tokens",
+   "display": "128,256 tokens",
+   "source": "Llama 3 vocabulary size, Meta 2024",
+   "context": "Vocabulary size of the Llama 3 tokenizer."
+  },
+  {
+   "value": 32000,
+   "unit": "tokens",
+   "display": "32,000 tokens",
+   "source": "Llama 1 and Llama 2 vocabulary size",
+   "context": "SentencePiece vocabulary used by the Llama 1 and 2 models."
+  },
+  {
+   "value": 50000,
+   "unit": "merges",
+   "display": "50,000 merges",
+   "source": "typical BPE merge-table size for a 50k vocabulary",
+   "context": "Number of merge operations learned to build a 50k vocabulary."
+  },
+  {
+   "value": 2013,
+   "unit": "year",
+   "display": "2013",
+   "source": "Mikolov et al., word2vec, NeurIPS",
+   "context": "Skip-gram and CBOW embedding training."
+  },
+  {
+   "value": 300,
+   "unit": "dimensions",
+   "display": "300 dimensions",
+   "source": "word2vec and GloVe standard embedding width",
+   "context": "Common embedding dimension for word vectors."
+  },
+  {
+   "value": 4096,
+   "unit": "dimensions",
+   "display": "4,096 dimensions",
+   "source": "Llama 2 7B and Llama 3 8B model dimension",
+   "context": "Residual stream width for an 8B-class model."
+  },
+  {
+   "value": 8192,
+   "unit": "dimensions",
+   "display": "8,192 dimensions",
+   "source": "Llama 3 70B model dimension",
+   "context": "Residual stream width for a 70B-class model."
+  },
+  {
+   "value": 2014,
+   "unit": "year",
+   "display": "2014",
+   "source": "Bahdanau, Cho and Bengio, 'Neural Machine Translation by Jointly Learning to Align and Translate'",
+   "context": "Additive attention introduced for encoder-decoder NMT."
+  },
+  {
+   "value": 2015,
+   "unit": "year",
+   "display": "2015",
+   "source": "Luong, Pham and Manning, 'Effective Approaches to Attention-based Neural Machine Translation'",
+   "context": "Dot-product attention scoring variants."
+  },
+  {
+   "value": 2017,
+   "unit": "year",
+   "display": "2017",
+   "source": "Vaswani et al., 'Attention Is All You Need', NeurIPS",
+   "context": "The transformer, self-attention without recurrence."
+  },
+  {
+   "value": 512,
+   "unit": "dimensions",
+   "display": "512 dimensions",
+   "source": "original transformer base model dimension",
+   "context": "Model width in the 2017 transformer base configuration."
+  },
+  {
+   "value": 8,
+   "unit": "heads",
+   "display": "8 heads",
+   "source": "original transformer base model head count",
+   "context": "Head count in the 2017 transformer base configuration."
+  },
+  {
+   "value": 64,
+   "unit": "dimensions",
+   "display": "64 dimensions",
+   "source": "original transformer head dimension (512 / 8)",
+   "context": "Per-head width in the 2017 base transformer."
+  },
+  {
+   "value": 6,
+   "unit": "layers",
+   "display": "6 layers",
+   "source": "original transformer encoder and decoder depth",
+   "context": "Layer count in the 2017 base transformer."
+  },
+  {
+   "value": 2018,
+   "unit": "year",
+   "display": "2018",
+   "source": "Shaw, Uszkoreit and Vaswani, 'Self-Attention with Relative Position Representations'",
+   "context": "Relative position encoding for attention."
+  },
+  {
+   "value": 2021,
+   "unit": "year",
+   "display": "2021",
+   "source": "Su et al., 'RoFormer: Enhanced Transformer with Rotary Position Embedding'",
+   "context": "Rotary position embedding (RoPE)."
+  },
+  {
+   "value": 2021,
+   "unit": "year",
+   "display": "2021",
+   "source": "Press, Smith and Lewis, 'Train Short, Test Long: Attention with Linear Biases'",
+   "context": "ALiBi position scheme."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Peng et al., 'YaRN: Efficient Context Window Extension of Large Language Models'",
+   "context": "Context extension for RoPE models."
+  },
+  {
+   "value": 2019,
+   "unit": "year",
+   "display": "2019",
+   "source": "Shazeer, 'Fast Transformer Decoding: One Write-Head is All You Need'",
+   "context": "Multi-query attention."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Ainslie et al., 'GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints'",
+   "context": "Grouped-query attention."
+  },
+  {
+   "value": 2024,
+   "unit": "year",
+   "display": "2024",
+   "source": "DeepSeek-AI, 'DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model'",
+   "context": "Multi-head latent attention (MLA)."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Dao et al., 'FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness'",
+   "context": "IO-aware tiled attention."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Dao, 'FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning'",
+   "context": "Second-generation Flash Attention."
+  },
+  {
+   "value": 2020,
+   "unit": "year",
+   "display": "2020",
+   "source": "Beltagy, Peters and Cohan, 'Longformer: The Long-Document Transformer'",
+   "context": "Sliding-window and global attention."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Jiang et al., 'Mistral 7B'",
+   "context": "Sliding window attention in a production model."
+  },
+  {
+   "value": 2019,
+   "unit": "year",
+   "display": "2019",
+   "source": "Holtzman et al., 'The Curious Case of Neural Text Degeneration'",
+   "context": "Nucleus (top-p) sampling."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Yu et al., 'Orca: A Distributed Serving System for Transformer-Based Generative Models'",
+   "context": "Iteration-level scheduling and continuous batching."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Kwon et al., 'Efficient Memory Management for Large Language Model Serving with PagedAttention', SOSP",
+   "context": "PagedAttention and vLLM."
+  },
+  {
+   "value": 4,
+   "unit": "times",
+   "display": "4x",
+   "source": "vLLM paper reported throughput improvement",
+   "context": "Reported throughput gain over prior systems at the same hardware."
+  },
+  {
+   "value": 20,
+   "unit": "percent",
+   "display": "20%",
+   "source": "vLLM paper, lower end of KV cache utilisation in prior systems",
+   "context": "Fraction of reserved KV cache actually used before paging."
+  },
+  {
+   "value": 40,
+   "unit": "percent",
+   "display": "40%",
+   "source": "vLLM paper, upper end of KV cache utilisation in prior systems",
+   "context": "Fraction of reserved KV cache actually used before paging."
+  },
+  {
+   "value": 2016,
+   "unit": "year",
+   "display": "2016",
+   "source": "Hendrycks and Gimpel, 'Gaussian Error Linear Units (GELUs)'",
+   "context": "GELU activation."
+  },
+  {
+   "value": 2020,
+   "unit": "year",
+   "display": "2020",
+   "source": "Shazeer, 'GLU Variants Improve Transformer'",
+   "context": "Gated linear unit variants including SwiGLU."
+  },
+  {
+   "value": 2016,
+   "unit": "year",
+   "display": "2016",
+   "source": "Ba, Kiros and Hinton, 'Layer Normalization'",
+   "context": "LayerNorm."
+  },
+  {
+   "value": 2019,
+   "unit": "year",
+   "display": "2019",
+   "source": "Zhang and Sennrich, 'Root Mean Square Layer Normalization'",
+   "context": "RMSNorm."
+  },
+  {
+   "value": 2015,
+   "unit": "year",
+   "display": "2015",
+   "source": "He et al., 'Deep Residual Learning for Image Recognition'",
+   "context": "Residual connections."
+  },
+  {
+   "value": 2017,
+   "unit": "year",
+   "display": "2017",
+   "source": "Shazeer et al., 'Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer'",
+   "context": "Sparsely-gated mixture of experts."
+  },
+  {
+   "value": 2021,
+   "unit": "year",
+   "display": "2021",
+   "source": "Fedus, Zoph and Shazeer, 'Switch Transformers'",
+   "context": "Top-1 routing at scale."
+  },
+  {
+   "value": 2021,
+   "unit": "year",
+   "display": "2021",
+   "source": "Geva et al., 'Transformer Feed-Forward Layers Are Key-Value Memories'",
+   "context": "Interpretation of the FFN as key-value memory."
+  },
+  {
+   "value": 4,
+   "unit": "multiple",
+   "display": "4x",
+   "source": "standard transformer FFN expansion factor",
+   "context": "Intermediate dimension is typically four times the model dimension."
+  },
+  {
+   "value": 2,
+   "unit": "thirds",
+   "display": "two thirds",
+   "source": "Swish/SwiGLU models reduce intermediate width to 2/3 of 4d to keep parameter count constant",
+   "context": "Compensation for the extra gate matrix."
+  },
+  {
+   "value": 32,
+   "unit": "bits",
+   "display": "32 bits",
+   "source": "IEEE 754 single precision",
+   "context": "fp32: 1 sign, 8 exponent, 23 mantissa bits."
+  },
+  {
+   "value": 16,
+   "unit": "bits",
+   "display": "16 bits",
+   "source": "IEEE 754 half precision",
+   "context": "fp16: 1 sign, 5 exponent, 10 mantissa bits."
+  },
+  {
+   "value": 8,
+   "unit": "bits",
+   "display": "8 bits",
+   "source": "bfloat16 exponent width",
+   "context": "bfloat16 keeps fp32's 8 exponent bits with 7 mantissa bits."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Frantar et al., 'GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers'",
+   "context": "GPTQ layer-wise quantization."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Lin et al., 'AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration'",
+   "context": "AWQ activation-aware quantization."
+  },
+  {
+   "value": 128,
+   "unit": "group",
+   "display": "group size 128",
+   "source": "common quantization group size in GPTQ/AWQ and GGUF k-quants",
+   "context": "Weights are scaled per group of 128 rather than per tensor."
+  },
+  {
+   "value": 4,
+   "unit": "bits",
+   "display": "4 bits",
+   "source": "typical weight quantization width for large models",
+   "context": "Four-bit weights with fp16 scales and zero points."
+  },
+  {
+   "value": 3,
+   "unit": "bits",
+   "display": "3 bits",
+   "source": "aggressive quantization width",
+   "context": "Below four bits quality degrades sharply without mixed precision."
+  },
+  {
+   "value": 2019,
+   "unit": "year",
+   "display": "2019",
+   "source": "Holtzman et al., nucleus sampling",
+   "context": "Top-p sampling."
+  },
+  {
+   "value": 2020,
+   "unit": "year",
+   "display": "2020",
+   "source": "Keskar et al., 'CTRL: A Conditional Transformer Language Model for Controllable Generation'",
+   "context": "Top-k and temperature sampling described for large LMs."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Leviathan, Kalman and Matias, 'Fast Inference from Transformers via Speculative Decoding'",
+   "context": "Speculative decoding with a draft model."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Chen et al., 'Accelerating Large Language Model Decoding with Speculative Sampling'",
+   "context": "Independent derivation of speculative sampling."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Cai et al., 'Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads'",
+   "context": "Multiple draft heads on one model."
+  },
+  {
+   "value": 2024,
+   "unit": "year",
+   "display": "2024",
+   "source": "Li et al., 'EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty'",
+   "context": "Feature-level speculative drafting."
+  },
+  {
+   "value": 2019,
+   "unit": "year",
+   "display": "2019",
+   "source": "Shoeybi et al., 'Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism'",
+   "context": "Tensor parallelism for transformers."
+  },
+  {
+   "value": 2018,
+   "unit": "year",
+   "display": "2018",
+   "source": "Huang et al., 'GPipe: Efficient Training of Giant Neural Networks using Pipeline Parallelism'",
+   "context": "Pipeline parallelism with micro-batches."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Korthikanti et al., 'Reducing Activation Recomputation in Large Transformer Models'",
+   "context": "Sequence parallelism."
+  },
+  {
+   "value": 2018,
+   "unit": "year",
+   "display": "2018",
+   "source": "Williams, Waterman and Patterson, 'Roofline: An Insightful Visual Performance Model for Multicore Architectures'",
+   "context": "The roofline model."
+  },
+  {
+   "value": 80,
+   "unit": "GB",
+   "display": "80 GB",
+   "source": "NVIDIA A100 80GB SXM HBM capacity",
+   "context": "High-bandwidth memory capacity of an A100."
+  },
+  {
+   "value": 2039,
+   "unit": "GB/s",
+   "display": "2,039 GB/s",
+   "source": "NVIDIA A100 80GB SXM memory bandwidth",
+   "context": "HBM2e bandwidth of an A100 SXM."
+  },
+  {
+   "value": 312,
+   "unit": "TFLOPS",
+   "display": "312 TFLOPS",
+   "source": "NVIDIA A100 bfloat16 dense tensor throughput",
+   "context": "Peak dense bf16 throughput for an A100 SXM."
+  },
+  {
+   "value": 192,
+   "unit": "GB",
+   "display": "192 GB",
+   "source": "NVIDIA H100 SXM HBM3 capacity",
+   "context": "HBM3 capacity of an H100 SXM."
+  },
+  {
+   "value": 3350,
+   "unit": "GB/s",
+   "display": "3,350 GB/s",
+   "source": "NVIDIA H100 SXM memory bandwidth",
+   "context": "HBM3 bandwidth of an H100 SXM."
+  },
+  {
+   "value": 989,
+   "unit": "TFLOPS",
+   "display": "989 TFLOPS",
+   "source": "NVIDIA H100 bfloat16 dense tensor throughput",
+   "context": "Peak dense bf16 throughput for an H100 SXM."
+  },
+  {
+   "value": 4096,
+   "unit": "bytes",
+   "display": "4,096 bytes",
+   "source": "typical GPU shared memory per block budget",
+   "context": "Shared memory available to one thread block on modern NVIDIA GPUs."
+  },
+  {
+   "value": 1000,
+   "unit": "GB/s",
+   "display": "1,000 GB/s",
+   "source": "order of magnitude for HBM bandwidth on a modern accelerator",
+   "context": "Used when contrasting HBM against on-chip memory."
+  },
+  {
+   "value": 20,
+   "unit": "TB/s",
+   "display": "20 TB/s",
+   "source": "order of magnitude for shared memory / register bandwidth",
+   "context": "On-chip memory is roughly an order of magnitude faster than HBM."
+  },
+  {
+   "value": 7,
+   "unit": "B",
+   "display": "7 billion",
+   "source": "Llama 2 7B parameter count",
+   "context": "A small model used for worked examples."
+  },
+  {
+   "value": 70,
+   "unit": "B",
+   "display": "70 billion",
+   "source": "Llama 2 and Llama 3 70B parameter count",
+   "context": "A large model used for worked examples."
+  },
+  {
+   "value": 405,
+   "unit": "B",
+   "display": "405 billion",
+   "source": "Llama 3.1 405B parameter count",
+   "context": "Frontier-scale dense model."
+  },
+  {
+   "value": 671,
+   "unit": "B",
+   "display": "671 billion",
+   "source": "DeepSeek-V3 total parameter count",
+   "context": "Mixture-of-experts total parameters."
+  },
+  {
+   "value": 37,
+   "unit": "B",
+   "display": "37 billion",
+   "source": "DeepSeek-V3 active parameters per token",
+   "context": "Active parameter count for MoE decode."
+  },
+  {
+   "value": 32,
+   "unit": "layers",
+   "display": "32 layers",
+   "source": "Llama 2 7B layer count",
+   "context": "Depth used in cache-size worked examples."
+  },
+  {
+   "value": 80,
+   "unit": "layers",
+   "display": "80 layers",
+   "source": "Llama 3 70B layer count",
+   "context": "Depth used in cache-size worked examples."
+  },
+  {
+   "value": 32,
+   "unit": "heads",
+   "display": "32 heads",
+   "source": "Llama 2 7B query head count",
+   "context": "Query head count in a worked example."
+  },
+  {
+   "value": 8,
+   "unit": "kv heads",
+   "display": "8 KV heads",
+   "source": "Llama 2 70B grouped-query key-value head count",
+   "context": "GQA group count in a worked example."
+  },
+  {
+   "value": 128,
+   "unit": "dimensions",
+   "display": "128 dimensions",
+   "source": "standard head dimension in modern LLMs",
+   "context": "Per-head width in most current models."
+  },
+  {
+   "value": 2,
+   "unit": "bytes",
+   "display": "2 bytes",
+   "source": "fp16/bf16 element size",
+   "context": "Bytes per cached element in a KV cache."
+  },
+  {
+   "value": 1,
+   "unit": "byte",
+   "display": "1 byte",
+   "source": "fp8 or int8 element size",
+   "context": "Bytes per cached element after quantization."
+  },
+  {
+   "value": 131072,
+   "unit": "tokens",
+   "display": "131,072 tokens",
+   "source": "128k context window",
+   "context": "A long-context configuration used in worked examples."
+  },
+  {
+   "value": 1,
+   "unit": "million",
+   "display": "1 million tokens",
+   "source": "1M-token context window claimed by recent models",
+   "context": "Extreme long-context configuration."
+  },
+  {
+   "value": 175,
+   "unit": "B",
+   "display": "175 billion",
+   "source": "GPT-3 parameter count, Brown et al. 2020",
+   "context": "The model that established scaling behaviour."
+  },
+  {
+   "value": 2020,
+   "unit": "year",
+   "display": "2020",
+   "source": "Brown et al., 'Language Models are Few-Shot Learners'",
+   "context": "GPT-3."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Ouyang et al., 'Training language models to follow instructions with human feedback'",
+   "context": "InstructGPT and RLHF."
+  },
+  {
+   "value": 2023,
+   "unit": "year",
+   "display": "2023",
+   "source": "Touvron et al., 'LLaMA: Open and Efficient Foundation Language Models'",
+   "context": "Llama 1."
+  },
+  {
+   "value": 2024,
+   "unit": "year",
+   "display": "2024",
+   "source": "Dubey et al., 'The Llama 3 Herd of Models'",
+   "context": "Llama 3."
+  },
+  {
+   "value": 2024,
+   "unit": "year",
+   "display": "2024",
+   "source": "DeepSeek-AI, 'DeepSeek-V3 Technical Report'",
+   "context": "DeepSeek-V3 MoE model."
+  },
+  {
+   "value": 2018,
+   "unit": "year",
+   "display": "2018",
+   "source": "Devlin et al., 'BERT: Pre-training of Deep Bidirectional Transformers'",
+   "context": "BERT."
+  },
+  {
+   "value": 2020,
+   "unit": "year",
+   "display": "2020",
+   "source": "Kaplan et al., 'Scaling Laws for Neural Language Models'",
+   "context": "Scaling laws."
+  },
+  {
+   "value": 2022,
+   "unit": "year",
+   "display": "2022",
+   "source": "Hoffmann et al., 'Training Compute-Optimal Large Language Models'",
+   "context": "Chinchilla scaling."
+  },
+  {
+   "value": 200,
+   "unit": "tokens",
+   "display": "200 tokens",
+   "source": "order of magnitude for a short paragraph",
+   "context": "Used when sizing a small request."
+  },
+  {
+   "value": 100000,
+   "unit": "tokens",
+   "display": "100,000 tokens",
+   "source": "order of magnitude for a long document",
+   "context": "Used when sizing a long-context request."
+  },
+  {
+   "value": 44,
+   "unit": "bytes",
+   "display": "44 bytes",
+   "source": "UTF-8 encoding: 'The quick brown fox jumps over the lazy dog.' is 44 ASCII characters",
+   "context": "Byte count of the standard pangram, used as the floor for byte-level BPE."
+  },
+  {
+   "value": 88,
+   "unit": "bytes",
+   "display": "88 bytes",
+   "source": "UTF-8: Cyrillic characters occupy 2 bytes each, so 44 characters = 88 bytes",
+   "context": "Worked example showing why non-Latin scripts cost more tokens at the byte level."
+  },
+  {
+   "value": 61,
+   "unit": "bytes",
+   "display": "61 bytes",
+   "source": "UTF-8 byte count of a short sentence used in a worked example",
+   "context": "Byte-level token count before merges."
+  },
+  {
+   "value": 524288000,
+   "unit": "parameters",
+   "display": "524,288,000 parameters",
+   "source": "derived: 128,000 vocabulary x 4,096 dimensions",
+   "context": "Embedding table size for a 128k vocabulary at 4,096 dimensions."
+  },
+  {
+   "value": 1048576000,
+   "unit": "bytes",
+   "display": "1,048,576,000 bytes",
+   "source": "derived: 524,288,000 parameters x 2 bytes (bf16)",
+   "context": "Byte size of the embedding table in bf16, about 1.05 GB."
+  },
+  {
+   "value": 16667,
+   "unit": "ratio",
+   "display": "16,667",
+   "source": "derived: 100,000 dot products reduced to 6 under top-k = 5 with k-means",
+   "context": "Reduction factor in the approximate-softmax worked example."
+  },
+  {
+   "value": 14,
+   "unit": "GB",
+   "display": "14 GB",
+   "source": "derived: 7 billion parameters x 2 bytes (bf16)",
+   "context": "Weight footprint of a 7B model in bf16."
+  },
+  {
+   "value": 14000,
+   "unit": "GB",
+   "display": "14,000 GB",
+   "source": "derived: naive KV cache for a 405B model at 128k context",
+   "context": "Illustrative cache size used to show why sharing is mandatory."
+  },
+  {
+   "value": 768,
+   "unit": "dimensions",
+   "display": "768 dimensions",
+   "source": "GPT-2 small model dimension",
+   "context": "Embedding width of GPT-2 small."
+  },
+  {
+   "value": 38597376,
+   "unit": "parameters",
+   "display": "38,597,376 parameters",
+   "source": "derived: 50,257 vocabulary x 768 dimensions",
+   "context": "GPT-2 small embedding matrix parameter count."
+  },
+  {
+   "value": 124,
+   "unit": "million",
+   "display": "124 million",
+   "source": "GPT-2 small total parameter count, Radford et al. 2019",
+   "context": "Total parameters of GPT-2 small."
+  },
+  {
+   "value": 131072000,
+   "unit": "parameters",
+   "display": "131 million",
+   "source": "derived: 32,000 vocabulary x 4,096 dimensions",
+   "context": "Llama-7B embedding matrix parameter count (32,000 x 4,096 = 131,072,000)."
+  },
+  {
+   "value": 24,
+   "unit": "percent",
+   "display": "24 percent",
+   "source": "derived: 38,597,376 / 162,597,376 (124M published + one extra untied copy)",
+   "context": "Share of untied GPT-2 small weights saved by tying. The published 124M already counts the tied matrix once, so the saving is measured against the untied total, not against 124M."
+  },
+  {
+   "value": 162597376,
+   "unit": "parameters",
+   "display": "163 million",
+   "source": "derived: 124M published (tied) + 38,597,376 second copy of the embedding",
+   "context": "GPT-2 small parameter count if input and output embeddings were untied."
+  },
+  {
+   "value": 786432,
+   "unit": "positions",
+   "display": "786,432",
+   "source": "derived: 1,048,576 native window - 262,144 current pool",
+   "context": "Positions added when the pool is raised to the model's full window."
+  },
+  {
+   "value": 921.6,
+   "unit": "bytes",
+   "display": "921.6",
+   "source": "derived: 0.9 GiB / 1,048,576 positions = 966,367,641.6 / 1,048,576",
+   "context": "Bytes of KV-cache memory per position across all layers, per rank."
+  },
+  {
+   "value": 724.8,
+   "unit": "megabytes",
+   "display": "724.8",
+   "source": "derived: 786,432 positions x 921.6 bytes/position",
+   "context": "Memory added by raising the pool by 786,432 positions, in MB."
+  },
+  {
+   "value": 33.4,
+   "unit": "million values",
+   "display": "33.4",
+   "source": "derived: 2 x 130,659 positions x 128 head dim = 33,448,704",
+   "context": "KV cache elements per layer at 130,659 tokens with 128-wide heads."
+  },
+  {
+   "value": 66.9,
+   "unit": "megabytes",
+   "display": "66.9",
+   "source": "derived: 33,448,704 values x 2 bytes (fp16)",
+   "context": "KV cache size in MB for one layer at 130,659 tokens."
+  },
+  {
+   "value": 34.1,
+   "unit": "gigabytes",
+   "display": "34.1",
+   "source": "derived: 1.707e10 score entries x 2 bytes (fp16)",
+   "context": "Dense fp16 score matrix size for one head in one layer at 130,659 tokens."
+  },
+  {
+   "value": 31,
+   "unit": "percent",
+   "display": "31%",
+   "source": "derived: 34.1 GB / 111.5 GB = 30.6 percent, rounded",
+   "context": "Share of the engine's 111.5 GB device memory a single head's score matrix would occupy."
+  },
+  {
+   "value": 411705344,
+   "unit": "bytes",
+   "display": "411,705,344",
+   "source": "derived: 50,257 vocabulary x 4,096 dimensions x 2 bytes (bf16)",
+   "context": "Size of GPT-2's output projection if untied at Llama-7B width, in bytes."
+  },
+  {
+   "value": 38597376,
+   "unit": "parameters",
+   "display": "38.6 million",
+   "source": "derived: 38,597,376 rounded to one decimal in millions",
+   "context": "Second copy of GPT-2's embedding matrix if input and output are untied."
+  },
+  {
+   "value": 8890000,
+   "unit": "ratio",
+   "display": "8.9 million",
+   "source": "derived: e^16 = 8,886,110, rounded",
+   "context": "Exponential ratio between top and second softmax score at a gap of two standard deviations."
+  },
+  {
+   "value": 928,
+   "unit": "bytes",
+   "display": "928",
+   "source": "derived: 0.68 GiB / 786,432 positions = 730,144,768 / 786,432",
+   "context": "KV-cache bytes per position per rank at the raised pool."
+  },
+  {
+   "value": 920,
+   "unit": "bytes",
+   "display": "920",
+   "source": "derived: 921.6 bytes per position, rounded in prose",
+   "context": "Rounded KV-cache bytes per position per rank, the figure the chapter multiplies by."
+  },
+  {
+   "value": 966367642,
+   "unit": "bytes",
+   "display": "966,367,641",
+   "source": "derived: 0.9 GiB x 1,073,741,824 bytes/GiB = 966,367,641.6",
+   "context": "0.9 GiB expressed in bytes."
+  },
+  {
+   "value": 1280,
+   "unit": "floats",
+   "display": "1,280",
+   "source": "derived: 5 source tokens x 256 hidden width",
+   "context": "Embedding floats carried by five source tokens at width 256."
+  },
+  {
+   "value": 12800,
+   "unit": "floats",
+   "display": "12,800",
+   "source": "derived: 50 source tokens x 256 hidden width",
+   "context": "Embedding floats carried by fifty source tokens at width 256."
+  },
+  {
+   "value": 98092,
+   "unit": "positions",
+   "display": "98,092",
+   "source": "derived: 229,358 ceiling - 131,266 needed = 98,092 spare",
+   "context": "Spare pool positions at concurrency 1 for the mean 130,659-token prompt."
+  },
+  {
+   "value": 664,
+   "unit": "ratio",
+   "display": "664",
+   "source": "derived: 39,237 tok/s prefill / 59.1 tok/s decode = 663.9",
+   "context": "Prefill throughput expressed as a multiple of single-stream decode."
+  },
+  {
+   "value": 484,
+   "unit": "megabytes",
+   "display": "484",
+   "source": "derived: 4 streams x 121 MB of KV cache each",
+   "context": "Total KV-cache bytes held by four concurrent streams at the mean prompt length."
+  },
+  {
+   "value": 2560,
+   "unit": "elements",
+   "display": "2,560",
+   "source": "derived: 512 latent rank + 32 heads x 64 rotary key dim",
+   "context": "MLA cache elements per token per layer."
+  },
+  {
+   "value": 5120,
+   "unit": "bytes",
+   "display": "5,120",
+   "source": "derived: 2,560 elements x 2 bytes (fp16)",
+   "context": "MLA cache bytes per token per layer, which is 5 KiB."
+  },
+  {
+   "value": 163840,
+   "unit": "bytes",
+   "display": "160 KiB",
+   "source": "derived: 5,120 bytes x 32 layers",
+   "context": "MLA cache bytes per token across all layers."
+  },
+  {
+   "value": 640,
+   "unit": "MiB",
+   "display": "640 MiB",
+   "source": "derived: 160 KiB per token x 4,096 tokens = 640 MiB",
+   "context": "MLA cache for a 4,096-token sequence."
+  },
+  {
+   "value": 3.2,
+   "unit": "ratio",
+   "display": "3.2x",
+   "source": "derived: 2,048 MiB MHA / 640 MiB MLA",
+   "context": "MLA cache reduction versus MHA for the same configuration."
+  },
+  {
+   "value": 228,
+   "unit": "KB",
+   "display": "228 KB",
+   "source": "NVIDIA Hopper Tuning Guide, CUDA 12.8 documentation: maximum configurable shared memory per SM",
+   "context": "Shared memory available to one thread block on Hopper (H100) SMs. CUDA reserves 1 KB, so the per-block limit is 227 KB."
+  },
+  {
+   "value": 164,
+   "unit": "KB",
+   "display": "164 KB",
+   "source": "NVIDIA Ampere Tuning Guide, CUDA documentation: maximum configurable shared memory per SM",
+   "context": "Shared memory available on A100 (compute capability 8.0) SMs; 100 KB on compute capability 8.6 parts."
+  },
+  {
+   "value": 56,
+   "unit": "layers",
+   "display": "56-layer",
+   "source": "He, Zhang, Ren and Sun, 'Deep Residual Learning for Image Recognition', CVPR 2016 (arXiv 1512.03385)",
+   "context": "The plain (non-residual) network depth whose training error exceeded a 20-layer net, motivating residual connections."
+  },
+  {
+   "value": 50,
+   "unit": "tokens",
+   "display": "50 tokens",
+   "source": "Luong, Pham and Manning, 'Effective Approaches to Attention-based Neural Machine Translation', EMNLP 2015",
+   "context": "Illustrative source length used when describing local attention's window around a predicted aligned position."
+  },
+  {
+   "value": 42.6,
+   "unit": "FLOPs/byte",
+   "display": "42.6 FLOPs per byte",
+   "source": "Derived: 8.74e12 FLOPs / 2.05e11 bytes for naive attention at L=130,659, d=128, counting both QK^T and PV matmuls",
+   "context": "Arithmetic intensity of the naive attention kernel, computed in the chapter from its own printed inputs."
+  },
+  {
+   "value": 11008,
+   "unit": "dim",
+   "display": "11,008",
+   "source": "Touvron et al., 'LLaMA: Open and Efficient Foundation Language Models', Meta 2023: feed-forward inner dimension for the 7B model",
+   "context": "LLaMA's FFN inner width, a multiple of 256; 8d/3 = 10,922.67 rounded up."
+  },
+  {
+   "value": 30,
+   "unit": "percent",
+   "display": "30 percent",
+   "source": "Derived: at c=0.3 the neighbouring key's readout shifts by c × 100 percent of the edit vector",
+   "context": "Worked example in the FFN-as-key-value-memory section; c is a coefficient printed beside it."
+  },
+  {
+   "value": 144,
+   "unit": "bytes",
+   "display": "144 bytes",
+   "source": "Derived: GGUF Q4_K super-block layout",
+   "context": "Q4_K block: 4 bytes (fp16 scale d + fp16 min m) + 12 bytes (8 sub-block scales + 8 minimums at 6 bits each, packed) + 128 bytes (256 four-bit codes) = 144 bytes for 256 weights, i.e. 4.5 bits/weight."
+  },
+  {
+   "value": 18,
+   "unit": "positions",
+   "display": "18 positions",
+   "source": "Derived: 65,536 - 32,768 - 16 - 2 = 32,750; admission overhead 16 + 2",
+   "context": "Per-stream ceiling arithmetic: pool 65,536 positions minus reply budget 32,768 minus ROUND_ROWS 16 minus 2 guard positions leaves 32,750; the 18 positions beyond the reply budget are admission overhead."
+  },
+  {
+   "value": 201300000,
+   "unit": "multiply-adds",
+   "display": "201,300,000 multiply-adds",
+   "source": "Derived: 12 x d_model^2 at d_model = 4,096",
+   "context": "A transformer layer with a 4d feedforward block performs about 12 x 4,096^2 = 201,326,592 ~ 201,300,000 multiply-adds in its linear projections, comparable to the head's d_model x V."
+  },
+  {
+   "value": 22026,
+   "unit": "ratio",
+   "display": "22,026 to 1",
+   "source": "Derived: e^10",
+   "context": "A ten-point logit gap becomes a probability ratio of e^10 ~ 22,026 to 1, because softmax exponentiates the score difference."
+  },
+  {
+   "value": 205,
+   "unit": "million parameters",
+   "display": "205 million parameters",
+   "source": "Derived: 50,000 x 4,096 = 204,800,000",
+   "context": "The logits head at V = 50,000 and d_model = 4,096 holds 204,800,000 parameters, about 205 million, removed entirely by weight tying."
+  },
+  {
+   "value": 90.3,
+   "unit": "MB",
+   "display": "90.3 MB per token",
+   "source": "Derived: 120.5 - 30.2 = 90.3",
+   "context": "KV traffic per rank falls from 120.5 MB at a 130,659-token prompt to 30.2 MB at the 32,750-token per-stream ceiling; the 90.3 MB difference at 273 GB/s is 0.33 ms per token."
+  },
+  {
+   "value": 40.7,
+   "unit": "percent",
+   "display": "40.7%",
+   "source": "Derived: 4/(1+3f) = 1.80 solves to f = 0.407",
+   "context": "Under linear scaling the concurrency-4 speedup is 4/(1+3f) where f is the KV share of per-token traffic; setting it equal to the measured 1.80 gives f = 0.407, so KV traffic would have to be 40.7% of per-token traffic to explain the shortfall."
+  },
+  {
+   "value": 25,
+   "unit": "percent",
+   "display": "25% utilized",
+   "source": "Derived: 4/16 = 25%",
+   "context": "The decode round is pinned at 16 rows; at concurrency 4 only 4 rows are active, so the weight fetch is amortized 4x but the kernel's row slots are 25% utilized."
+  },
+  {
+   "value": 22.6,
+   "unit": "seconds",
+   "display": "22.6 seconds",
+   "source": "Derived: 600 x 37.7 ms",
+   "context": "A long request with 600 tokens left at 37.7 ms per decode step needs 600 x 37.7 ms = 22.6 seconds of service."
+  },
+  {
+   "value": 16.9,
+   "unit": "ms",
+   "display": "16.9 ms per step",
+   "source": "Measured on this machine (concurrency 1 decode step)",
+   "context": "Decode at concurrency 1 took 16.9 ms per step against 37.7 ms at concurrency 4, a 2.2x rise for 4x the tokens: the signature of a bandwidth-bound step amortizing a fixed weight fetch."
+  },
+  {
+   "value": 13.2,
+   "unit": "seconds",
+   "display": "13.2 seconds",
+   "source": "Derived: 518,627 / 39,237 tokens per second",
+   "context": "The 518,627 uncached prompt tokens take 518,627 / 39,237 = 13.2 seconds of prefill compute; the cache removed the remaining 313 seconds."
+  },
+  {
+   "value": 13.0,
+   "unit": "ms",
+   "display": "13.0 ms",
+   "source": "Derived: 512 / 39,237 tokens per second",
+   "context": "A 512-token prefill chunk costs 512 / 39,237 = 13.0 ms of compute, about a third of a 37.7 ms decode step at concurrency 4."
+  },
+  {
+   "value": 59476,
+   "unit": "tokens",
+   "display": "59,476 generated tokens",
+   "source": "Measured: tensorfold metrics, sampled window",
+   "context": "In the sampled window the engine counted 98 requests, 12,804,579 prompt tokens and 59,476 generated tokens, i.e. 130,659 prompt and 607 generated tokens per request."
+  },
+  {
+   "value": 37.7,
+   "unit": "ms",
+   "display": "37.7 ms per step",
+   "source": "Derived: 4 tokens / 106.2 tok/s",
+   "context": "At concurrency 4 the engine sustains 106.2 tok/s across four streams, so each step emits four tokens and takes 4 / 106.2 = 37.7 ms; at concurrency 1 a step emits one token at 59.1 tok/s = 16.9 ms, a 2.2x rise for 4x the tokens."
+  },
+  {
+   "value": 26.5,
+   "unit": "tok/s",
+   "display": "26.5 tok/s per stream",
+   "source": "Derived: 106.2 tok/s / 4 streams",
+   "context": "At concurrency 4 a step emits four tokens in 37.7 ms, so each stream gets 106.2 / 4 = 26.5 tok/s while the aggregate nearly doubles; 106.2 / 59.1 = 1.80x."
+  },
+  {
+   "value": 518627,
+   "unit": "tokens",
+   "display": "518,627 uncached tokens",
+   "source": "Derived: 12,804,579 prompt tokens - 12,285,952 cached tokens",
+   "context": "Over the sampled window 12,804,579 prompt tokens were looked up and 12,285,952 were cache hits (95.9%), leaving 518,627 uncached tokens that take 518,627 / 39,237 = 13.2 seconds of prefill."
+  },
+  {
+   "value": 350,
+   "unit": "GB",
+   "display": "350 GB per token",
+   "source": "Derived: 175e9 params x 2 bytes (FP16)",
+   "context": "GPT-3 at 175 billion parameters needs 350 GB per token at FP16, so at 273 GB/s it could not exceed 0.78 tokens per second and would not fit."
+  },
+  {
+   "value": 295,
+   "unit": "FLOP/byte",
+   "display": "295 FLOPs per byte",
+   "source": "Derived: 989 TFLOP/s / 3.35 TB/s (NVIDIA H100 SXM datasheet)",
+   "context": "H100 SXM dense FP16 tensor throughput 989 TFLOP/s over HBM3 bandwidth 3.35 TB/s gives a ridge ratio near 295 FLOPs per byte, so a 130,000-token prefill is compute-bound while a decode step at intensity 1 is bandwidth-bound."
+  },
+  {
+   "value": 140,
+   "unit": "GB",
+   "display": "140 GB",
+   "source": "Derived: 70e9 params x 2 bytes (FP16)",
+   "context": "A 70-billion-parameter model in FP16 occupies 140 GB, which no single device caches, so every decode step re-reads the weights."
+  },
+  {
+   "value": 45.7,
+   "unit": "percent",
+   "display": "45.7%",
+   "source": "Derived: 0.676^2",
+   "context": "DSpark acceptance rate was 67.6% (42,181 accepted of 62,390 drafted); if drafts were independent the chance the second is accepted after the first is 0.676^2 = 45.7%, the third 30.9%, the fourth 20.9%."
+  },
+  {
+   "value": 35,
+   "unit": "GB",
+   "display": "35 GB",
+   "source": "Derived: 70e9 params x 0.5 bytes (4-bit)",
+   "context": "A 70B model at 4 bits needs 35 GB, so 80 GB holds it only at 4 bits and holds nothing at FP16 (140 GB), giving a 273/35 = 7.8 tok/s ceiling."
+  },
+  {
+   "value": 145,
+   "unit": "tok/s",
+   "display": "145 tokens per second",
+   "source": "Derived: 1/s from the two-point fit (w+s=16.9, w+4s=37.7 => s=6.9 ms)",
+   "context": "Fitting step time as w + b*s to 16.9 ms at b=1 and 37.7 ms at b=4 gives s = 6.9 ms and w = 10.0 ms; the asymptote as b grows is 1/s = about 145 tokens per second, an upper bound because s itself grows with context."
+  },
+  {
+   "value": 640000,
+   "unit": "magnitude",
+   "display": "640,000",
+   "source": "Derived: 100^2 x 64",
+   "context": "A dot product of two vectors with components near 100 over 64 dimensions can reach 100^2 x 64 = 640,000, which overflows fp16's largest finite value of 65,504."
+  },
+  {
+   "value": 235,
+   "unit": "million multiply-adds",
+   "display": "235 million multiply-adds",
+   "source": "Derived: k x 2 x d_model x d_ff with k=2, d_model=4096, d_ff=14336",
+   "context": "Per token per MoE layer the selected experts cost k x 2 x d_model x d_ff = 2 x 2 x 4096 x 14336 = 234,881,024, about 235 million multiply-adds, against the router's d_model x E = 4096 x 64 = 262,144, roughly a tenth of a percent."
+  },
+  {
+   "value": 4.62,
+   "unit": "GB per token",
+   "display": "4.62 GB per token",
+   "source": "Derived: 273 GB/s / 59.1 tok/s",
+   "context": "One stream at 59.1 tokens per second moves 273/59.1 = 4.62 GB of weights and cache per token; four concurrent streams at 106.2 aggregate give 273/106.2 = 2.57 GB per token, a 1.80 multiplier."
+  },
+  {
+   "value": 57344,
+   "unit": "magnitude",
+   "display": "57,344",
+   "source": "Derived: 1.75 x 2^15 (e5m2 largest finite significand)",
+   "context": "For e5m2, bias 15 with exponent field 31 reserved for infinity and NaN gives a largest finite exponent of 15; the largest finite significand is 1.75, so 1.75 x 2^15 = 57,344."
+  },
+  {
+   "value": 114688,
+   "unit": "scale",
+   "display": "114,688",
+   "source": "Derived: 57,344 / 0.5",
+   "context": "Gradient scaling for the backward pass: a gradient tensor whose largest absolute value is 0.5 is scaled by 57,344 / 0.5 = 114,688 so its largest value becomes 57,344, the e5m2 maximum."
+  },
+  {
+   "value": 125,
+   "unit": "TFLOPS",
+   "display": "125 TFLOPS fp16",
+   "source": "NVIDIA Volta whitepaper (2017)",
+   "context": "The 2017 Volta whitepaper lists 125 TFLOPS fp16 tensor-core throughput against 15.7 TFLOPS fp32, roughly eight times the fp32 rate, which is why teams moved training to fp16."
+  },
+  {
+   "value": 27.9,
+   "unit": "billion parameters",
+   "display": "27.9 billion parameters",
+   "source": "Derived: 111,515,771,428 bytes / 4 (fp32)",
+   "context": "If every byte of the 111.5 GB unified memory were weights it would be 27.9 billion parameters at fp32, 55.8 billion at bf16, or 111.5 billion at fp8; the fp8 figure is why fp8 matters."
+  },
+  {
+   "value": 326.34,
+   "unit": "seconds",
+   "display": "326.34 seconds",
+   "source": "Derived: 3.33 s mean prefill x 98 requests",
+   "context": "Over the sampled window the mean prefill duration was 3.33 seconds over 98 requests, so total prefill time was 3.33 x 98 = 326.34 seconds."
+  },
+  {
+   "value": 1589,
+   "unit": "tok/s",
+   "display": "1,589 tokens per second",
+   "source": "Derived: 518,627 uncached tokens / 326.34 s",
+   "context": "The actual computed prefill rate over uncached tokens was 518,627 / 326.34 = 1,589 tokens per second, against the apparent 12,804,579 / 326.34 = 39,237 tok/s that counts cached tokens as free work."
+  },
+  {
+   "value": 7732,
+   "unit": "seconds",
+   "display": "7,732 seconds",
+   "source": "Derived: 12,285,952 cached tokens / 1,589 tok/s",
+   "context": "Recomputing the 12,285,952 cached tokens at the computed 1,589 tok/s rate would cost 7,732 seconds, so a cold run takes 326.34 + 7,732 = 8,058 seconds and the cache removed 95.9 percent of cold prefill time."
+  },
+  {
+   "value": 8058,
+   "unit": "seconds",
+   "display": "8,058 seconds",
+   "source": "Derived: 326.34 + 7,732",
+   "context": "A cold-cache prefill of the same 98 requests would take 326.34 + 7,732 = 8,058 seconds, roughly 25 times the warm run."
+  },
+  {
+   "value": 72.4,
+   "unit": "tok/s",
+   "display": "72.4 tokens per second",
+   "source": "Derived: 607 generated tokens / 8.38 s mean decode",
+   "context": "Mean decode duration over the 98 sampled requests is 8.38 seconds for 607 generated tokens, which is 607 / 8.38 = 72.4 tokens per second, against the 59.1 tok/s concurrency-one benchmark: both get called decode throughput."
+  },
+  {
+   "value": 45,
+   "unit": "percent",
+   "display": "45 percent",
+   "source": "Derived: 106.2 / 236.4 (4 x 59.1)",
+   "context": "If KV reads are small compared with the weight read the aggregate ceiling approaches 4 x 59.1 = 236.4 tok/s; the observed 106.2 is 45 percent of that, so the scheduler, batching or KV reads leave more than half the roofline unused."
+  },
+  {
+   "value": 98699,
+   "unit": "positions",
+   "display": "98,699 positions",
+   "source": "Derived: 262,144 pool - 32,768 reply reservation - 16 - 2 = 229,358 ceiling; 229,358 - 130,659 prompt = 98,699 spare",
+   "context": "Spare KV positions left after the prompt at concurrency 1, in the engine this book measures."
+  },
+  {
+   "value": 1152,
+   "unit": "bytes",
+   "display": "1,152 bytes",
+   "source": "Derived: MLA cache per token per layer is 512 latent + 64 shared rotary = 576 elements; 576 x 2 bytes (fp16) = 1,152",
+   "context": "MLA per-token, per-layer cache footprint for d_model=4096, rank 512, rotary dim 64."
+  },
+  {
+   "value": 68.3,
+   "unit": "GB",
+   "display": "68.3 GB",
+   "source": "Derived: 130,659^2 entries x 4 bytes = 68,287,100,000 bytes ~ 68.3 GB",
+   "context": "fp32 score matrix for one head of one layer at a 130,659-token context."
+  },
+  {
+   "value": 91,
+   "unit": "MB",
+   "display": "91 MB",
+   "source": "Derived: 32,750 positions x 696 bytes = 22.8 MB per copy; 4 copies (out and back, two buffers) = 4 x 22.8 = 91.2 MB",
+   "context": "KV traffic for offloading a 32,750-position sequence to host memory and back."
+  }
+ ]
+}

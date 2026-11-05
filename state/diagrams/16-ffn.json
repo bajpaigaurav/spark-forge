@@ -1,0 +1,25 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Block dataflow and where the d\u00b2 parameters sit",
+  "why": "It shows the residual-stream path through attention and feed-forward sublayers with the tensor shapes and parameter counts that make the two-thirds claim visible.",
+  "nodes": [
+    "residual stream (width d)",
+    "attention: Q,K,V,O projections d\u00d7d \u2192 4d\u00b2",
+    "attention output added back to stream",
+    "feed-forward: d\u00d7m then m\u00d7d \u2192 2dm",
+    "with m = 4d: 8d\u00b2",
+    "feed-forward output added back to stream",
+    "final stream \u00d7 unembedding d\u00d7V"
+  ],
+  "notes": "Vertical flow down the residual stream; each sublayer branches off, computes, and adds back. Label each matrix with its shape (d\u00d7d, d\u00d7m, m\u00d7d, d\u00d7V) and parameter count (4d\u00b2, 2dm=8d\u00b2, cVd). Mark that m=4d is the standard expansion, so feed-forward holds twice attention per layer; across L layers the ratio is 8Ld\u00b2 / (12Ld\u00b2 + cVd). No numeric values beyond the symbolic d, m, L, V and the counts stated in the chapter. | Horizontal stacked bars: x-axis is parameter count; each bar is one configuration. Untied bar segments: attention 2,147,483,648; feed-forward 4,294,967,296; embeddings 1,048,576,000; total 7,491,026,944; feed-forward share 57.3%. Tied bar segments: attention 2,147,483,648; feed-forward 4,294,967,296; shared embedding 524,288,000; total 6,966,738,944; feed-forward share 61.7%. All quantities are from the chapter; no additional labels. | Left-to-right dataflow. x enters and is dotted with each of m key rows to produce m scalar scores; \u03c6 acts per scalar; each \u03c6(s_i) multiplies value vector v_i; sum yields d-dimensional output added to residual stream. Label dimensions d and m, and note a 32-layer model with m = 16,384 has 524,288 slots. Under ReLU roughly half slots silent; under GELU almost all contribute tiny amounts. No axis quantities beyond these structural constants. | Heatmap axes: layers (vertical) and token positions (horizontal). Recovery concentrates at the last token of the subject and peaks in middle layers; feed-forward block carries most recovery, attention recovers less and sits at earlier layers and final token position. No numeric values are labelled; only structural axes and qualitative peak locations from the prose. | x-axis: group size G, the run of consecutive weights sharing one scale s. y-axis: effective bits per weight = b + 16/G, with b = 4 and a 16-bit scale. Points are the chapter's three configurations: G=32 gives 4.5, G=128 gives 4.125, G=256 gives 4.0625 bits per weight. The curve shows finer groups track local range better but pay more scale overhead. | Two columns: dense vs MoE. Left column labels total FFN parameters (134,217,728 vs 1,073,741,824) and per-token multiply-adds (134,217,728 vs 268,435,456). Arrows show a token entering the router and being dispatched to 2 of 8 expert boxes; each expert box labelled 8d\u00b2 = 134,217,728. All quantities come from the chapter's arithmetic with d=4096.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    7
+  ]
+}

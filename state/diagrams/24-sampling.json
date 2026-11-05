@@ -1,0 +1,24 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "Greedy decoding self-reinforcement loop",
+  "why": "It shows the feedback cycle by which argmax decoding locks in repetition: context feeds scores, argmax picks the top token, the token is appended, and the strengthened context feeds back.",
+  "nodes": [
+    "context ending 'the the'",
+    "next-token scores",
+    "argmax selection",
+    "append token 'the'",
+    "new context 'the the the'",
+    "scores for 'the' rise relative to alternatives"
+  ],
+  "notes": "Flow is cyclic: context -> model scores -> argmax -> appended token -> new context -> model scores. Labels are the repeated token strings from the prose ('the the', 'the the the') and the qualitative relation that the score for 'the' rises relative to alternatives. No numeric quantities are invented; the diagram carries the feedback structure, not a distribution curve. | Horizontal axis: configuration (T=1, T=0.5, T=2, top-k k=2). Vertical axis: probability mass for the three tokens with logits 4.0, 2.0, 1.0. Bars show the probabilities given in the chapter; temperature panels preserve token order and change tail mass, while the top-k panel drops the third token and renormalises the first two. All labelled quantities come from the chapter's worked example. | Horizontal axis: tokens sorted descending by probability; vertical axis: probability. Bars show the three-logit case 0.844, 0.114, 0.042. Top-k k=2 keeps first two. Top-p p=0.9 admits 0.844 then 0.114 because cumulative reaches 0.958. Min-p min_p=0.1 threshold 0.0844 keeps 0.844 and 0.114, renormalised to 0.881 and 0.119. Side panels compare flat 10x0.1 case: top-p 0.9 keeps nine, top-k 5 keeps five; and peaked 0.95 case: top-p keeps one, top-k 50 keeps fifty. Temperature inset labels min-p threshold movement: T=1 p_max=0.844 threshold=0.0844 keeps two; T=0.5 p_max=0.980 threshold=0.098 keeps one; T=2 p_max=0.628 threshold=0.0628 keeps three. | Left-to-right flow, no axes. Logits enter the penalty stage: repetition penalty uses r>1 (divide positive logits, multiply negative logits), frequency penalty subtracts alpha times count, presence penalty subtracts beta once. Temperature then divides logits by T. Truncation acts on the softmax probabilities, not logits. Renormalisation follows truncation, then the token is drawn. Chapter example: logits 4.0, 2.0, 1.0 with r=1.2 become 3.333, 2.0, 1.0 and probabilities 0.735, 0.194, 0.071; with r=2 they become 2.0, 2.0, 1.0 and probabilities 0.422, 0.422, 0.155, where top-p 0.9 keeps all three, while truncating before the penalty keeps only the first two. | Diagram the live pool as four equal streams of 65,536 positions. Within one stream, show a request's admission ceiling of 32,750 tokens after reserving the 32,768-token reply budget and overhead. Then show four beam hypotheses each needing their own KV cache at that ceiling, totaling 131,000 positions, which is twice the per-stream share. Label the pool total, stream count, per-stream share, reply budget, admission ceiling, beam count, and four-beam total; all quantities come from the chapter. | Left-to-right flow: raw logits enter penalty adjustment, then temperature scaling, then a truncation stage where top-k, top-p, and min-p are alternative cuts on the same distribution, then renormalization over the surviving set, then the categorical draw. Each parameter is labelled at its intervention point; no numeric values are shown beyond the structural parameters k, p, T, and the min-p threshold. The figure carries the section's claim that the parameters cut at different places rather than forming one dial.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

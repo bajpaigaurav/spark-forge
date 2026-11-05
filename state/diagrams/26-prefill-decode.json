@@ -1,0 +1,22 @@
+{
+  "needed": true,
+  "kind": "flow",
+  "title": "One request, two hardware regimes: prefill then decode",
+  "why": "It shows the request pipeline as two sequential phases with different tensor shapes, durations, and bottlenecks, which the prose describes in order.",
+  "nodes": [
+    "Request: 130,659 prompt tokens",
+    "Prefill: X [130,659, d_model] \u00d7 W [d_model, d_model] + b; compute-bound; 3.33 s mean; 39,237 tokens/s",
+    "Decode: emits 607 tokens; 8.38 s mean",
+    "End-to-end latency combines both phases; TTFT 3.46 s"
+  ],
+  "notes": "No axes. Flow is request -> prefill -> decode. Tensor shapes are labelled symbolically: N=130,659 rows, d_model columns for X; d_model by d_model for W. Quantities come from the 98-request window: mean prompt 130,659 tokens, mean prefill 3.33 s, mean decode 8.38 s, mean generation 607 tokens, mean TTFT 3.46 s, prefill throughput 39,237 tokens/s. Arithmetic intensity N operations per byte is noted on the prefill stage. | Axes: x = context length in tokens per stream; y = KV cache bytes read per generated token per rank. Plot two bars/points using only chapter quantities: 130,659 tokens gives 120.5 MB; 32,750 tokens gives 30.2 MB. Annotate the 90.3 MB difference and its 0.33 ms cost at 273 GB/s. Show a separate fixed-weight-traffic band with no invented number, labelled only as fixed per token. The 922 bytes/position/rank is the conversion factor from positions to KV bytes. The figure carries the structural contrast: weight traffic fixed, KV traffic grows with context, so decode intensity falls as the KV term dominates the denominator. | Axes: operational intensity (operations per byte) on x, achievable throughput on y. The curve rises along the bandwidth-bound slope until the ridge point, then flattens into the compute-bound plateau. Decode sits far left at batch 4, intensity 4 ops/byte, on the bandwidth-bound side; prefill sits on the compute-bound side. Annotate measured rates 39,237 tokens/s prefill and 59.1 tokens/s decode, ratio 664, and 1.80x scaling at concurrency 4. The ridge point is left unplaced numerically because no measured peak FLOP/s is available. Optionally note that SM clock 2,197 MHz under load versus 3,003 MHz silicon maximum affects only the compute-bound plateau, not decode. | Compare configurations on throughput and per-token traffic. The left side is one stream; the right side is four concurrent streams. Label measured aggregate decode throughput (59.1 and 106.2 tokens/s), the measured 1.80x speedup, the ideal 4x weight-read amortization from intensity rising 1 to 4 ops/byte, the derived KV traffic share f=0.407, and the 4/16 active row slots (25%) in the pinned 16-row kernel. All quantities come from the chapter. | Draw a horizontal KV-pool bar split into four equal stream segments at 65,536 positions each. Inside one segment, stack the admission reserves: 32,768 reply budget, 16 round rows, 2 overhead, leaving 32,750 context tokens. Show the admission check as prompt_tokens + 32,768 + 16 + 2 compared against 65,536. Beside it, show the raised-pool configuration: 1,048,576 positions total, 229,358 per stream, and the extra 0.68 GiB per rank derived from 0.9 GiB per 1,048,576 positions. Label the memguard floor at 2.5 GiB as the constraint on raising the pool. All quantities come from the chapter. | X axis: concurrency (and a second panel with prompt length). Y axis: latency in ms, log scale. Two curves per panel: time to first token and inter-token latency, plotted separately, never collapsed into one tokens-per-second number. A horizontal band marks the KV transfer cost per request, labelled 120.5 MB per rank at 130,659 tokens (from the chapter); the disaggregation gain region is where the prefill time saved exceeds that band. Shade the low-concurrency, short-prompt region where the curves sit below the band and disaggregation fails. No invented throughput values: axes are unlabelled in magnitude, only the structural crossover and the two named quantities are marked.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

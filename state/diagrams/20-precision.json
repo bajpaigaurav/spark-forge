@@ -1,0 +1,22 @@
+{
+  "needed": true,
+  "kind": "layout",
+  "title": "Bit-field layouts of fp32, fp16, and bf16",
+  "why": "It shows the structural trade between exponent width and mantissa width across the three formats, which the prose describes in sequence.",
+  "nodes": [
+    "fp32: sign 1, exponent 8, mantissa 23",
+    "fp16: sign 1, exponent 5, mantissa 10",
+    "bf16: sign 1, exponent 8, mantissa 7"
+  ],
+  "notes": "Three horizontal bit-field bars, one per format, with fields labelled sign/exponent/mantissa and widths taken from the chapter. Annotate that exponent width sets range and mantissa width sets resolution; optionally mark fp16 bias 15 and largest finite value 65,504, and the near-1.0 gaps 2^-23, 2^-10, and 2^-7 from the chapter. No axis; the structure is the allocation of bits across fields. | Flow runs left to right: loss is multiplied by the scale before backward; gradients are cast/kept in fp16 during backward; overflow check branches to halve scale and skip the step; otherwise gradients are divided by the same power-of-two scale before the optimizer. The fp32 master weight copy is the destination for the optimizer update, because fp16/bf16 gaps near 1.0 (9.8e-4 and 0.0078125) round away a 1e-5 update while fp32 gap 1.19e-7 preserves it. Labelled quantities come from the chapter: scale 65,536 = 2^16, example gradient 3e-6 becomes 0.196608 when scaled, overflow halves to 32,768. | Rows for each format; columns for sign/exponent/mantissa bit counts, exponent range, smallest normal value, and relative resolution. fp32: 8 exponent bits, 23 mantissa bits. bf16: 8 exponent bits, 7 mantissa bits, same range as fp32 (largest finite ~3.39e38, smallest normal ~1.18e-38), relative resolution ~0.4%. fp16: 5 exponent bits, 10 mantissa bits (three more than bf16), smallest normal 6.1e-5; at activation 0.001, relative error ~4.9e-4 for fp16 versus ~3.9e-3 for bf16. Arrows show mantissa bits traded for exponent range; underflow/overflow is categorical replacement by zero/infinity. | Left side is a bit-field layout comparison: sign, exponent, mantissa widths and biases for e4m3 and e5m2, with the labelled max finite values. Right side is a dataflow: amax enters, scale = max_finite / amax, elements are multiplied by the scale, cast to the format, matmul accumulates in fp32, and backward divides by its scale. Forward and backward scales are separate; delayed scaling uses an amax history rather than the current tensor. | Columns are the four formats. Rows label bytes per parameter (4, 2, 2, 1), parameter capacity in the 111.5 GB budget (27.9B, 55.8B, 55.8B, 111.5B), and the accumulator gap at a 4,096-term sum where given (fp32 gap 2^-11 \u2248 0.000488; bf16 gap 32). Also mark bf16's 256.0 + 1.0 loss with gap 2, fp16 threshold 2^11 = 2048, and fp32 threshold 2^24 \u2248 16.7 million. Product-bit widths from the prose can be a side note: e4m3 product up to 8 bits, bf16 up to 16, fp16 up to 22. No axis is continuous; this is a configuration comparison, not a curve. | Flow runs left to right through forward then backward. Labels mark which tensors are cast and which operations remain fp32. Scales are noted as powers of two when possible so multiply/divide are exact. No numeric quantities are invented; the only structural constants are precision formats and operation categories named in the chapter. | Each row is a format; the horizontal bar is split into exponent and mantissa segments, labelled with the bit counts given in the chapter. The comparison is across configurations, not a dataflow. No axis quantities beyond bit counts are labelled; fp32 is not drawn because its field widths are not stated in this section.",
+  "section": 1,
+  "sections": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}
