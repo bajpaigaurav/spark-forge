@@ -3,8 +3,8 @@
 A book about how a language model actually works, from the tokenizer to the sampler, written
 and gated by an unattended loop and published as a hand-built site.
 
-Live at `http://<spark-ip>:8081` on the rig, and published to GitHub Pages from `main`
-(every push rebuilds the figures and the site in CI and deploys it).
+Read it at **https://bajpaigaurav.github.io/spark-forge/** (GitHub Pages, served from
+`docs/`), or on the rig at `http://<spark-ip>:8081`.
 
 ## What it is
 
@@ -116,13 +116,19 @@ hermes cron resume eb8ff5b0656a     # resume
 ```
 
 Site server on the rig: `spark-forge-site.service` (systemd user unit, enabled, binds
-`0.0.0.0:8081`). GitHub Pages is built separately by `.github/workflows/pages.yml`;
-the two do not interfere because `site/` is generated, never committed.
+`0.0.0.0:8081`).
+
+GitHub Pages serves `docs/` from `main`, at `https://bajpaigaurav.github.io/spark-forge/`.
+`docs/` is a committed copy of the built site, refreshed by `./build_site.sh` (rebuild,
+verify, then copy `site/` into `docs/`). Commit `docs/` whenever the chapters change.
+The rig server and Pages do not interfere: `site/` is the working build directory and is
+gitignored.
 
 ## Verification
 
 ```bash
 ./verify_site.sh                                      # rebuild + structural + gates
+./build_site.sh                                       # rebuild + verify + refresh docs/
 python3 audit_design.py chapters/01-tokens.html       # computed-style audit via CDP
 ```
 
@@ -185,12 +191,13 @@ content/plan.json     the 31-chapter plan: parts, theses, cover lists
 content/sources.json  measured values from the live engine
 content/chapters/     published markdown
 state/queue.json      the queue and its state
-.github/workflows/    GitHub Pages build + deploy
+docs/                 the committed site GitHub Pages serves
+build_site.sh         rebuild, verify, and copy site/ into docs/
 ```
 
-Generated, not committed: `site/` (rebuilt in CI), `logs/` (machine-local run output),
-and `.env` (the gateway key). `verify_site.sh` locates its own tree, so it works in a
-CI clone as well as on the rig.
+Generated, not committed: `site/` (the working build directory), `logs/` (machine-local
+run output), and `.env` (the gateway key). `verify_site.sh` locates its own tree, so it
+works in a clone as well as on the rig.
 
 ## The revisit pass: expert review and figures
 

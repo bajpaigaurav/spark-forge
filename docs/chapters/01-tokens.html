@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text is not numbers yet</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">I. The raw material &middot; Chapter 01</span>
+  <h1>Text is not numbers yet</h1>
+  <p class="thesis">A tokenizer is a compression scheme wearing a linguistic costume, and every downstream oddity of language models starts here.</p>
+</header>
+
+<article class="prose">
+<p>Ask a language model to add 1234 and 5678 and it will often get the answer wrong, in a way that looks less like a reasoning failure and more like a transcription error. The cause sits upstream of every weight in the network. A model never sees the string you typed. It sees a sequence of integer token IDs. Each ID indexes a row in an embedding matrix whose shape is vocabulary size by model width, and at the other end an output projection maps the final hidden vector back to a score for every vocabulary entry. Those weights are often stored in fp16, two bytes per parameter. Before any matrix multiply happens, a tokenizer converts text into those IDs. Byte-level tokenizers first encode the text as UTF-8 bytes; character-level BPE, as in Sennrich et al. operates on Unicode characters UTF-8 is a variable-width encoding. ASCII characters take one byte, many accented and Cyrillic characters take two, and emoji can take four. The tokenizer turns that byte stream into pieces that trade sequence length against vocabulary size, and the model inherits every choice in that trade.</p>
+<p>That scheme is byte-pair encoding, and it was not invented for language models. Philip Gage published it in the <em>C Users Journal</em> in 1994 as "A New Algorithm for Data Compression." The idea is almost embarrassingly simple. Take a stream of symbols. Count every adjacent pair. Find the pair that occurs most often. Replace every instance of that pair with a new symbol that did not previously exist. Repeat. Each round replaces every occurrence of that pair with the new symbol, shrinking the stream by one symbol per occurrence, and adds exactly one entry to the dictionary. and after enough rounds the stream is much shorter than what you started with. That is a compressor. It knows nothing about grammar, morphology, or meaning.</p>
+<p>For twenty-one years it stayed a compressor. Then in 2015, Rico Sennrich, Barry Haddow, and Alexandra Birch were preparing a neural machine translation system and hit a wall. Their model produced output one word at a time from a fixed vocabulary, and any word outside that vocabulary was unmappable. Rare names, compounds, inflections, and loanwords all collapsed into a single unknown token. Their fix was to borrow Gage's algorithm, run it on the training corpus, and let the model operate on subword units instead of words. Frequent words stay whole. Rare words get split into pieces that the model has seen before. The paper was called "Neural Machine Translation of Rare Words with Subword Units," it ran its experiments on the WMT 2015 shared translation task, and it appeared at ACL 2016. It made subword tokenization a standard part of neural translation and later language-model pipelines.</p>
+<p>The merge procedure deserves to be walked through, because almost every strange behaviour downstream traces back to it. You start with a corpus and a base alphabet. In the original formulation the alphabet was characters; in the byte-level variant that came later it is the 256 possible byte values. You count adjacent pairs across the whole corpus. Suppose the pair consisting of <code>e</code> followed by <code>r</code> is the most frequent. You write a merge rule, "e r → er," assign it rank zero, and rewrite the corpus so every <code>er</code> is now a single symbol. Then you recount, find the new most frequent pair, and write rank one. You do this tens of thousands of times. The output is an ordered list of merge rules, and that list is the tokenizer. At inference time, production byte-level tokenizers first split the input into chunks via pre-tokenization and handle special tokens, then apply the merge rules in rank order, greedily, left to right, within each chunk; merges are not applied across chunk boundaries. Nothing about the process consults meaning.</p>
+<p>A small corpus makes the mechanics concrete. Take the words <code>low</code> five times, <code>lower</code> twice, and <code>lowest</code> once, with an end-of-word marker <code>&lt;/w&gt;</code> appended to each word. The initial symbols are <code>l o w &lt;/w&gt;</code>, <code>l o w e r &lt;/w&gt;</code>, and <code>l o w e s t &lt;/w&gt;</code>. The pair <code>l o</code> occurs eight times, and so does <code>o w</code>. A deterministic tie-break, say lexicographic order, picks <code>l o</code>, assigns it rank 0, and rewrites every <code>l o</code> as <code>lo</code>. The corpus becomes <code>lo w &lt;/w&gt;</code>, <code>lo w e r &lt;/w&gt;</code>, and <code>lo w e s t &lt;/w&gt;</code>. Now <code>lo w</code> occurs eight times, so rank 1 is <code>lo w → low</code>. The corpus becomes <code>low &lt;/w&gt;</code>, <code>low e r &lt;/w&gt;</code>, and <code>low e s t &lt;/w&gt;</code>. The pair <code>low &lt;/w&gt;</code> occurs five times, so rank 2 is <code>low &lt;/w&gt; → low&lt;/w&gt;</code>. Next <code>low e</code> occurs three times, so rank 3 is <code>low e → lowe</code>. The pairs <code>lowe r</code> and <code>r &lt;/w&gt;</code> both occur twice; lexicographic order picks <code>lowe r</code>, rank 4. Then <code>lower &lt;/w&gt;</code> occurs twice, rank 5. The ordered list is the tokenizer.</p>
+<p>At inference time the loop is short. For rank r from 0 to N-1, scan the current symbol sequence left to right, and whenever the current pair equals the pair for rank r, replace it with the merged symbol. Continue until no rule applies. Rank order matters because merges can conflict. Suppose rank 0 is <code>a b → ab</code> and rank 1 is <code>b c → bc</code>. On the unseen string <code>abc</code>, rank order gives <code>ab c</code>. A left-to-right pass that applied the longest match first could give <code>a bc</code>. The ranks decide which merge wins. On an unseen string such as <code>lowest</code>, the same loop applies rank 0 to get <code>lo w e s t &lt;/w&gt;</code>, rank 1 to get <code>low e s t &lt;/w&gt;</code>, rank 3 to get <code>lowe s t &lt;/w&gt;</code>, and then stops when no later rule matches. The final pieces are <code>lowe</code>, <code>s</code>, <code>t</code>, and <code>&lt;/w&gt;</code>. The model has never seen <code>lowest</code> as a whole word, but it has seen the pieces.</p>
+<p>Byte-level BPE, introduced with GPT-2 in 2019 by Radford and colleagues, changed the base alphabet from characters to bytes. That matters because 256 byte values cover every string that can exist, including emoji, Cyrillic, and broken UTF-8. There is no unknown token, ever. GPT-2's vocabulary of 50,257 decomposes exactly into 256 base byte tokens, 50,000 learned merges, and one end-of-text marker. That arithmetic is the whole design.</p>
+<p>Before BPE runs, a pre-tokenization regex splits text into chunks. GPT-2's regex groups contractions, letter runs with an optional leading space, number runs, punctuation, and whitespace. Llama 3's regex, described by Dubey and colleagues in 2024, differs in the number branch. It groups digits in runs of up to three, so <code>1234</code> is offered to BPE as <code>123</code> and <code>4</code>. GPT-2's regex groups all consecutive digits into one chunk, so <code>1234</code> is offered as a single unit. Whether that unit becomes one token depends on the learned merges, but the regex decides what the merge model is allowed to see. Special tokens such as beginning-of-sequence, end-of-sequence, padding, and unknown markers are reserved before pre-tokenization and are never split by merges.</p>
+<p>SentencePiece, published by Taku Kudo and John Richardson at Google in 2018, attacked a different annoyance. Character-based and byte-based tokenizers still required a pre-tokenization step that split on whitespace, and whitespace splitting is a language-specific decision that breaks for Chinese and Thai and is awkward for anything with unusual spacing. SentencePiece treats the raw input as a stream of characters after normalization, and it represents a space with a visible marker, conventionally <code>▁</code>. Whitespace becomes an ordinary symbol the algorithm can merge across, and decoding replaces <code>▁</code> with a space. Normalization can change the string before tokenization, for example by applying Unicode compatibility rules, so round-tripping is not always byte-identical. SentencePiece supports byte fallback, which encodes any character outside the vocabulary as a sequence of UTF-8 byte tokens such as <code>&lt;0xE4&gt;</code>, so the tokenizer remains reversible even for rare scripts. It also supports two training algorithms. BPE learns an ordered merge list. Unigram starts with a large candidate vocabulary, assigns each piece a probability, and prunes pieces that contribute little likelihood until the vocabulary reaches the target size; segmentation then chooses the most probable sequence of pieces. T5 and many open-weight families, including Llama 1 and 2, use SentencePiece or a descendant; Llama 3 switched to a tiktoken-style byte-level BPE tokenizer</p>
+<p>Now the trade. Vocabulary size buys you shorter sequences and costs you parameters. A larger vocabulary compresses text into fewer tokens, which shrinks the attention matrix, since attention cost grows with the square of sequence length, and shortens generation, since every token produced requires a full forward pass. The price is paid at the two ends of the network. The input embedding table has one row per vocabulary entry, and the output projection has one column per entry. Llama 3 uses 128,256 tokens. At a model width of 4,096 and two bytes per weight, the embedding table alone is 128,256 × 4,096 × 2 = 1,050,673,152 bytes, just under a gibibyte, and the untied output projection is the same size again. GPT-2's 50,257 entries at the same width would cost 411,705,344 bytes each. Meta accepted roughly two and a half times the embedding cost in exchange for shorter sequences and better compression of non-English text, which had been a weakness of Llama 2.</p>
+<p>The attention saving can be calculated from the measured workload. The sampled window in this engine has a mean prompt length of 130,659 tokens. Attention work over a prompt scales with the square of that length. Halving the token count would cut attention work to one quarter, since (130,659/2)² divided by 130,659² is 1/4. Generation savings are different: with KV caching, each new token attends to the current context, so attention cost per generated token grows with context length; the main saving from fewer output tokens is fewer forward passes. A 10% reduction removes about 61 forward passes per request The measured mean is 607 generated tokens per request, and each generated token needs a forward pass. A tokenizer that saved ten percent of output tokens would remove about 61 forward passes per request. Those savings are real, but they are paid for with embedding parameters and with a vocabulary that must be trained on a corpus broad enough to cover the languages you care about.</p>
+<p>Fertility is the average number of tokens a tokenizer spends per word, and it is not constant across languages. English sits comfortably; a language with rich inflection, or one written in a script that the merge process rarely encountered during tokenizer training, can cost more tokens for the same content. A byte-level example shows the worst case The English sentence "The quick brown fox jumps over the lazy dog." is 44 UTF-8 bytes. With no merges, byte-level BPE spends 44 tokens on it. A 44-character Cyrillic sentence starts at 88 bytes, because Cyrillic characters take two bytes in UTF-8, so before merges it costs twice as many tokens. Merges trained mostly on English may not cover those Cyrillic pairs, so the gap can persist. The same context window then holds less text, the same request costs more, and the model's effective capacity in that language is lower.</p>
+<p>Arithmetic fails for a related structural reason. If <code>1234</code> is a single token, the model has no access to the digits <code>1</code>, <code>2</code>, <code>3</code>, <code>4</code> as separate objects. Gradient updates touch the embedding row for that whole numeral, and the model has no explicit digit-level token positions to compose over. Its embedding can still encode digit-related features internally, but without separate digit subpieces, learning digit-wise procedures and generalizing to unseen numerals is substantially harder Llama 3's regex groups digits in runs of up to three, so <code>1234</code> is offered as <code>123</code> and <code>4</code>; <code>5678</code> is offered as <code>567</code> and <code>8</code>. That gives the model repeated digit subpieces across many numbers and a chance to learn position-dependent digit operations. GPT-2's regex groups all consecutive digits into one chunk, so <code>1234</code> is offered as a single unit. The tokenizer change does not guarantee arithmetic, but it changes what the model can learn compositionally.</p>
+<p>Then there are the glitch tokens. In 2023, Jessica Rumbelow and Matthew Watkins catalogued tokens in GPT-3's vocabulary that produced bizarre behaviour when prompted, with <code>SolidGoldMagikarp</code> becoming the famous example. The mechanism is not mysterious once you see the pipeline. The tokenizer is trained on one corpus, the model on another. A token can survive into the final vocabulary because it was frequent in the tokenizer's data, then never appear in the model's training data at all. If input and output embeddings are untied, the input-embedding row for a token that never appears in the context receives no input-side gradient. But the softmax denominator still gives every output row a small nonzero gradient, and with tied embeddings the shared row is updated. So such a row is typically under-trained rather than frozen at initialization In practice the boundary is blurrier than that: Rumbelow and Watkins reported only that these tokens had very little involvement in training, and later work by Land and Bartolo in 2024 characterised glitch tokens as under-trained rather than untouched, using embedding norms as the indicator. Either way the row is a slot in the table pointing at noise, and the model has no idea what to do when you hand it one.</p>
+<p>There is one more consequence worth flagging, because it surprises people. GPT-2-style byte-level BPE tokenizers use a regex pre-tokenizer that attaches an optional leading space to the following word chunk,, so <code>hello</code> and <code> hello</code> are different token strings with different embeddings. GPT-2's regex includes an optional leading space in its letter branch, so the space becomes part of the word chunk. A prompt that ends in a trailing space is asking the model to predict a continuation from a token boundary it did not expect. If an API normalizes trailing whitespace before tokenization, the final token changes before the model sees it, and the continuation shifts.</p>
+<p>Tokenizer training corpus selection is its own design decision. The corpus should sample the distribution the model will serve, with enough balance across languages and scripts that common pairs get merges. Deduplication matters because repeated text inflates pair counts. Normalization matters because it decides which strings are equivalent. Evaluation should go beyond fertility. Bits-per-byte on held-out text normalizes cross-entropy by UTF-8 bytes and lets you compare tokenizers with different vocabularies. Round-trip decoding checks reversibility. Downstream task accuracy checks whether the pieces preserve the distinctions the model needs.</p>
+<p>A common recipe is byte-level BPE or SentencePiece, vocabulary in the tens of thousands to low hundreds of thousands, digit grouping chosen deliberately, and tokenizer training data balanced across languages. A tokenizer is a compression scheme with a vocabulary-construction procedure—such as a BPE merge list or unigram probabilities—and a normalization policy. and every model built on top of it inherits the choices made by whoever ran the merge loop. When the next chapter opens up the embedding table, remember that the rows in it are indexed by these arbitrary pieces, not by words.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Byte-pair encoding as a compression loop feeding token IDs into the model" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Byte-pair encoding as a compression loop feeding token IDs into the model</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">UTF-8 byte</text><text x="96.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">stream</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">count adjacent</text><text x="310.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">pairs</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">merge most</text><text x="524.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">frequent pair</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">add new symbol</text><text x="738.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">to dictionary</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">repeat until</text><text x="96.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">desired</text><text x="96.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vocabulary size</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">token IDs</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="139.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">embedding</text><text x="524.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">matrix:</text><text x="524.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vocabulary size</text><text x="524.0" y="178.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">by model width</text><line x1="608" y1="155.0" x2="654" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">model</text></svg>
+<figcaption><strong>Byte-pair encoding as a compression loop feeding token IDs into the model</strong> It shows the sequential dataflow from UTF-8 bytes through repeated pair-counting and merging to token IDs, and the tradeoff between shorter sequences and a larger vocabulary.</figcaption>
+</figure>
+
+
+
+<section class="interactive">
+  <h3>Watch the merges happen</h3>
+  <p class="lede">Type a word. The table below runs a greedy byte-pair merge over it,
+  left to right, using the merge rules a tokenizer learns from its corpus. The splits
+  are not linguistic. They are whatever was frequent in somebody else's training data.</p>
+  <div class="slider-row">
+    <label for="bpe-input">word</label>
+    <input type="text" id="bpe-input" value="unusual" spellcheck="false">
+  </div>
+  <div id="bpe-host"></div>
+  <p class="readout" id="bpe-out"></p>
+</section>
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">607 tokens</td><td class="ps">derived: generation_tokens_total / request count = 59,476 / 98</td><td class="pc">Mean generated tokens per request.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="../index.html">&larr; Contents</a><a href="02-embeddings.html">A vector is a coordinate, not a meaning &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

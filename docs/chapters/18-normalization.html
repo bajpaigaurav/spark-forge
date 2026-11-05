@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keeping the residual stream in range</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">IV. The rest of the block &middot; Chapter 18</span>
+  <h1>Keeping the residual stream in range</h1>
+  <p class="thesis">Normalization placement is one of the quiet decisions that determines whether a deep model trains at all.</p>
+</header>
+
+<article class="prose">
+<p>A transformer block has two sublayers. The first is attention, the second is a feed-forward MLP. Each sublayer reads the residual stream, computes a function, and adds its output back onto the stream. For block l with input x_l, the pre-norm form is</p>
+<p>a_l = x_l + Attn(LN(x_l))</p>
+<p>x_{l+1} = a_l + MLP(LN(a_l))</p>
+<p>The post-norm form is</p>
+<p>a_l = LN(x_l + Attn(x_l))</p>
+<p>x_{l+1} = LN(a_l + MLP(a_l))</p>
+<p>The residual stream is the shared vector that every block reads and writes. Anthropic's 2021 "A Mathematical Framework for Transformer Circuits" gave it that name. Nothing overwrites the stream; each block adds to it. The stream is the only path connecting the first layer to the last.</p>
+<p>The residual addition gives backpropagation an identity path. For a vector function f, write J_f for its Jacobian, the matrix of partial derivatives. A pre-norm block has output y = x + f(LN(x)), so</p>
+<p>∂y/∂x = I + J_f(LN(x)) J_LN(x).</p>
+<p>The identity matrix I is the direct path. Through N blocks, the chain rule multiplies these Jacobians. Expanding the product gives the identity term plus terms with one or more J_f factors. The identity term carries a gradient component through every addition without multiplying it by a sublayer Jacobian. That identity path gives gradient a route through every block that does not multiply by a sublayer Jacobian. It is one reason deep stacks can train, though it does not guarantee that the gradient at the first block is at least as large as the gradient at the last. The total Jacobian is a sum, and the other terms can cancel the identity term.</p>
+<p>Take a scalar simplification. Let LN have derivative s and the sublayer function have derivative a. For one pre-norm block, ∂y/∂x = 1 + a s. For two blocks with derivatives a and b, the gradient at the input is (1 + b s)(1 + a s) times the upstream gradient. Set s = 1, a = -1, b = 0. The product is zero. The identity term in the first block is present, but the sublayer derivative cancels it. A depth comparison therefore has to look at the whole product, not just at the presence of I.</p>
+<p>The stream's norm also needs a recurrence, not an assumption. With x_{l+1} = x_l + f_l(x_l),</p>
+<p>||x_{l+1}||^2 = ||x_l||^2 + 2 x_l·f_l(x_l) + ||f_l(x_l)||^2.</p>
+<p>The cross term decides the direction. If f_l points along x_l, the norm grows. If it points against x_l, the norm can shrink. If it is orthogonal, the squared norm grows by ||f_l||^2: ||x_{l+1}||^2 = ||x_l||^2 + ||f_l||^2. Over N blocks with a constant additive f_l = a, x_N = x_0 + N a, so the vector grows linearly; its norm is ||x_0 + Na|| = sqrt(||x_0||^2 + 2N⟨x_0,a⟩ + N^2||a||^2), which grows asymptotically linearly in N (exactly linear only in special cases such as x_0 parallel to a). With f_l = -x_l/2, x_{l+1} = x_l/2, so the norm halves each block. A model can have either behavior; the initialization and the learned functions decide which.</p>
+<p>LayerNorm arrived in July 2016 from Jimmy Lei Ba, Jamie Ryan Kiros and Geoffrey Hinton. Their problem was recurrent networks. Batch normalization computes statistics across the batch for each feature separately, which is awkward when every timestep has a different effective batch and sequences have different lengths. Ba and colleagues normalized per token and across the feature dimension. For a vector x with d components,</p>
+<p>μ = (1/d) Σ x_i</p>
+<p>σ = sqrt((1/d) Σ (x_i - μ)^2 + ε)</p>
+<p>y_i = γ_i (x_i - μ)/σ + β_i.</p>
+<p>The mean and variance come from one token's own vector, so the result does not depend on what else is in the batch. That is a batch-invariance property. It does not make the KV cache safe. The KV cache stores, for each layer and each past token, the key and value vectors produced by that layer. Future tokens attend to those stored vectors under a causal mask. Cache safety comes from causal masking and from treating past entries as read-only, not from the normalization's per-token statistics.</p>
+<p>The gamma and beta matter. Without them the layer would emit zero-mean, unit-variance output and throw away a deliberate offset that a later layer might detect. With them, normalization becomes a reparameterization. Take x = [2, 4, 6, 8]. The mean is 5, so the centered vector is [-3, -1, 1, 3]. The variance is (9 + 1 + 1 + 9)/4 = 5, the standard deviation is about 2.236, and the normalized vector is [-1.342, -0.447, 0.447, 1.342]. Set gamma to all ones and beta to all zeros and that is the output. Ignoring ε (or in the limit ε→0), multiplying the input by 10 leaves the output unchanged; with ε&gt;0, scale invariance is only approximate. Adding 100 to every component still leaves the output unchanged exactly. LayerNorm makes a layer's input invariant to scale and to shift.</p>
+<p>Zhang and Sennrich asked in 2019 which half of that invariance was doing the work. Their paper, "Root Mean Square Layer Normalization", dropped the mean subtraction and kept the scaling. RMSNorm divides x by the root mean square of its components,</p>
+<p>r = sqrt((1/d) Σ x_i^2 + ε)</p>
+<p>y_i = γ_i x_i / r.</p>
+<p>On the same vector, the mean of squares is (4 + 16 + 36 + 64)/4 = 30, the root mean square is about 5.477, and the output is [0.365, 0.730, 1.095, 1.461]. That output has mean 0.913, so RMSNorm does not center anything. It is invariant to scaling and not to shifting. Zhang and Sennrich argued from their experiments that re-centering contributed little and re-scaling did the work. Dropping the mean removes one reduction, one elementwise subtraction and the beta parameters at every normalization site. LLaMA used RMSNorm in 2023. The operation count falls; whether that shows up as wall-clock time depends on the kernel and the model.</p>
+<p>Placement changes which Jacobian multiplies the residual path. Pre-norm puts normalization inside the sublayer input, so the residual addition is outside the norm. Post-norm puts normalization after the addition, so the residual path passes through the norm. In post-norm, a block has output y = LN(x + f(x)), so</p>
+<p>∂y/∂x = J_LN(x + f(x)) (I + J_f(x)).</p>
+<p>The identity path is still there, but it is multiplied by the LayerNorm Jacobian. For a vector x with d components, the exact LayerNorm Jacobian is</p>
+<p>∂y_i/∂x_j = (γ_i/σ)[δ_ij - 1/d - z_i z_j/d],</p>
+<p>where z_i = (x_i - μ)/σ. This is not a single scalar inverse standard deviation. It has a centering term, a per-coordinate term, and a cross term z_i z_j. Take x = [2, 4, 6], γ = 1, β = 0. Then μ = 4, σ = sqrt(8/3) ≈ 1.633, and z = [-1.225, 0, 1.225]. The Jacobian is approximately</p>
+<p>[[0.102, -0.204, 0.102],</p>
+<p>[-0.204, 0.408, -0.204],</p>
+<p>[0.102, -0.204, 0.102]].</p>
+<p>The diagonal entries differ by a factor of four, and the matrix maps a constant vector to zero. The gradient through the residual path therefore depends on the activation pattern, not only on the standard deviation.</p>
+<p>Xiong and colleagues at Microsoft Research Asia and Peking University analyzed post-norm gradients in February 2020. They showed that post-norm transformers need learning-rate warmup because gradient norms at initialization can be large and unstable, and that pre-norm transformers avoid that particular instability. The mechanism is the one above. In post-norm, the residual path is multiplied by J_LN, and at initialization the activation scale can make that factor large. Warmup keeps the early updates small enough to survive it. Pre-norm bypasses that multiplication on the identity path. GPT-3 used pre-norm in 2020. Pre-norm trades stream-scale control for gradient-path control.</p>
+<p>Because the stream is never normalized inside a pre-norm block, its norm can drift. The recurrence above shows the drift can go up or down, but nothing in the block pulls the stream back to a fixed scale. A final normalization after the last block and before the unembedding gives the unembedding a controlled input scale. The final norm computes h = LN(x_L) and the unembedding computes logits = W_U h. It does not bound the stream inside the blocks. The last block's output and the first block's output can have different norms, and the final norm handles that difference at the model's exit.</p>
+<p>Attention has its own magnitude problem. For a query q and a key k, the logit is q·k, which equals ||q|| ||k|| cos θ. If training pushes the norms upward, the logits grow. Softmax over large logits saturates. Take two logits, 0 and 12. The softmax probabilities are about 6.14 × 10^-6 and 0.99999386. The softmax Jacobian has entries p_i(δ_ij - p_j). Its largest entry is about 6.14 × 10^-6. With logits 0 and 1, the probabilities are 0.269 and 0.731, and the Jacobian entries are about 0.197. The saturated case passes almost no gradient back to the logits. That is the collapse.</p>
+<p>A concrete QK example shows the same thing. Let d_head = 2, q = [10, 0], k1 = [10, 0], k2 = [0, 10]. The scaled logits are 100/√2 ≈ 70.7 and 0. Softmax gives a weight of nearly 1 to k1 and nearly 0 to k2. With q = [1, 0], k1 = [1, 0], k2 = [0, 1], the scaled logits are 0.707 and 0, and the softmax weights are 0.669 and 0.331. The first case has a collapsed gradient; the second does not.</p>
+<p>Alex Henry and colleagues proposed normalizing queries and keys in October 2020. Mostafa Dehghani and colleagues applied LayerNorm to q and k in ViT-22B in 2023. QK-norm normalizes q and k after the linear projection and before the dot product; with a learned gamma it controls the pre-gamma normalized scale, but gamma can rescale q and k, so it does not impose a hard bound on q/k or logits. It can use LayerNorm or RMSNorm. The choice changes whether mean subtraction happens. Apply it after W_Q and W_K and after reshaping into heads, and normalize over the head dimension d_head. Use a learned gamma vector of length d_head, initialized to ones. Gamma can be shared across heads or separate per head. The logits become</p>
+<p>logits_{h,i,j} = (q̃_{h,i} · k̃_{h,j}) / sqrt(d_head),</p>
+<p>with q̃_h = Norm(W_Q^h x; γ_Q^h) and k̃_h = Norm(W_K^h x; γ_K^h). QK-norm does not bound the residual stream. It targets a different site where magnitude can grow. Each normalization site has its own failure mode, and a norm at one site does not fix another.</p>
+<p>The range question connects to the compute format. bf16 has eight exponent bits and seven fraction bits. It has a wide exponent range, similar to fp32, but only about three decimal digits of precision. fp16 has five exponent bits and ten fraction bits. It has more precision but a much smaller range; its largest finite value is 65504. A dot product of two vectors with components near 100 over 64 dimensions can reach 640,000, which overflows fp16. Normalizing q and k before the dot product keeps the product inside the representable range. Softmax saturation is a separate loss. Even when the logits are representable, a probability near 1 gives a Jacobian near zero. Mixed precision keeps master weights in fp32 and runs matrix multiplies in bf16 or fp16; fp16 training also uses loss scaling to keep small gradients representable. A model that keeps its residual stream and attention logits inside the exponent range of its compute format can use the narrower format without overflow. A model that fails to do so will lose gradients at the softmax or produce infinities at the dot product. The next chapter follows that arithmetic into bf16 and fp16, where exponent range and mantissa width set the limits.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 354" width="100%" role="img" aria-label="Pre-norm vs post-norm transformer block and the residual identity path" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Pre-norm vs post-norm transformer block and the residual identity path</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">LN(x_l)</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Attn(LN(x_l))</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">a_l = x_l +</text><text x="738.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Attn(LN(x_l))</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">LN(a_l)</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">MLP(LN(a_l))</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_{l+1} = a_l +</text><text x="524.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">MLP(LN(a_l))</text><line x1="608" y1="155.0" x2="654" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">post-norm: a_l =</text><text x="738.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">LN(x_l +</text><text x="738.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Attn(x_l))</text><path d="M738.0,186 L738.0,209 L96.0,209 L96.0,232" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="232" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="253.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">post-norm:</text><text x="96.0" y="266.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_{l+1} = LN(a_l</text><text x="96.0" y="279.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">+ MLP(a_l))</text><line x1="180" y1="263.0" x2="226" y2="263.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="232" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="253.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Jacobian: ∂y/∂x</text><text x="310.0" y="266.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">= I + J_f(LN(x))</text><text x="310.0" y="279.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">J_LN(x)</text><line x1="394" y1="263.0" x2="440" y2="263.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="232" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="253.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">scalar product:</text><text x="524.0" y="266.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">(1 + b s)(1 + a</text><text x="524.0" y="279.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">s)</text><line x1="608" y1="263.0" x2="654" y2="263.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="232" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="240.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">norm recurrence:</text><text x="738.0" y="253.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">||x_{l+1}||^2 =</text><text x="738.0" y="266.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">||x_l||^2 + 2</text><text x="738.0" y="279.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l·f_l(x_l) +</text><text x="738.0" y="292.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">||f_l(x_l)||^2</text></svg>
+<figcaption><strong>Pre-norm vs post-norm transformer block and the residual identity path</strong> It shows the two-sublayer dataflow, where normalization sits relative to residual additions, and how the identity Jacobian term arises across blocks.</figcaption>
+</figure>
+
+
+
+
+
+
+<nav class="chapter-nav">
+<a href="17-activations.html">&larr; ReLU, GELU, and the gated turn</a><a href="19-moe.html">More parameters without more arithmetic &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

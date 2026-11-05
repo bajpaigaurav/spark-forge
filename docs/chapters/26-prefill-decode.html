@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two regimes in one machine</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">VII. Serving &middot; Chapter 26</span>
+  <h1>Two regimes in one machine</h1>
+  <p class="thesis">Prefill and decode stress completely different parts of the hardware, which is why a single throughput number for a model is meaningless.</p>
+</header>
+
+<article class="prose">
+<p>The measurements in this chapter come from a pair of NVIDIA DGX Spark systems with GB10 superchips, running a tensor-parallel inference engine. The engine exposes Prometheus-style counters at /metrics; the latency and throughput aggregates below are scraped from that endpoint on 2026-10-31, over a window of 98 requests. The mean prompt in that window is 130,659 tokens, the mean generation is 607 tokens, and the mean prefill duration is 3.33 seconds. The mean decode duration is 8.38 seconds, and the mean time to first token is 3.46 seconds. The concurrency benchmarks were run separately, after the engine had warmed up, with four prompts of 400 completion tokens each, first sequentially and then concurrently.</p>
+<p>A request arrives carrying 130,659 tokens of prompt. The engine answers it in two phases that share a machine and almost nothing else. Prefill takes 3.33 seconds on average and emits no visible text. Decode takes 8.38 seconds and emits 607 tokens. Time the request end to end and you get one number, and that number describes neither phase.</p>
+<p>Start with prefill. The prompt is a matrix of activations, N rows by d_model columns, where N is the prompt length. Take one weight matrix in a layer — the attention projections are d_model by d_model, while the MLP up/down projections are d_model by d_ff (typically 4·d_model). Each such matrix computes Y = XW + b. The arithmetic-intensity argument below is per weight element, so it holds whatever the matrix The GPU tiles this matmul into blocks of rows and columns. For each output tile, the kernel loads a block of X and a block of W into shared memory, computes the dot products, and accumulates. The weight block is loaded once and reused for every row of X that falls into the tile's row range. In prefill, N is 130,659, so a weight block is reused across a large number of rows. The cost of fetching the weights from memory is amortized across the whole prompt.</p>
+<p>The currency for that trade is arithmetic intensity, measured in floating-point operations per byte of memory traffic. Williams, Waterman, and Patterson formalized it in the roofline model in 2009 ("Roofline: An Insightful Visual Performance Model for Multicore Architectures," Communications of the ACM). Consider a bf16 weight. It occupies two bytes and takes part in two floating-point operations per token that uses it, one multiply and one accumulate. During prefill with N tokens in flight, that weight does 2N operations for the same two bytes, so intensity is N operations per byte. With N at 130,659, every byte hauled from memory feeds about 65,330 multiply-accumulates, i.e. 130,659 FLOPs. The arithmetic units are the constraint and the memory bus has room to spare. Prefill is compute-bound, and on this pair it sustains 39,237 tokens per second, measured as prompt_tokens_total divided by request_prefill_seconds_sum over the 98-request window.</p>
+<p>Decode inverts every term. A stream that has already eaten its prompt generates one token at a time, and each token depends on the one before it, so there is no matrix–matrix multiply; the same weight matrix now meets a single row of activations in a matrix–vector product. The same weight matrix now meets a single row of activations. It still has to be read from memory in full, two bytes at a time, and now those two bytes feed exactly one multiply-accumulate. Intensity is one operation per byte. The arithmetic units finish long before the memory system delivers the next weight, so they sit idle. Decode is bandwidth-bound. The unified LPDDR5X pool on the GB10 moves 273 GB/s, shared between CPU and GPU, according to NVIDIA's DGX Spark hardware guide. That is a spec figure; the effective bandwidth achieved by the kernel will be lower. The measured single-stream decode rate is 59.1 tokens per second, from four sequential requests of 400 tokens each, 1,600 tokens in 27.1 seconds. That works out to 16.9 milliseconds per token.</p>
+<p>A decode step also reads the KV cache. In every layer, for every stream, the attention block pulls the keys and values of all previous positions. The cost per position per layer is one key vector and one value vector, each with H_kv heads times d_head elements. In bf16 each element is two bytes, so the cost per layer per position is 4 × H_kv × d_head bytes. Sum over L layers and divide by the tensor-parallel rank count R. The config allocates 0.9 GiB per rank for 1,048,576 positions, which works out to 922 bytes per position per rank. That 922 is the measured value of 4 × L × H_kv × d_head / R for this model and sharding; for bf16, the product L × H_kv × d_head / R is 230.5. At a mean prompt length of 130,659 tokens, the KV traffic per rank is 130,659 × 922 = 120.5 MB per generated token. At the 32,750-token per-stream ceiling we will derive later, it is 30.2 MB. The difference is 90.3 MB per token, which at 273 GB/s takes 0.33 milliseconds. That increment is the mechanism behind the familiar complaint that long-context decode gets slower as the conversation goes on. Weight traffic per token is fixed; cache traffic per token grows with context. For a full layer, the intensity is the sum of the FLOPs from the QKV projection, the attention score and value products, the output projection, and the MLP, all multiplied by batch B, divided by the sum of the weight bytes for those matrices, the activation bytes, and the KV bytes. In decode, the KV term grows with context and eventually dominates the denominator, so intensity falls as the conversation lengthens.</p>
+<p>Every accelerator has a balance point, the intensity at which a kernel stops waiting on memory and starts waiting on the ALUs. It is the peak floating-point rate divided by achievable bandwidth. Kernels below the line are bandwidth-bound, kernels above it are compute-bound. For a weight-bound matmul, intensity is proportional to batch size: B × (FLOPs per MAC) / (bytes per weight). Under the common fp16 convention of 2 FLOPs per MAC, it equals B ops/byte; with fp8 weights it would be 2B ops/byte, so the balance point is a batch size. We do not have a measured peak FLOP/s for this part in the metrics, so we cannot place the ridge point numerically. But we can see the two regimes in the measured rates. Prefill runs at 39,237 tokens per second and decode at 59.1, a ratio of 664. That gap is consistent with a compute-bound prefill phase and a bandwidth-bound decode phase, but the ratio alone mixes batch-size and workload differences; the intensity argument below is what pins the regime At batch 4, the intensity is 4 operations per byte, far below the ridge point for any modern accelerator, so decode remains on the bandwidth-bound side of the line. The measured 1.80x scaling at concurrency 4 is sublinear; that is consistent with bandwidth-bound decode only if batching overhead or incomplete batching is accounted for, so it does not by itself confirm the regime</p>
+<p>Clock speed matters to the compute-bound regime. The observed SM clock under load on this part is 2,197 MHz, read from nvidia-smi clocks.sm on 2026-10-31. The GB10 silicon maximum is 3,003 MHz per NVIDIA's documentation, and the thermal design holds the part well below that ceiling. This is a single sample under load, not a sustained average, and we did not measure junction temperature. Prefill can use those megahertz because it is waiting on the ALUs. Decode is dominated by memory bandwidth, so SM clock is not the main throughput lever, but it still affects the SM-side softmax, normalization, sampling, and scheduling work and can influence decode latency and tail throughput. Memory clock and boost behavior are separate from SM clock; the claim here is about the SM clock, not the memory clock. Anyone tuning SM clocks to improve decode throughput is tuning the wrong phase.</p>
+<p>Time to first token tracks prefill, since nothing can be emitted until the prompt has been through every layer. The mean TTFT is 3.46 seconds against a mean prefill duration of 3.33 seconds. The 0.13-second gap is the sum of queueing, cache lookup, and the first decode step; the metrics do not break it down further, but it is small relative to prefill. Shazeer named this problem in 2019 when he proposed multi-query attention ("Fast Transformer Decoding: One Write-Head is All You Need"), writing explicitly that incremental decoding is limited by memory bandwidth rather than by arithmetic. That observation motivates many of the KV-cache compression schemes in this book.</p>
+<p>The 3.46-second first token is close to the 3.33 s a 130,659-token prompt would take at 39,237 tokens/s, and a prefix cache explains why it is not larger, and a prefix cache explains part of why. The cache stores the KV state for previously seen token prefixes. On a new request, the scheduler walks the prompt from the start and finds the longest matching prefix. It reuses the stored KV for that prefix and prefills only the remaining tokens. The saving in TTFT is the matched token count divided by the prefill rate. In the sampled window, 12,285,952 of 12,804,579 prompt tokens matched, or 95.9%. At 39,237 tokens per second, that reuse removed 313 seconds of prefill work in aggregate. For a single request, a match of 65,536 tokens saves 65,536 / 39,237 = 1.67 seconds of prefill. The aggregate 313 seconds is the sum of such savings over the window, and the aggregate hit rate is not the per-request hit rate; the 98 requests have different prefix lengths and different match lengths.</p>
+<p>Batching behaves differently in the two regimes. Decode gains from more streams because a bandwidth-bound kernel has spare arithmetic capacity. Run four streams together and each weight read serves four tokens instead of one, so intensity rises from one operation per byte to four. If the kernel were perfectly bandwidth-bound and KV traffic did not grow, aggregate throughput would scale by 4x. Measured here, aggregate decode went from 59.1 tokens per second at concurrency one to 106.2 at concurrency four, a factor of 1.80. The same four prompts were fired concurrently, completing 1,600 tokens in 15.1 seconds. The gain is real and it is sublinear. If KV traffic were the only thing preventing linear scaling, the speedup would be 4/(1+3f), where f is the KV share of per-token traffic at concurrency one. Setting that equal to 1.80 gives f = 0.407. So KV traffic would have to be 40.7% of per-token traffic to explain the entire shortfall. The rest comes from the kernel layout. The decode round is pinned at 16 rows, the maximum row width of the pinned kit's kernel. At concurrency 4, only 4 of the 16 rows are active, so the weight fetch is amortized 4x but the kernel's row slots are 25% utilized. The 16-row kernel is a maximum. Reducing the row count to the active row count (four here) would reduce ALU waste without changing the bandwidth-bound behavior; reducing it below the concurrency level would cut weight-fetch amortization and lower throughput. The measured 1.80x is the net of the weight-fetch amortization and the KV traffic that scales with the number of streams.</p>
+<p>Prefill gains less from batching than decode does, because it is already compute-bound. Adding a second prompt to a prefill batch raises intensity further, but the ALUs are the constraint, so the two prompts split the same finite compute instead of filling idle capacity. This asymmetry is why mixing prefill work into decode steps is expensive. A long prefill inserted between decode steps stalls every stream in the batch. The engine's pair_stall_ms counter accumulates the time decode steps spend waiting for an in-flight prefill on the paired rank; it stood at 120,000 ms since the engine started. That is a cumulative counter rather than a rate, and without the engine's uptime we cannot express it as a percentage. Continuous batching, taken up in its own chapter, is the scheduler's answer to that tension. The scheduler admits new requests at decode step boundaries and chunks long prefills into pieces that fit between decode steps.</p>
+<p>Concurrency also runs into a memory ceiling with nothing to do with arithmetic. The KV pool holds 262,144 positions shared across four streams, so an equal split gives 65,536 positions each. Admission reserves the default 32,768-token reply budget, plus 16 round rows, plus two positions of overhead. The reply budget is the maximum number of tokens the request may generate, reserved up front so the KV cache never needs to evict mid-generation. The 16 round rows are the batch width of the decode kernel, which needs KV slots for each row. The two positions are alignment padding required by the attention kernel The admission check compares prompt_tokens + 32,768 + 16 + 2 against 65,536. What remains is 32,750 tokens of context per stream. A prompt longer than that cannot be admitted at concurrency four no matter how much compute is free. If the pool is full, the scheduler evicts the least recently used prefix cache entries to free KV space, but it cannot evict active streams. Raising the pool to the model's native 1,048,576 positions would lift the per-stream ceiling to 229,358 tokens. The extra KV memory per rank is derived from the config's 0.9 GiB per 1,048,576 positions. Raising the pool from 262,144 to 1,048,576 adds 786,432 positions, which is 0.75 of the full window, so the extra memory is 0.9 × 0.75 = 0.675 GiB, rounded to 0.68 GiB per rank. That is the sort of trade a serving engineer argues about at two in the morning. If MemAvailable drops below the 2.5 GiB memguard floor, memguard kills a rank, so the pool cannot be raised without checking the memory headroom on every rank.</p>
+<p>The habit of quoting one tokens-per-second figure for a model is a genuine mistake, and it survives because benchmarks rarely state their concurrency. A number measured at concurrency one describes decode bandwidth. A number measured on a long prompt describes prefill compute. They are not comparable and they do not trade off linearly. The honest report is a curve, with time to first token and inter-token latency plotted separately against concurrency and prompt length. Some systems push the logic further and put prefill and decode on different machines altogether, the argument Splitwise (2024) and DistServe (2024) both made, on the grounds that a compute-bound job and a bandwidth-bound job should not share a scheduler. The gain is independent scaling of each phase on hardware suited to its regime. The cost is the KV transfer between machines. At 130,659 tokens, the KV cache is 120.5 MB per rank, and moving that between machines costs bandwidth and latency that must be weighed against the prefill time it saves. As a rule of thumb, disaggregation struggles when the KV transfer cost exceeds the prefill time saved, or when prompts are short and concurrency is low. But that is not the whole criterion: the decision should be made on end-to-end latency/throughput and pool utilization, and SLO isolation or decode-interference avoidance can still justify disaggregation in those regimes That case has real force and real costs, and the chapter on splitting a model across devices takes it up.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 138" width="100%" role="img" aria-label="One request, two hardware regimes: prefill then decode" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>One request, two hardware regimes: prefill then decode</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Request: 130,659</text><text x="96.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">prompt tokens</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="5.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Prefill: X</text><text x="310.0" y="18.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">[130,659,</text><text x="310.0" y="31.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">d_model] × W</text><text x="310.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">[d_model,</text><text x="310.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">d_model] + b;</text><text x="310.0" y="70.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">compute-bound;</text><text x="310.0" y="83.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">3.33 s mean;</text><text x="310.0" y="96.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">39,237 tokens/s</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Decode: emits</text><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">607 tokens; 8.38</text><text x="524.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">s mean</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="31.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">End-to-end</text><text x="738.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">latency combines</text><text x="738.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">both phases;</text><text x="738.0" y="70.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">TTFT 3.46 s</text></svg>
+<figcaption><strong>One request, two hardware regimes: prefill then decode</strong> It shows the request pipeline as two sequential phases with different tensor shapes, durations, and bottlenecks, which the prose describes in order.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">2,197 MHz</td><td class="ps">nvidia-smi clocks.sm, 2026-10-31 01:0x</td><td class="pc">Observed SM clock under load. Silicon max is 3003 MHz.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">1.80x</td><td class="ps">derived: 106.2 / 59.1</td><td class="pc">Aggregate throughput multiplier from 1 to 4 concurrent streams.</td></tr><tr><td class="pv">39,237 tok/s</td><td class="ps">derived: prompt_tokens_total / request_prefill_seconds_sum from /metrics</td><td class="pc">Prefill throughput over 98 sampled requests.</td></tr><tr><td class="pv">95.9%</td><td class="ps">derived: prefix_cache_hits_total / prefix_cache_queries_total = 12,285,952 / 12,804,579</td><td class="pc">Cached prompt tokens as a share of all prompt tokens.</td></tr><tr><td class="pv">313 seconds</td><td class="ps">derived: 12,285,952 cached tokens / 39,237 tok/s prefill rate</td><td class="pc">Prefill time the cache removed over the sampled window.</td></tr><tr><td class="pv">3.46 s</td><td class="ps">derived: time_to_first_token_seconds_sum / _count over 98 requests</td><td class="pc">Mean time to first token.</td></tr><tr><td class="pv">3.33 s</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td><td class="pc">Mean prefill duration per request.</td></tr><tr><td class="pv">8.38 s</td><td class="ps">derived: request_decode_seconds_sum / _count over 98 requests</td><td class="pc">Mean decode duration per request.</td></tr><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">607 tokens</td><td class="ps">derived: generation_tokens_total / request count = 59,476 / 98</td><td class="pc">Mean generated tokens per request.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">32,750 tokens</td><td class="ps">derived: POOL/PARALLEL - MAX_TOKENS - ROUND_ROWS - 2 = 65536 - 32768 - 16 - 2</td><td class="pc">Equal-split per-stream context ceiling under admission reservation.</td></tr><tr><td class="pv">229,358 tokens</td><td class="ps">derived: 1048576/4 - 32768 - 16 - 2</td><td class="pc">Per-stream ceiling if POOL were raised to 1,048,576.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">120,000 ms</td><td class="ps">tensorfold:pair_stall_ms from /metrics</td><td class="pc">Cumulative pair stall recorded since start.</td></tr><tr><td class="pv">2.5 GiB</td><td class="ps">memguard.sh run ... 2.5 ... in the live process list</td><td class="pc">MemAvailable floor below which memguard kills a rank.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">12,804,579 tokens</td><td class="ps">tensorfold:prefix_cache_queries_total from /metrics</td><td class="pc">Raw count of prompt tokens looked up.</td></tr><tr><td class="pv">3,003 MHz</td><td class="ps">GB10 silicon maximum SM clock, NVIDIA DGX Spark documentation</td><td class="pc">Hardware ceiling; the thermal design holds the part well below it.</td></tr><tr><td class="pv">16 rows</td><td class="ps">ROUND_ROWS=16, the pinned kit's maximum row kernel</td><td class="pc">Decode round batch width.</td></tr><tr><td class="pv">1,600 tokens</td><td class="ps">measured: 4 requests x 400 completion tokens</td><td class="pc">Total tokens generated in the concurrency benchmark.</td></tr><tr><td class="pv">15.1 s</td><td class="ps">measured: wall clock for 4 concurrent 400-token requests</td><td class="pc">Concurrency-4 benchmark wall time.</td></tr><tr><td class="pv">27.1 s</td><td class="ps">measured: total time for the same 4 prompts run sequentially</td><td class="pc">Concurrency-1 benchmark total time.</td></tr><tr><td class="pv">400 tokens</td><td class="ps">measured: max_tokens=400 in the concurrency benchmark requests</td><td class="pc">Completion budget used in the throughput comparison.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="25-speculative.html">&larr; Guessing ahead and checking cheaply</a><a href="27-batching.html">Continuous batching and the scheduler &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

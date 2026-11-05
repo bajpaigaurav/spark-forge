@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Shape of a Token</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Field notes from a two-machine inference pair</p>
+  <h1>The Shape of a Token</h1>
+  <p class="standfirst">How a language model actually works, from the tokenizer to the sampler</p>
+</header>
+
+<section class="frontis">
+  <p class="lead drop">A language model is a very large pile of numbers that has been
+  arranged, through an expensive and slightly mysterious process, so that it can guess the
+  next piece of text. Everything interesting happens in the gap between that sentence and
+  the thing actually running on the hardware.</p>
+
+  <p>This book is about that gap. It starts at the character you type and ends at the token
+  the sampler picks, and it goes through every layer in between: the tokenizer that chops
+  your text into pieces it was trained to recognise, the embedding table that turns those
+  pieces into coordinates, the residual stream that every layer reads from and writes to,
+  the attention heads that decide which earlier tokens matter, the cache that remembers
+  what has already been computed, the mixture-of-experts router that picks which parameters
+  to load, the four-bit weights that were squeezed down from sixteen, and the sampler that
+  turns a list of scores into one word.</p>
+
+  <p>Each idea in this book arrived at a particular moment to fix a particular problem, and
+  the chapters are arranged in that order rather than in the order the code runs. Attention
+  was invented in 2014 to stop a recurrent network from forgetting the beginning of a
+  sentence. PagedAttention was invented in 2023 because serving systems were wasting most
+  of their memory on padding. Grouped-query attention exists because the key-value cache
+  outgrew the weights. Knowing what each one replaced is most of knowing what it does.</p>
+
+  <p>The last part grounds the whole thing on two small machines sitting on a desk, because
+  an explanation that never touches a real number is not an explanation. But that part is
+  the exception. Everything before it would be true on any hardware.</p>
+
+  <hr class="rule-short">
+</section>
+<hr class="rule-short">
+</section>
+
+<section class="figures"><h3>Live, from the pair</h3><div class="fig-grid"><div class="fig"><span class="v">31/31</span><span class="u">chapters</span><span class="l">published and gated</span></div><div class="fig"><span class="v">3</span><span class="u">tok/s</span><span class="l">decode, right now</span></div><div class="fig"><span class="v">62.3%</span><span class="u">cache hit</span><span class="l">prompt tokens reused</span></div><div class="fig"><span class="v">73.8%</span><span class="u">draft accept</span><span class="l">speculative tokens kept</span></div><div class="fig"><span class="v">112.1</span><span class="u">GB</span><span class="l">unified memory held</span></div><div class="fig"><span class="v">55°C</span><span class="u">GPU temp</span><span class="l">under load</span></div><div class="fig"><span class="v">2190</span><span class="u">MHz</span><span class="l">SM clock</span></div><div class="fig"><span class="v">5.5</span><span class="u">GiB</span><span class="l">host headroom</span></div></div></section>
+
+<section class="part"><h2 class="part-title">I. The raw material</h2><p class="part-count">3 of 3 written</p><ul class="toc">
+<li><a class="" href="chapters/01-tokens.html"><span class="t-num">01</span><span><span class="t-title">Text is not numbers yet</span><span class="t-status">published &middot; 2,512 words</span></span></a></li>
+<li><a class="" href="chapters/02-embeddings.html"><span class="t-num">02</span><span><span class="t-title">A vector is a coordinate, not a meaning</span><span class="t-status">published &middot; 2,367 words</span></span></a></li>
+<li><a class="" href="chapters/03-residual-stream.html"><span class="t-num">03</span><span><span class="t-title">The one lane everything writes into</span><span class="t-status">published &middot; 2,278 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">II. Attention</h2><p class="part-count">6 of 6 written</p><ul class="toc">
+<li><a class="" href="chapters/04-before-attention.html"><span class="t-num">04</span><span><span class="t-title">The bottleneck attention was invented to fix</span><span class="t-status">published &middot; 2,170 words</span></span></a></li>
+<li><a class="" href="chapters/05-scaled-dot-product.html"><span class="t-num">05</span><span><span class="t-title">The 2017 move: drop the recurrence</span><span class="t-status">published &middot; 2,093 words</span></span></a></li>
+<li><a class="" href="chapters/06-multi-head.html"><span class="t-num">06</span><span><span class="t-title">Why many small heads beat one large one</span><span class="t-status">published &middot; 1,653 words</span></span></a></li>
+<li><a class="" href="chapters/07-softmax.html"><span class="t-num">07</span><span><span class="t-title">The function that turns scores into shares</span><span class="t-status">published &middot; 1,479 words</span></span></a></li>
+<li><a class="" href="chapters/08-positions.html"><span class="t-num">08</span><span><span class="t-title">Attention has no idea where it is</span><span class="t-status">published &middot; 2,153 words</span></span></a></li>
+<li><a class="" href="chapters/09-quadratic-wall.html"><span class="t-num">09</span><span><span class="t-title">The cost that defines the field</span><span class="t-status">published &middot; 2,147 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">III. The cache</h2><p class="part-count">6 of 6 written</p><ul class="toc">
+<li><a class="" href="chapters/10-kv-cache.html"><span class="t-num">10</span><span><span class="t-title">Why generation is slow and memory-hungry</span><span class="t-status">published &middot; 2,104 words</span></span></a></li>
+<li><a class="" href="chapters/11-mqa-gqa-mla.html"><span class="t-num">11</span><span><span class="t-title">Three generations of sharing the cache</span><span class="t-status">published &middot; 1,617 words</span></span></a></li>
+<li><a class="" href="chapters/12-paged-attention.html"><span class="t-num">12</span><span><span class="t-title">Virtual memory for the KV cache</span><span class="t-status">published &middot; 2,212 words</span></span></a></li>
+<li><a class="" href="chapters/13-prefix-caching.html"><span class="t-num">13</span><span><span class="t-title">Why the second request is cheaper</span><span class="t-status">published &middot; 2,195 words</span></span></a></li>
+<li><a class="" href="chapters/14-flash-attention.html"><span class="t-num">14</span><span><span class="t-title">Attention that never builds the matrix</span><span class="t-status">published &middot; 2,505 words</span></span></a></li>
+<li><a class="" href="chapters/15-sparse-sliding.html"><span class="t-num">15</span><span><span class="t-title">Not every token needs to see every token</span><span class="t-status">published &middot; 2,347 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">IV. The rest of the block</h2><p class="part-count">4 of 4 written</p><ul class="toc">
+<li><a class="" href="chapters/16-ffn.html"><span class="t-num">16</span><span><span class="t-title">Where most of the parameters actually live</span><span class="t-status">published &middot; 2,834 words</span></span></a></li>
+<li><a class="" href="chapters/17-activations.html"><span class="t-num">17</span><span><span class="t-title">ReLU, GELU, and the gated turn</span><span class="t-status">published &middot; 1,953 words</span></span></a></li>
+<li><a class="" href="chapters/18-normalization.html"><span class="t-num">18</span><span><span class="t-title">Keeping the residual stream in range</span><span class="t-status">published &middot; 1,955 words</span></span></a></li>
+<li><a class="" href="chapters/19-moe.html"><span class="t-num">19</span><span><span class="t-title">More parameters without more arithmetic</span><span class="t-status">published &middot; 2,423 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">V. Precision</h2><p class="part-count">3 of 3 written</p><ul class="toc">
+<li><a class="" href="chapters/20-precision.html"><span class="t-num">20</span><span><span class="t-title">From fp32 to bf16 to fp8</span><span class="t-status">published &middot; 2,829 words</span></span></a></li>
+<li><a class="" href="chapters/21-quantization.html"><span class="t-num">21</span><span><span class="t-title">Four bits and the outlier problem</span><span class="t-status">published &middot; 2,522 words</span></span></a></li>
+<li><a class="" href="chapters/22-why-4bit-works.html"><span class="t-num">22</span><span><span class="t-title">Why four bits is enough</span><span class="t-status">published &middot; 1,866 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">VI. Producing a token</h2><p class="part-count">3 of 3 written</p><ul class="toc">
+<li><a class="" href="chapters/23-logits.html"><span class="t-num">23</span><span><span class="t-title">From a vector to a word</span><span class="t-status">published &middot; 2,325 words</span></span></a></li>
+<li><a class="" href="chapters/24-sampling.html"><span class="t-num">24</span><span><span class="t-title">Temperature, top-k, top-p, and what each one does</span><span class="t-status">published &middot; 2,007 words</span></span></a></li>
+<li><a class="" href="chapters/25-speculative.html"><span class="t-num">25</span><span><span class="t-title">Guessing ahead and checking cheaply</span><span class="t-status">published &middot; 2,640 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">VII. Serving</h2><p class="part-count">4 of 4 written</p><ul class="toc">
+<li><a class="" href="chapters/26-prefill-decode.html"><span class="t-num">26</span><span><span class="t-title">Two regimes in one machine</span><span class="t-status">published &middot; 2,546 words</span></span></a></li>
+<li><a class="" href="chapters/27-batching.html"><span class="t-num">27</span><span><span class="t-title">Continuous batching and the scheduler</span><span class="t-status">published &middot; 2,296 words</span></span></a></li>
+<li><a class="" href="chapters/28-parallelism.html"><span class="t-num">28</span><span><span class="t-title">Splitting a model across devices</span><span class="t-status">published &middot; 1,954 words</span></span></a></li>
+<li><a class="" href="chapters/29-roofline.html"><span class="t-num">29</span><span><span class="t-title">What the hardware actually allows</span><span class="t-status">published &middot; 2,582 words</span></span></a></li>
+</ul></section>
+<section class="part"><h2 class="part-title">VIII. Grounding it</h2><p class="part-count">2 of 2 written</p><ul class="toc">
+<li><a class="" href="chapters/30-measurement.html"><span class="t-num">30</span><span><span class="t-title">How to know any of this is true</span><span class="t-status">published &middot; 2,630 words</span></span></a></li>
+<li><a class="" href="chapters/31-local-numbers.html"><span class="t-num">31</span><span><span class="t-title">The same book, measured on two small machines</span><span class="t-status">published &middot; 2,045 words</span></span></a></li>
+</ul></section>
+
+<footer class="colophon">
+<p>Every figure in this document was read from the live engine, a log line, or a timed
+request. The last chapter explains how, so the rest can be checked.</p>
+<p><a href="about.html" style="color:var(--accent)">How this was made</a></p>
+</footer>
+
+</div>
+<script src="site.js"></script>
+</body>
+</html>

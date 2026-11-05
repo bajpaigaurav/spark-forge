@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>More parameters without more arithmetic</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">IV. The rest of the block &middot; Chapter 19</span>
+  <h1>More parameters without more arithmetic</h1>
+  <p class="thesis">Mixture of experts decouples parameter count from compute per token, and that decoupling is why frontier models can be enormous and still affordable to run.</p>
+</header>
+
+<article class="prose">
+<p>In 2016 and into 2017, Noam Shazeer and a group at Google Brain were stuck on a straight line. Making a language model better meant making it bigger, and making it bigger meant every token paid for every parameter. A feed-forward layer twice as wide cost twice the multiply-adds per token, and that bill came due on every token the model would ever process. Quality went up, compute went up, in lockstep, with no lever in between. The paper they published in January 2017, "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer", proposed breaking the lockstep.</p>
+<p>An expert needs a definition before the router makes sense. A Transformer layer's feed-forward block is two linear maps with a nonlinearity between them, taking a vector of width d_model up to d_ff and back down. That block holds 2·d_model·d_ff parameters and costs 2·d_model·d_ff multiply-adds per token. An expert is a copy of that block with its own weights. A layer with E experts holds E of them, and each token visits k. In the 2017 paper the experiments used k = 4; the example below uses k = 2 for simplicity and the experts were feed-forward blocks stacked between LSTM layers, because the Transformer paper by Vaswani and colleagues would not appear until June.</p>
+<p>The router is one learned matrix W of shape d_model × E, a row per expert. For a hidden vector x it computes scores s = x·W, then a softmax over those scores. Take d_model = 4, E = 4, x = [1, 2, 0, 0], and rows w₁ = [1,0,0,0], w₂ = [0,1,0,0], w₃ = [1,1,0,0], w₄ = [-1,0,0,0]. The scores come out [1, 2, 3, -1]. Exponentiating gives [2.718, 7.389, 20.086, 0.368], summing to 30.561, so the probabilities are [0.089, 0.242, 0.657, 0.012]. Top-2 selects experts 3 and 2. Renormalizing over the selected pair gives 0.657/0.899 = 0.731 and 0.242/0.899 = 0.269, and the layer output is 0.731·E₃(x) + 0.269·E₂(x). Setting the unselected scores to negative infinity before the softmax produces the same two weights, because the dropped terms contribute zero to the denominator and softmax is shift-invariant.</p>
+<p>Now the accounting the claim depends on. Per token per MoE layer, the router costs d_model × E multiply-adds. The selected experts cost k × 2 × d_model × d_ff. With d_model = 4096, d_ff = 14336, E = 64 and k = 2, the router is 262,144 multiply-adds against 235 million for the experts, roughly a tenth of a percent. Doubling E to 128 doubles the router term and leaves the expert term alone, while parameters go from 64 × 2 × 4096 × 14336 to twice that. The separation is real for arithmetic, and it is not free. The router cost grows with E, and the all-to-all.</p>
+<p>The gradient path is where the arrangement gets strange. Top-k selection is discrete, so there is no derivative of "which expert" with respect to W. Backprop treats the selection as a fixed mask and differentiates the gate weights. For a token routed to experts a and b, the output is y = g_a·E_a(x) + g_b·E_b(x), and the router gradient is the sum over the selected pair of (∂L/∂y)·E_j(x)·(∂g_j/∂s_i), each term multiplied by xᵀ. Within the selected pair, ∂g_a/∂s_a = g_a(1 − g_a) and ∂g_a/∂s_b = −g_a·g_b. Unselected experts contribute nothing to that token's task gradient, so their router rows get no update from it. That asymmetry is the whole feedback loop. An expert that wins early gets gradient; an expert that loses gets none, and the gap widens.</p>
+<p>Shazeer's noisy variant attacks this at the source. It adds noise to the scores before selection, s = x·W + softplus(x·W_noise) ⊙ ε with ε drawn from a standard normal, and does not specify annealing the noise coefficient; later implementations sometimes anneal it toward zero. Early on the noise dominates and routing is close to uniform, so every expert's row collects gradient. Late, the noise vanishes and routing becomes deterministic. The schedule matters more than the scale, because a router that never explores cannot recover.</p>
+<p>Capacity factor is the batching fix. You give each expert a buffer of rows sized as ceil(cf × kT / E), where T is the token count in the batch and cf the capacity factor. Take T = 4096, E = 8, cf = 1.25. Then T/E = 512 and capacity is 640. Suppose the router's actual counts are 900, 700, 500, 500, 400, 400, 400 and 296, which sum to 4096. Expert 1 keeps 640 of its 900 and drops 260. Expert 2 keeps 640 of 700 and drops 60. Total dropped is 320, a drop rate of 7.8 percent. Each expert then runs a dense block of 640 rows, and the experts that received fewer than 640 tokens pad up to that width. Here the padding is 140 + 140 + 240 + 240 + 240 + 344 = 1344 rows out of 5120, so 26 percent of the expert arithmetic is spent on zeros. Above one buys slack against imbalance and pays for it in padding. Below one cuts padding and raises the drop rate.</p>
+<p>Dropped assignments do not vanish. In top-1 routing (Switch), a dropped token skips the expert transform entirely, passes through the residual connection unchanged, and its gate weight is zeroed in the dispatch mask, so no gradient reaches that expert from it. In top-2 routing (GShard), a token that loses only one of its two slots is still processed by the surviving expert, with its output scaled by that expert The router still receives gradient from the auxiliary loss. Which tokens get dropped depends on the implementation. Switch drops by position in the batch, first come first served. GShard uses top-2 routing and drops the lowest-weight assignment to an over-capacity expert, so it keeps the assignments the router scored highest for that expert; this is not a top-1 confidence ranking of tokens.</p>
+<p>The auxiliary loss is the counterweight, and the 2017 paper builds its version around exactly this loop. Shazeer, and added α·CV² to the objective. Switch's form is easier to differentiate. For each expert j, let f_j be the fraction of the batch's tokens dispatched to it and P_j the mean router probability assigned to it. The loss is α·N·Σ f_j·P_j. The gradient with respect to P_j is α·N·f_j, which is positive and larger for over-used experts, so gradient descent pushes their probabilities down. Run the numbers with N = 8, f = [0.22, 0.17, 0.12, 0.12, 0.10, 0.10, 0.10, 0.07] and P = [0.20, 0.18, 0.14, 0.12, 0.12, 0.10, 0.08, 0.06]. The products sum to 0.140, so the loss is 8 × 0.140 × α = 1.12α. At perfect uniformity the loss is α, because N·(1/N)·(1/N)·N = 1. The N multiplier is what makes the floor independent of expert count, so one α works whether the layer has 8 experts or 128. Choosing α is empirical. You watch the utilization histogram and raise it until the histogram flattens without the task loss degrading.</p>
+<p>Switch Transformer, by Fedus, Zoph and Shazeer in January 2021, made an influential simplification, routing each token to exactly one expert; later MoE models often use top-2 or top-k routing instead. The argument was communication cost. With top-2, every token is sent to two experts and both results come back. Take T = 4096 tokens, d_model = 4096, bf16 at two bytes per element. A top-1 dispatch moves 4096 × 4096 × 2 = 33.6 MB per layer, and the combine moves the same again. Top-2 doubles both to 67.1 MB per direction. The per-token metadata, a 4-byte expert index and a 4-byte source rank, adds 32 KB, which is noise. Multiply by the layer count and the difference between top-1 and top-2 is gigabytes per forward pass.</p>
+<p>Switch's authors kept the router in fp32 while the experts ran in bf16, and initialized router weights with smaller variance. The reason is resolution. bf16 carries seven explicit mantissa bits (eight bits of precision including the implicit leading 1), so a logit near 1.0 quantizes in steps of about 0.0078. Because bf16 A large init variance compounds the problem by starting the router with opinions it has no evidence for, and the first few hundred steps harden those opinions into a routing pattern the auxiliary loss alone cannot undo.</p>
+<p>Switch also skips renormalization. The gate value is the raw softmax probability over all E experts, so with E = 8 and near-uniform logits it sits around 0.125, and the expert output enters the residual stream multiplied by 0.125. Pre-norm residual connections keep the identity path intact, so the attenuation shows up as a smaller effective step for the expert rather than as a vanishing signal. The layer still learns, just more slowly, and the residual stream's scale stays under control.</p>
+<p>Expert parallelism is where the free lunch ends. Experts live on different devices, so a token on one device may need an expert on another. The layer runs an all-to-all, a collective in which every device sends a different buffer to every other device, to ship each token to the owner of its expert, computes locally, then runs a second all-to-all to send results home. Volume per layer is T·k·d_model·bytes in each direction. The fraction crossing a device boundary is 1 − 1/D when routing is uniform, so it saturates rather than scaling linearly. Two devices send 50 percent remotely, eight send 87.5 percent, sixty-four send 98.4 percent. Imbalance is handled by sizing the all-to-all buffers to capacity, so tokens beyond an expert’s capacity are dropped or bypassed before dispatch, while unused buffer slots are sent as padding rows and discarded on arrival. The collective does not hang. It wastes bandwidth. Overlap comes from chunking the dispatch and pipelining the chunks against expert compute, so the network is busy while the SMs are busy.</p>
+<p>The comparison with dense tensor parallelism is worth stating precisely. Ring all-reduce moves 2(N−1)/N times the message size per device, a symmetric pattern that does not depend on the data. All-to-all's cost depends on which device holds which expert and how the tokens fall, so it is data-dependent and its worst case is set by the hottest destination. That is why GShard, Lepikhin and colleagues in 2020, reads as much as a systems paper as a modeling one.</p>
+<p>Decode is where the economics bite, and the distinction that matters is between two caches. The KV cache is per-token and per-layer, and it persists across decode steps. What does not persist is the set of expert weights resident in cache or shared memory on the previous step, because routing is recomputed per token and the selected experts. Token one wants experts A and B, token two wants C and D, and the weights stream again.</p>
+<p>This engine runs decode rounds sixteen rows wide. For each layer, the bytes moved are the union of the experts selected by those sixteen rows, multiplied by the size of one expert. If all sixteen rows pick the same k experts, the union is k. If they pick disjoint sets, the union is 16k. Bytes per round therefore vary by a factor of 16, and sharing is what keeps the number near the low end.</p>
+<p>The measurements show that sharing directly. The engine holds 111.5 GB of weights, caches and live streams, per its own device_memory_bytes counter, on a machine whose LPDDR5X bus runs at 273 GB/s, shared between CPU and GPU. That resident set is an upper bound rather than a per-token working set, since it includes the KV pool and live streams. Dividing the bus rate by the measured rate gives an upper bound on bytes moved per token — what the bus would carry at full saturation. Actual bytes are (DRAM utilization × bus rate) / token rate, and utilization is not exposed by this telemetry One stream at 59.1 tokens per second works out to 4.62 GB per token. Four concurrent streams give 106.2 aggregate, or 2.57 GB per token, a multiplier of 1.80. A compute-bound machine would scale closer to 4× at concurrency 4, since a single stream leaves most SMs idle. The 1.80× is what a shared-bandwidth model predicts when the union of experts grows more slowly than the token count. Confirming that the bus is the limiter would take DRAM utilization counters, which this telemetry does not expose. The SM clock, observed at 2,197 MHz against a 3,003 MHz ceiling, held steady across both runs, so it cannot account for the difference between 1.0× and 1.80×.</p>
+<p>Prefill looks like a different machine, and part of that is the prefix cache. Over 98 sampled requests the engine prefilled at 39,237 tokens per second, on the DGX Spark pair running this configuration, with a mean prompt of 130,659 tokens and a mean prefill duration of 3.33 seconds. Of the 12,804,579 prompt tokens looked up, 12,285,952 were already cached, a hit rate of 95.9 percent, which avoided re-prefilling 12.29M prompt tokens; without an uncached-throughput measurement, the exact time saved cannot be derived from the overall prefill rate. Most prompt tokens never touched the weights. That inflates the prefill-to-decode ratio of 664× well above what an uncached pass would show.</p>
+<p>Switch's coarse granularity was the obvious weakness, and DeepSeekMoE in January 2024 attacked it from two directions. The shared expert is always active, so the token-agnostic part of the feed-forward transform gets computed no matter what the router decides. The routed experts then model only the residual, token-specific part. Splitting each expert into m smaller ones with d_ff/m cuts the size of any single contribution. Put those together and the routing error decomposes. Error is roughly the probability of a misroute times the magnitude of the contribution that gets missed. Segmentation shrinks the second factor by m. The shared expert shrinks the first, because the common component no longer depends on the choice. DeepSeek-V2 and V3 carry the design forward.</p>
+<p>The memory budget is where all of this lands. The KV pool holds 262,144 positions shared across 4 streams, so each stream gets 65,536 before admission overhead. Subtract the 32,768-token default reply budget, the 16 round rows and 2 rows of slack, and the per-stream prompt ceiling is 32,750 tokens. Raising the pool to the model's native 1,048,576 positions costs 0.68 GiB per rank and lifts that ceiling to 229,358 tokens. That memory comes out of the same HBM budget the experts stream through at decode, over the same bus Every expert you add takes memory that could have been a longer prompt.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 354" width="100%" role="img" aria-label="Router to top-2 expert output in a sparsely-gated MoE layer" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Router to top-2 expert output in a sparsely-gated MoE layer</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x = [1, 2, 0,</text><text x="96.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0], d_model = 4</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Router W:</text><text x="310.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">d_model × E, E =</text><text x="310.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">4 rows w₁…w₄</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">scores s = x·W =</text><text x="524.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">[1, 2, 3, -1]</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">exponentiate:</text><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">[2.718, 7.389,</text><text x="738.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">20.086, 0.368]</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">sum = 30.561</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="139.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">softmax</text><text x="310.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">probabilities:</text><text x="310.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">[0.089, 0.242,</text><text x="310.0" y="178.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.657, 0.012]</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">top-2 selects</text><text x="524.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">experts 3 and 2</text><line x1="608" y1="155.0" x2="654" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="126.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">renormalize</text><text x="738.0" y="139.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">selected pair:</text><text x="738.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.657/0.899 =</text><text x="738.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.731,</text><text x="738.0" y="178.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.242/0.899 =</text><text x="738.0" y="191.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.269</text><path d="M738.0,186 L738.0,209 L96.0,209 L96.0,232" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="232" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="253.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">output =</text><text x="96.0" y="266.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.731·E₃(x) +</text><text x="96.0" y="279.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.269·E₂(x)</text></svg>
+<figcaption><strong>Router to top-2 expert output in a sparsely-gated MoE layer</strong> It shows the sequence from hidden vector through router scores, softmax, top-k selection, renormalization, and weighted expert sum, with the chapter's worked numbers and tensor shapes.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">2,197 MHz</td><td class="ps">nvidia-smi clocks.sm, 2026-10-31 01:0x</td><td class="pc">Observed SM clock under load. Silicon max is 3003 MHz.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">39,237 tok/s</td><td class="ps">derived: prompt_tokens_total / request_prefill_seconds_sum from /metrics</td><td class="pc">Prefill throughput over 98 sampled requests.</td></tr><tr><td class="pv">95.9%</td><td class="ps">derived: prefix_cache_hits_total / prefix_cache_queries_total = 12,285,952 / 12,804,579</td><td class="pc">Cached prompt tokens as a share of all prompt tokens.</td></tr><tr><td class="pv">3.33 s</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td><td class="pc">Mean prefill duration per request.</td></tr><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">4 streams</td><td class="ps">PARALLEL=4, TF_DS_STREAMS=4 in the live container env</td><td class="pc">Concurrent request slots.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">32,750 tokens</td><td class="ps">derived: POOL/PARALLEL - MAX_TOKENS - ROUND_ROWS - 2 = 65536 - 32768 - 16 - 2</td><td class="pc">Equal-split per-stream context ceiling under admission reservation.</td></tr><tr><td class="pv">229,358 tokens</td><td class="ps">derived: 1048576/4 - 32768 - 16 - 2</td><td class="pc">Per-stream ceiling if POOL were raised to 1,048,576.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">12,804,579 tokens</td><td class="ps">tensorfold:prefix_cache_queries_total from /metrics</td><td class="pc">Raw count of prompt tokens looked up.</td></tr><tr><td class="pv">3,003 MHz</td><td class="ps">GB10 silicon maximum SM clock, NVIDIA DGX Spark documentation</td><td class="pc">Hardware ceiling; the thermal design holds the part well below it.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="18-normalization.html">&larr; Keeping the residual stream in range</a><a href="20-precision.html">From fp32 to bf16 to fp8 &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

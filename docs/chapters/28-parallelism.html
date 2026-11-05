@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splitting a model across devices</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">VII. Serving &middot; Chapter 28</span>
+  <h1>Splitting a model across devices</h1>
+  <p class="thesis">There are two ways to cut a transformer across machines, and they fail for opposite reasons.</p>
+</header>
+
+<article class="prose">
+<p>A model that does not fit on one device has to be cut somewhere. Where you cut decides where the communication goes. Cut through the layers and you get pipeline parallelism, which sends activations between stages and leaves devices idle during fill and drain. Cut through the matrices and you get tensor parallelism, which keeps every device busy and pays for it with collectives inside every block. Megatron-LM’s 2019 paper named the two halves of the tensor-parallel pattern f and g. GPipe, from Huang and colleagues in 2019, introduced the micro-batch schedule that made pipeline parallelism usable.</p>
+<p>Tensor parallelism starts with a linear layer computing y = xW. Let x have shape B×H, where B is the batch of tokens and H is the hidden width. Let W have shape H×K. Split W by columns into N slices W_i of shape H×(K/N). Rank i computes y_i = xW_i, which has shape B×(K/N). The full output is the concatenation of the y_i along the feature dimension. No rank needs another rank’s y_i to form its own slice, so the forward pass has no collective. Megatron-LM calls this f.</p>
+<p>The next layer projects back down. Let its weight V have shape K×M. Split V by rows into N slices V_i of shape (K/N)×M. Rank i computes z_i = y_i V_i, which has shape B×M. The true output is z = sum_i z_i. Each rank holds a partial sum over its slice of the input features, so the forward pass needs an all-reduce sum across ranks. Megatron-LM calls this g.</p>
+<p>An f layer followed by a g layer has one all-reduce at the end of the pair. A transformer block contains two such pairs. The QKV projection is column-parallel f, and the attention output projection is row-parallel g. The MLP up-projection is column-parallel f, and the down-projection is row-parallel g. That gives two all-reduces per block in the forward pass; during training, backward through each f layer adds another all-reduce, for four per block per training step.</p>
+<p>The count of collectives per block is fixed at two, so the total count grows linearly with the number of blocks L. The volume per collective depends on B, H, and the number of tensor-parallel ranks N. For a ring all-reduce over N ranks, each rank sends 2(N−1)/N times the B×H partial-sum matrix per collective. At N=2 that is B×H elements sent per rank per collective. At N=8 it is 1.75 B×H. A tree all-reduce trades that volume for log N latency. The per-layer cost is fixed in count but not in volume as N grows.</p>
+<p>That cost has two parts. The first is latency. Every device must wait for every other device before the next block can begin, and a round trip does not shrink when you add more compute at either end. The second is volume. At decode batch sizes of a few tokens the all-reduce volume is small. At prefill batch sizes of thousands it is not, which is why prefill and decode stress tensor parallelism differently.</p>
+<p>Put the pair’s measured numbers against the latency part. The engine decodes at 59.1 tokens per second on a single stream, so one forward pass takes 1000/59.1 = 16.9 milliseconds. Take a 32-block model. Two collectives per block gives 64 collectives per forward pass. The budget per collective is 16.9/64 = 0.264 milliseconds, or 264 microseconds. If the link’s round trip is above 264 microseconds, the schedule cannot hit 59.1 tokens per second. The forward pass would spend its whole budget waiting.</p>
+<p>Pipeline parallelism avoids the per-block barrier by putting whole layers on each rank. Rank 0 holds layers 0 through k−1, rank 1 holds the rest, and the only communication is rank 0 handing rank 1 the activations for the tokens it has just processed. That is a point-to-point send rather than a barrier. The volume per send is B_micro×S×H values, where B_micro is the micro-batch size, S is the sequence length, and H is the hidden width. For M micro-batches and P stages, the step has M(P−1) sends. That volume is small compared with tensor parallelism’s per-block collectives, but it is not zero.</p>
+<p>The naive pipeline is miserable, because rank 1 sits idle while rank 0 works and rank 0 sits idle while rank 1 works. GPipe mitigates it by splitting the batch into micro-batches. Rank 0 can start micro-batch 2 while rank 1 is still chewing on micro-batch 1, and in steady state every rank has something to do only when M is large enough relative to P—roughly M ≥ P. At decode batch sizes of a few tokens M is small, so the bubble (P−1)/(M+P−1) remains large</p>
+<p>What remains is the fill and drain at the two ends of the step, which everyone calls the bubble. With P stages and M micro-batches the pipeline takes M + P − 1 slots, of which P − 1 are bubble. The idle fraction is (P−1)/(M+P−1). Four stages and eight micro-batches gives 3/11 = 27.3 percent idle. Sixteen micro-batches gives 3/19 = 15.8 percent. Doubling M cuts the bubble from 27 percent to 16 percent, a factor of about 1.7, not half. The formula shows the diminishing return.</p>
+<p>Memory is where PipeDream, from Narayanan and colleagues later in 2019, made its contribution. GPipe’s schedule keeps every in-flight micro-batch’s activations alive, so raising M raises memory. PipeDream’s 1F1B schedule alternates one forward pass and one backward pass per rank. The steady state holds only a bounded number of micro-batches, so activation memory does not grow with M. That made deep pipelines practical rather than a scheduling curiosity.</p>
+<p>The trade is coarse. Each rank holds whole layers, so with two devices each holds half the model. A layer count that does not divide evenly forces you to imbalance the stages. Tensor parallelism is finer, because it splits inside each matrix, but it demands that head counts and hidden widths divide by the device count too. Neither is free of arithmetic constraints.</p>
+<p>Message counts make the difference concrete. Pipeline parallelism sends M(P−1) messages per direction per step, so 2M(P−1) total. Tensor parallelism issues 4L collectives per micro-batch, so 4LM collective operations per step. With P=2 and L=32, tensor parallelism issues 64 collective operations for every pipeline send, before counting the extra rounds a ring all-reduce uses when N is larger than two. That is tens of times more collective operations, not orders of magnitude in every case.</p>
+<p>In the measurement cited, a round trip above roughly 264 microseconds puts tensor parallelism below the measured decode rate; that cutoff is specific to the model, batch/concurrency, and collective size, not a general link threshold Pipeline parallelism can tolerate that latency because it has one send per micro-batch per boundary and overlaps micro-batches. The choice comes down to the per-collective budget against the link’s round trip. The hybrid that large training runs settled on puts tensor parallelism inside a node, where the link is NVLink, and pipeline parallelism across nodes. Narayanan and colleagues laid out the combination in 2021. The rule of thumb that tensor parallelism stays inside the fast domain has held.</p>
+<p>Sequence parallelism, from Korthikanti and colleagues in 2022, splits the sequence dimension for the operations that are replicated across tensor-parallel ranks. LayerNorm, dropout, and the residual add act on the full hidden vector, so every tensor-parallel rank holds a copy. Let the hidden state have shape B×S×H. In the sequence-parallel region each rank holds B×(S/N)×H. At the entry to the tensor-parallel region, an all-gather along S restores B×S×H on every rank. Then f produces B×S×(H/N) per rank, attention works per head, and g produces B×S×H partial sums. The all-reduce over tensor-parallel ranks gives the full B×S×H. At the exit, a reduce-scatter along S returns B×(S/N)×H per rank for the next sequence-parallel region. The ordering is all-gather before f and reduce-scatter after g. The win is activation memory, which raises M, which shrinks the bubble.</p>
+<p>Expert parallelism changes the model rather than the schedule. Shazeer and colleagues introduced sparsely-gated mixture-of-experts layers in 2017. GShard in 2020 and the Switch Transformer in 2021 scaled them. Each token is routed to a few experts. Experts live on different devices, so the dispatch is an all-to-all. Each device sends its tokens to the devices holding the selected experts and receives tokens routed to its local experts. The traffic matrix is not symmetric because routing counts vary by expert and by batch. If one expert receives more tokens than its capacity, the device holding it becomes the bottleneck while other devices idle. A capacity factor c sets per-expert capacity to c times the average tokens per expert. Tokens beyond capacity are dropped (or capacity is padded); under top-2 gating, a token may still be processed by its other selected expert That bounds the imbalance but wastes computation and can change model quality.</p>
+<p>On the two-rank engine this book measures, the numbers argue for a particular answer. It holds 111.5 GB of unified memory across weights, caches, and live streams. Its LPDDR5X memory runs at 273 GB/s shared between CPU and GPU. Splitting across the two ranks buys neither capacity nor bandwidth on this engine: both ranks draw from the same 111.5 GB unified-memory pool and the same 273 GB/s pipe A linear layer reads each weight once and uses it B times. The arithmetic intensity is about 2B FLOPs per weight (2 bytes in FP16), or B FLOPs per byte At B=1 that is about 1 FLOP per byte. At B=4 it is about 4 FLOPs per byte. The roofline model puts decode on the bandwidth roof at those intensities. The 273 GB/s pipe is the roof. The measured aggregate decode on this pair is 59.1 tokens per second at one stream and 106.2 tokens per second at four streams, a 1.80x multiplier. That 1.80x is the expected batching amortization at low concurrency; it is not a rank-scaling measurement. The shared 273 GB/s pipe follows from the hardware topology, and at production batch aggregate decode saturates at the memory roof rather than continuing to scale A second rank does not get a second 273 GB/s pipe. Both ranks draw from the same one. The measurement does not support a doubling claim.</p>
+<p>Raising the KV pool from 262,144 positions to 1,048,576 costs 0.68 GiB per rank. The difference is 786,432 positions, so the cost is about 929 bytes per position per rank. With four streams, each gets 65,536 positions before overhead. After the 32,768-token reply budget, the 16-row decode round batch, and two rows of slack, 32,750 tokens remain per stream. If the pool were raised to 1,048,576, the per-stream ceiling would be 229,358 tokens.</p>
+<p>The cumulative pair stall counter reads 120,000 milliseconds since start. The sampled window has 98 requests with mean decode 8.38 seconds, so decode time alone is 98 × 8.38 = 821 seconds. The stall is about 15 percent of that. That is a baseline, not a verdict. Let C be compute time and S stall. A split that halves C but doubles S gives C/2 + 2S. It beats C + S only when S &lt; C/2. With S at about 15 percent of decode, S is below C/2, so the split would still pay. The counter alone does not settle the choice. You need both terms.</p>
+<p>My view is that pipeline parallelism is under-chosen for inference and tensor parallelism is over-chosen, largely because tensor parallelism was the first thing Megatron-LM made easy and because the NVLink topology of a training node rewarded it. On a pair of machines joined by anything slower than NVLink, pipeline is the safer default, and the bubble is a number you can compute before you deploy rather than discover afterwards.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Tensor parallelism: column-parallel f followed by row-parallel g" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Tensor parallelism: column-parallel f followed by row-parallel g</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x: B×H</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="31.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">W split by</text><text x="310.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">columns into N</text><text x="310.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">slices W_i:</text><text x="310.0" y="70.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">H×(K/N)</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">rank i computes</text><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">y_i = xW_i:</text><text x="524.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">B×(K/N)</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">concatenate y_i</text><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">along features</text><text x="738.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">-&gt; y: B×K</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">V split by rows</text><text x="96.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">into N slices</text><text x="96.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">V_i: (K/N)×M</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">rank i computes</text><text x="310.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">z_i = y_i V_i:</text><text x="310.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">B×M</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">all-reduce sum</text><text x="524.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">across ranks -&gt;</text><text x="524.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">z: B×M</text><line x1="608" y1="155.0" x2="654" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="119.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">transformer</text><text x="738.0" y="132.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">block: QKV f +</text><text x="738.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">attention-output</text><text x="738.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">g, MLP-up f +</text><text x="738.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">MLP-down g =&gt;</text><text x="738.0" y="184.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">two all-reduces</text><text x="738.0" y="197.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">per block</text></svg>
+<figcaption><strong>Tensor parallelism: column-parallel f followed by row-parallel g</strong> It shows the dataflow and tensor shapes through the f/g pair, including where the single all-reduce sits and why two pairs per transformer block give two collectives.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">1.80x</td><td class="ps">derived: 106.2 / 59.1</td><td class="pc">Aggregate throughput multiplier from 1 to 4 concurrent streams.</td></tr><tr><td class="pv">8.38 s</td><td class="ps">derived: request_decode_seconds_sum / _count over 98 requests</td><td class="pc">Mean decode duration per request.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">229,358 tokens</td><td class="ps">derived: 1048576/4 - 32768 - 16 - 2</td><td class="pc">Per-stream ceiling if POOL were raised to 1,048,576.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">120,000 ms</td><td class="ps">tensorfold:pair_stall_ms from /metrics</td><td class="pc">Cumulative pair stall recorded since start.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="27-batching.html">&larr; Continuous batching and the scheduler</a><a href="29-roofline.html">What the hardware actually allows &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

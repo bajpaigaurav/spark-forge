@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The bottleneck attention was invented to fix</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">II. Attention &middot; Chapter 04</span>
+  <h1>The bottleneck attention was invented to fix</h1>
+  <p class="thesis">Attention was not invented for transformers; it was invented to stop an RNN from forgetting the beginning of a sentence.</p>
+</header>
+
+<article class="prose">
+<p>By the end of 2014, neural machine translation had settled into a shape everyone used and a weakness everyone could see. The shape was the encoder–decoder. Cho, van Merriënboer, Gulcehre, Bahdanau, Bougares, Schwenk and Bengio described it in a paper posted in June 2014; Sutskever, Vinyals and Le published a version of the same idea that September. You feed the source sentence to a recurrent network one token at a time and let it run. At the end you have a single hidden state, a vector of a few hundred numbers. That vector is the entire sentence as far as the rest of the system is concerned. A second recurrent network starts from it and emits the translation, one token per step, feeding each emitted token back in.</p>
+<p>The encoder's mechanism is worth stating plainly, because the bottleneck lives inside it. In a plain recurrent network, at each step the network takes the current token's embedding, multiplies it by a weight matrix, multiplies the previous hidden state by another weight matrix, adds the two results, and squashes the sum through a nonlinearity. The new hidden state replaces the old one. An LSTM or GRU does keep cell and gate state across steps; an LSTM carries a cell state \(c_t = f_t \odot c_{t-1} + i_t \odot g_t\) and a hidden state \(h_t = o_t \odot \tanh(c_t)\), while a GRU carries a single state with update and reset gates. Those internal states persist, but the decoder still receives only the encoder's final hidden state or a small set of final states, not the sequence of intermediate annotations. Whatever the network knows about the sentence after reading the tenth word is compressed into that final vector, and the decoder has no direct access to the earlier states.</p>
+<p>Two distinct failures follow as sentences get longer. The first is interference. Every step multiplies the state by a matrix and folds in a new token. Information about the first word has to survive that operation dozens of times, and each pass mixes it with everything else. A related failure appears in the backward pass Training pushes error backward through every step of the unrolled network, and each step contributes a Jacobian. For a scalar recurrence \(h_t = \tanh(w h_{t-1} + x_t)\), the derivative from the last step back to the first is \(\partial h_T/\partial h_1 = \prod_{t=2}^{T} w \tanh'(a_t)\). With \(w=0.5\) and \(\tanh'=0.8\) at each step, each factor is \(0.4\); over twenty steps the product is \(0.4^{19} \approx 2.7\times10^{-8}\). The earliest tokens receive almost no learning signal. If \(w=2\) and \(\tanh'=0.8\), each factor is \(1.6\) and the product grows instead. Whether a Jacobian product shrinks or explodes depends on the norms and eigenvalues of the matrices involved, so the vanishing-gradient story is a tendency, not a universal law.</p>
+<p>The second failure is capacity. A fixed vector has a fixed number of floats, and a sentence of five words and a sentence of fifty must both fit inside it. Take a hidden width of 256 floats. Five source tokens carry 1,280 floats of embeddings; fifty carry 12,800. The summary has 256 slots for either sentence. The decoder has no way to ask for a particular part of the source. It receives the summary or it receives nothing.</p>
+<p>Sutskever, Vinyals and Le reported a crude workaround. They reversed the source sentence before feeding it. That places the first source word at the last encoder step, next to the first decoder step, so the gradient from the first target token to the first source word passes through fewer recurrent steps. It shortened the path for early source-target pairs and helped in their experiments. It was also an admission that the architecture had a distance problem.</p>
+<p>Dzmitry Bahdanau, Kyunghyun Cho and Yoshua Bengio attacked that problem directly in a paper posted in September 2014 and presented at ICLR the following spring. Their change fits in a paragraph. Stop discarding the encoder's intermediate states; keep every one of them and call them annotations. Their encoder ran in both directions. A forward RNN read the source left to right, a backward RNN read it right to left, and the annotation at position \(j\) was the concatenation \(h_j = [\overrightarrow{h}_j; \overleftarrow{h}_j]\). If each directional state has width \(d\), then \(h_j \in \mathbb{R}^{2d}\). The decoder's initial state was set from the final backward state, often through a learned projection. At each decoding step, compare the previous decoder state \(s_{i-1} \in \mathbb{R}^{d'}\) against every annotation and produce a score for each. The scoring function they chose is a small feedforward network. For decoder state \(s_{i-1}\) and annotation \(h_j\), the score is \(e_{ij} = v^\top \tanh(W s_{i-1} + U h_j)\), where \(W \in \mathbb{R}^{k \times d'}\), \(U \in \mathbb{R}^{k \times 2d}\), and \(v \in \mathbb{R}^{k}\) are learned. That is a two-layer network evaluated once per pair of decoder step and encoder position, and its only job is to emit a single number saying how relevant that annotation is right now. The score uses the previous decoder state because the current state has not been computed yet.</p>
+<p>A softmax turns the numbers into weights. Take three annotations scoring 2.0, 1.0 and 0.0. Exponentiating gives 7.389, 2.718 and 1.000, which sum to 11.107. Dividing gives weights of 0.665, 0.245 and 0.090. The context vector handed to the decoder is 0.665 times the first annotation plus 0.245 times the second plus 0.090 times the third. Training pushes the score of whichever annotation would reduce the loss. If the decoder needs the verb it saw at position one, the gradient raises that score. Raise it to 4.0 while the others stay put. The exponentials are 54.598, 2.718 and 1.000, which sum to 58.316, and the weights become 0.936, 0.047 and 0.017. The distribution sharpens toward a hard choice without ever becoming one, and that is what keeps the whole operation differentiable.</p>
+<p>The gradient through the softmax is worth writing out. Let \(c_i = \sum_j \alpha_{ij} h_j\) be the context vector and let \(g = \partial L/\partial c_i\). Then \(\partial L/\partial \alpha_{ij} = g \cdot h_j\). Since \(\partial \alpha_{ij}/\partial e_{ik} = \alpha_{ij}(\delta_{jk} - \alpha_{ik})\), the score gradient is \(\partial L/\partial e_{ik} = \alpha_{ik}(g \cdot h_k - \sum_j \alpha_{ij} g \cdot h_j)\). The subtraction is a baseline that keeps the gradients across source positions summing to zero. That gradient then flows into \(W\), \(U\) and \(v\) through the tanh. For source padding, set \(e_{ij} = -\infty\) before the softmax so padded positions receive weight zero. The context vector is concatenated with the previous target embedding \(y_{i-1}\) and fed into the decoder cell, so \(s_i = f(s_{i-1}, [y_{i-1}; c_i])\). The original formulation does not initialize the decoder with the context vector; initialization comes from the encoder's final backward state.</p>
+<p>Why a small network rather than a dot product? The annotation and the decoder state emerge from different weight matrices, may have different widths, and live in coordinate systems that were never trained to agree. A dot product presumes the two vectors are already comparable coordinate by coordinate. The tanh network learns the comparison rather than assuming it, and that matters most when the two sides are unaligned.</p>
+<p>Thang Luong, Hieu Pham and Christopher Manning revisited the choice in a paper posted in August 2015 and presented at EMNLP. They set three scoring functions side by side. The dot product is \(e_{ij} = s_i^\top h_j\) and only applies when the vectors share a width. The general form is \(e_{ij} = s_i^\top W h_j\), which inserts a learned matrix between the two vectors and removes that width constraint at the cost of one matrix multiply. Bahdanau's additive form is the tanh network above. Their experiments found the simpler scores competitive. They also introduced local attention, which predicts a single aligned position \(p_i\) for each decoder step and scores only a window from \(p_i-D\) to \(p_i+D\). With a source of 50 tokens and a window half-width of 2, each decoder step scores 5 positions instead of 50. The cost per step drops from \(O(m d)\) to \(O((2D+1)d)\), where \(m\) is the source length and \(d\) is the vector width.</p>
+<p>Hardware pushed the field from additive toward multiplicative scoring. One practical reason is that additive attention evaluates a tanh over every pair, and those evaluations are elementwise and memory-bound; they do not collapse into one large matrix multiplication. Dot-product and general attention are matrix multiplies. For \(n\) decoder steps and \(m\) source positions, stack the decoder states into \(S \in \mathbb{R}^{n \times d'}\) and the annotations into \(H \in \mathbb{R}^{m \times 2d}\). A projected dot-product score matrix is \(S H^\top\), one GEMM producing an \(n \times m\) matrix. Additive attention precomputes \(T = W S^\top \in \mathbb{R}^{k \times n}\) and \(U H^\top \in \mathbb{R}^{k \times m}\), which are also GEMMs, and then for every pair \((i,j)\) it forms \(T[:,i] + U[:,j]\), applies tanh, and dots with \(v\). The expensive part is not the projections but the \(n \times m \times k\) intermediate that no single GEMM can produce, because the tanh sits between the two reductions.</p>
+<p>With \(n=20\), \(m=50\), \(k=128\) and \(d=512\), the two projections cost \(128 \times 20 \times 512 + 128 \times 50 \times 1024 \approx 7.86\) million multiply-adds, and the per-pair \(v\)-dot adds \(20 \times 50 \times 128 = 128{,}000\), for roughly 8 million in total. The dot product does \(20 \times 50 \times 1024 = 1{,}024{,}000\). So additive is about 16 times the arithmetic here rather than orders of magnitude more; the exact ratio depends on n and m because the projection cost amortizes as the sequence lengths grow. The real penalty is the shape of the work: additive produces a \(k \times n \times m\) intermediate that is typically materialised and reduced; a fused per-pair implementation can avoid materialising the full tensor, but then it cannot be expressed as one large GEMM. while the dot product is one contiguous GEMM the hardware is built for. The note that \(H\) has width \(2d\) reflects Bahdanau's bidirectional encoder, which concatenates a forward and a backward state; Luong's encoder was a unidirectional two-layer LSTM of width \(d\), so his \(H\) has width \(d\) and the projection arithmetic differs accordingly.</p>
+<p>When Vaswani and colleagues built the transformer in 2017 they took the dot-product form and divided the result by the square root of the vector width. That scaling addresses dot-product variance. If the components of two independent \(d\)-dimensional vectors have variance \(\sigma^2\), their dot product has variance \(d\sigma^2\). Dividing by \(\sqrt{d}\) brings the variance back to \(\sigma^2\). With \(d=512\) and \(\sigma^2=1\), raw scores have standard deviation about 22.6; scaled scores have standard deviation about 1. Large scores push the softmax into a region where its gradient is nearly flat. For scores 0 and 10, the softmax weights are \(4.5\times10^{-5}\) and \(0.99995\), and the derivative for the large weight is about \(4.5\times10^{-5}\). The scaling factor is not inherited from Luong's general score; it is a separate correction for the variance of a dot product.</p>
+<p>My view is that additive attention was dropped for reasons that had little to do with per-pair quality. A learned nonlinear comparison has a different inductive bias from a fixed inner product; it is not a strict expressiveness ordering. Additive attention lost ground because it could not be batched into one big multiply as cleanly as dot-product attention. The transformer's dot-product attention maps to dense matrix multiplies, which is why it became the default in that architecture. The same trade shows up repeatedly in this book.</p>
+<p>Something else was lost along the way. Bahdanau's weights looked like alignments, and attention weights are sometimes read as explanations of what the model is doing. Philipp Koehn and Rebecca Knowles argued in their 2017 WMT paper on the challenges of neural machine translation that attention weights are a poor guide to what the model actually used, because they do not reliably behave like word alignments and can diverge sharply from what a human would call the correspondence. The weights are real numbers the model computed. The story we tell about them is ours.</p>
+<p>What Bahdanau, Cho and Bengio did not do was remove the recurrence. The decoder still walked one token at a time and the encoder still read the source sequentially. They removed the bottleneck by letting the decoder consult every encoder state directly, and in doing so they made the cost of a translation grow with the product of source and target lengths. The score matrix has \(n \times m\) entries, and each entry costs \(O(d)\) work, so the attention layer costs \(O(n m d)\). Take a source of 50 tokens, a target of 20, and width 512. The score matrix has 1,000 entries and costs about \(50 \times 20 \times 512 = 512{,}000\) multiply-adds for the scores, with a similar cost for the weighted sum. For self-attention, where source and target are the same length \(L\), the cost becomes \(O(L^2 d)\). The transformer kept the query-key-value lookup and replaced recurrence with self-attention, positional encodings, multi-head attention, residual connections, and layer normalization.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Encoder–decoder bottleneck: many source tokens compressed into one final hidden state" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Encoder–decoder bottleneck: many source tokens compressed into one final hidden state</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">source tokens</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">encoder RNN</text><text x="310.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">steps</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">intermediate</text><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">encoder hidden</text><text x="524.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">states</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="37.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">final encoder</text><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">hidden state</text><text x="738.0" y="63.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vector</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">decoder RNN</text><text x="96.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">steps</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">output tokens</text></svg>
+<figcaption><strong>Encoder–decoder bottleneck: many source tokens compressed into one final hidden state</strong> It shows the dataflow the prose describes in sequence: source tokens enter an encoder RNN, all intermediate states collapse into a single final hidden-state vector, and only that vector feeds the decoder RNN.</figcaption>
+</figure>
+
+
+
+
+
+
+<nav class="chapter-nav">
+<a href="03-residual-stream.html">&larr; The one lane everything writes into</a><a href="05-scaled-dot-product.html">The 2017 move: drop the recurrence &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

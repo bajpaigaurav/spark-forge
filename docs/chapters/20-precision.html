@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>From fp32 to bf16 to fp8</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">V. Precision &middot; Chapter 20</span>
+  <h1>From fp32 to bf16 to fp8</h1>
+  <p class="thesis">Reducing precision is not a compromise; it is a deliberate trade of mantissa bits for throughput, and the exponent is the part that must not shrink.</p>
+</header>
+
+<article class="prose">
+<p>Paulius Micikevicius and colleagues at NVIDIA and Baidu posted “Mixed Precision Training” to arXiv in October 2017; it appeared at ICLR 2018. The problem was concrete. A training loop runs a forward pass, computes a loss, runs backpropagation to get gradients, and applies an optimizer update. Backpropagation applies the chain rule layer by layer. Tensor cores are matrix-multiply units that take low-precision inputs and accumulate in a wider format. NVIDIA’s 2017 Volta whitepaper lists 125 TFLOPS fp16 tensor-core throughput against 15.7 TFLOPS fp32, roughly eight times the fp32 rate, so teams were moving training runs to half precision to cut wall clock. The runs kept dying. Loss would fall for a few hundred steps and then go to NaN, or the gradients would quietly stop moving because they had become zero. The paper contributed a set of accounting rules for using an old format without losing the run.</p>
+<p>To understand why those rules were needed, look at what a floating point number stores. Every one of them has a sign bit, an exponent, and a mantissa. The value is (−1)^sign × 2^(exponent − bias) × (1 + mantissa). The exponent sets the range, meaning how large and how small the number can be before it overflows to infinity or flushes to zero. The mantissa sets the resolution, meaning how finely you can distinguish two nearby values. fp32 spends one bit on sign, eight on exponent, twenty-three on mantissa. Those two quantities are separate currencies, and the history of reduced precision is a history of deciding which one to spend.</p>
+<p>Take the number 1 + 2^−8, which is 1.00390625. Near 1.0, the gap between representable values is 2^−23 in fp32, about 1.19 × 10^−7, so the number lands exactly. In fp16 the mantissa is ten bits, so the gap near 1.0 is 2^−10, roughly 0.000977, and the number lands exactly. In bfloat16 the mantissa is seven bits, so the gap is 2^−7, or 0.0078125. The offset 0.00390625 is half that gap, so round-to-nearest-even returns 1.0 and the difference vanishes. That is the cost of bfloat16 stated in one number.</p>
+<p>fp16’s exponent field is five bits, with bias 15. The largest finite exponent is 15, and the largest significand is 2 − 2^−10 = 1.9990234375, so the largest finite value is 1.9990234375 × 2^15 = 65,504. The smallest normal value is 2^−14, about 6.1 × 10^−5. fp16 also has subnormals from 2^−24 up to 2^−14 − 2^−24, just below the smallest normal 2^−14, about 5.96 × 10^−8 to 6.10 × 10^−5. Some hardware and libraries enable flush-to-zero for fp16, which maps subnormals to zero; others preserve them. The training rule is to avoid relying on subnormals.</p>
+<p>Both ends of fp16 are awkward for training. Gradients in a deep network span many orders of magnitude, and the small ones are the ones that matter early in the run. A gradient of 3 × 10^−6 is below fp16’s smallest normal, so it becomes a subnormal with fewer effective bits; if the hardware flushes subnormals to zero, the corresponding weight stops learning. Micikevicius’s fix was loss scaling. Multiply the loss by a power of two, say 2^16, before the backward pass. Every gradient in the chain rule gets multiplied by the same constant, so they all shift up into representable range. The gradient 3 × 10^−6 becomes 3 × 10^−6 × 65,536 = 0.196608, which is a normal fp16 number. Run the backward pass, which produces the scaled gradients in fp16, then divide the gradients by 65,536 before the optimizer step For normal fp16 values, multiplying by a power of two changes only the exponent field. For subnormal values scaled into the normal range, the mantissa encoding also changes, but the scaling is exact as long as the result stays representable, so no rounding error is introduced.</p>
+<p>Dynamic loss scaling automates the constant. The scaler keeps a counter of consecutive clean steps, where a clean step has no infinity or NaN in the scaled gradient tensor produced by the backward pass, before unscaling. Suppose a step produces an infinity. The scaler halves the scale from 65,536 to 32,768, skips the optimizer step, and resets the counter. The skip matters because the gradients from an overflow are not finite; applying them would corrupt the master weights. After a window of clean steps, the scaler doubles the scale and resets the counter. Overflow detection is a check for infinity or NaN in the gradient tensor after the backward pass.</p>
+<p>There is a second failure that loss scaling does not fix, and it explains why mixed precision training keeps a copy of the weights in fp32. Suppose a weight sits at 1.0 and the optimizer computes an update of 1 × 10^−5. In fp16, the gap between representable numbers near 1.0 is 9.8 × 10^−4, so 1.0 + 0.00001 rounds back to 1.0. The weight is frozen. It will never move again, no matter how many steps you run, because the update is smaller than the resolution of the format that stores it. In fp32 the gap is 1.19 × 10^−7, about two orders of magnitude below the update, so the addition lands. The master weight copy exists to make that addition possible. bf16 has the same problem: its gap near 1.0 is 0.0078125, so the same 1 × 10^−5 update rounds away. bf16 training also needs fp32 master weights, or stochastic rounding that picks one of the two nearest representable values with probability proportional to distance so the expected update is preserved. Optimizer states stay in fp32 for the same reason.</p>
+<p>bfloat16 was introduced by Google in 2018. Kalamkar et al. evaluated it in “A Study of BFLOAT16 for Deep Learning Training” in 2019. It keeps all eight exponent bits of fp32, so its range is identical: largest finite value around 3.39 × 10^38, smallest normal around 1.18 × 10^−38. It spends the savings entirely on the mantissa, cutting it from twenty-three bits to seven. The relative resolution drops to about 0.4 percent. What you buy is that loss scaling is unnecessary for range, because a gradient that underflows fp16 as a subnormal remains a normal bf16 number. bf16 rounding is deterministic, and for a sum over many terms the errors can accumulate as a bias rather than cancel like independent noise. The batch gradient usually has enough terms that the per-term bias is small relative to the gradient’s own scale, but not necessarily relative to batch-to-batch variation: averaging reduces random variation while a deterministic rounding bias can persist or accumulate, so larger batches can make the bias relatively more important. That is an empirical property, not a guarantee Stochastic rounding can turn the bias into zero-mean error when small updates matter.</p>
+<p>An exponent error is not a small perturbation. Underflow to zero can be harmless when the term is negligible, and overflow to infinity can be masked if a later operation rescales it, but neither is guaranteed. The failure is categorical: the value is replaced by zero or infinity, and downstream sums either lose the term or become infinite — NaN appears only if a later operation on that infinity is invalid, such as inf + (−inf). Google’s TPUs used bf16, and NVIDIA’s A100 in 2020 added bf16 tensor-core support. It became a common training default. fp16’s reputation suffered from the early training failures, but that history does not make it the wrong choice for serving. For inference, most activations in a trained transformer stay within a few orders of magnitude, but production models can contain sparse activation, attention-logit, and KV-cache outliers that exceed fp16’s range; fp16 serving may therefore require per-model range calibration or clipping Take an activation of 0.001. fp16 represents it as a normal number because 0.001 is above 6.1 × 10^−5, with relative error about 4.9 × 10^−4. bf16 also represents it as a normal number, with relative error about 5.5 × 10^−4 (its worst-case unit roundoff is about 3.9 × 10^−3). For serving, fp16 gives the same two bytes per parameter with three extra mantissa bits.</p>
+<p>The fp8 formats used in current accelerators were formalized in “FP8 Formats for Deep Learning,” posted to arXiv in September 2022 by Micikevicius and co-authors from NVIDIA, Intel, Arm, and Qualcomm. Hopper shipped with fp8 tensor-core support in 2022. It comes in two flavours, and the split is the interesting part. e4m3 spends four bits on exponent and three on mantissa. With bias 7, the largest finite exponent is 8. At the largest finite exponent field, 15 (unbiased exponent 8), the all-ones mantissa pattern is reserved for NaN, so the largest usable significand there is 1.75. Mantissa 111 is finite at lower exponents (e.g. 1.875 × 2^7), but those values are smaller. Thus the largest finite value is 1.75 × 2^8 = 448 e4m3 has no infinity encoding. e5m2 spends five bits on exponent and two on mantissa. With bias 15, exponent field 31 is reserved for infinity and NaN, so the largest finite exponent is 15. The largest finite significand is 1.75, and 1.75 × 2^15 = 57,344. The forward pass uses e4m3 because weights and activations are bounded and roughly bell-shaped, so what you need is resolution. The backward pass uses e5m2 for gradients because gradients are heavy-tailed and span orders of magnitude, so what you need is range.</p>
+<p>The range is small enough that fp8 needs a scaling factor per tensor. For e4m3, scale = 448 / amax. For e5m2, scale = 57,344 / amax. Take a forward tensor whose largest absolute value is 12.0. The e4m3 scale is 448 / 12.0 = 37.333. Multiply every element by 37.333; the largest becomes 448. Cast to e4m3. The matrix multiply accumulates in fp32. For the backward pass, take a gradient tensor whose largest absolute value is 0.5. The e5m2 scale is 57,344 / 0.5 = 114,688. Multiply the gradient by 114,688; the largest becomes 57,344. Cast to e5m2. Run the matrix multiply, then divide the result by 114,688 to return to the original scale. Forward and backward have separate scales.</p>
+<p>In practice the scale is computed from an amax history rather than the current tensor. A per-tensor amax is a reduction over every element, and the cast kernel cannot launch until that reduction completes. If the scale is formed on the host, the amax must be copied back, and that host read serializes the stream; on-device scale formation avoids the host round-trip Delayed scaling avoids the serialization by keeping the maximum amax observed over the previous few iterations and using that maximum for the current cast. Transformer Engine implements this. If a step produces NaN or infinity, the scale is halved and the step is skipped. e4m3 has no infinity, so an overflow saturates to 448 and can go unnoticed unless the amax history catches it. e5m2 has infinities, so overflow is visible.</p>
+<p>In the mixed-precision recipe used here, the accumulation stays in fp32 — but that is a mode choice, not a property of the input format. Tensor cores can also be configured to accumulate in fp16 or bf16, which is exactly the narrow-accumulator case discussed below A tensor core multiplies two fp8 values and the product is exact. An e4m3 significand is 1.mmm, four bits including the implicit leading one; the product of two such significands needs up to eight bits, which fits in the product register with no rounding. fp16 significands are eleven bits, so their product needs up to twenty-two bits. bf16 significands are eight bits, so their product needs up to sixteen bits. The error enters only when you add that product into a running sum. The sum grows while the addend does not.</p>
+<p>Take a bf16 accumulator holding 256.0 and add 1.0. The exponent is 8, the mantissa has seven bits, so the gap to the next representable value is 2^(8−7) = 2. The exact sum 257.0 lies halfway between 256 and 258; round-to-nearest-even returns 256. The 1.0 contribution is lost. In fp16 the threshold is 2^11 = 2048, and in fp32 it is 2^24, about 16.7 million. A reduction over 4,096 terms each around 1.0 reaches 4,096. In bf16 the gap at 4,096 is 2^(12−7) = 32, so each new 1.0 is far below half the gap and vanishes. In fp32 the gap at 4,096 is 2^(12−23) = 2^−11, about 0.000488, so the terms still register. Accumulators live in registers, and registers are the fastest storage in the GPU memory hierarchy, ahead of shared memory, L2, and HBM or unified memory. Keeping an accumulator wide costs no memory bandwidth, but it does consume registers. A 32-bit accumulator per lane occupies one 32-bit register. A scalar 16-bit accumulator usually still occupies a full 32-bit register unless two 16-bit accumulators are packed together, so the register-file saving is not automatic; packing can halve usage, but unpacked narrow accumulators generally do not, which can reduce occupancy and issue rate, and the hardware’s fp32 accumulate throughput is fixed. The trade is usually worth it because a narrow accumulator produces a wrong sum, but it is not free.</p>
+<p>The memory arithmetic is where precision turns into throughput. A parameter costs four bytes at fp32, two at bf16 or fp16, one at fp8. The engine described in this book holds 111.5 GB of unified memory, reported by its /metrics endpoint as tensorfold:device_memory_bytes = 111,515,771,428 bytes on 2026-10-31. If every byte of that were weights, it would be 27.9 billion parameters at fp32, 55.8 billion at bf16, or 111.5 billion at fp8. That last number is the reason fp8 matters: it doubles the parameter count you can hold in a fixed budget, or halves the budget for a fixed model.</p>
+<p>Decode is where the bytes get spent. Decode generates one token at a time. Each step reads the model weights and the KV cache for the sequence. The KV cache stores keys and values for every previous token, so its bytes grow with context length. The unified memory on this machine moves 273 GB/s, per NVIDIA’s DGX Spark hardware guide, and single-stream decode runs at 59.1 tokens per second. That figure comes from four sequential requests of 400 tokens each, completed in 27.1 s for 1,600 tokens. Divide 273 by 59.1 and you get roughly 4.62 GB of memory touched per token. That traffic is not all weights. Let W be weight bytes read per token and K be KV-cache and activation bytes. The total is W + K. Halving weight bytes changes the total to W/2 + K, and the bandwidth-bound ceiling multiplier is (W + K)/(W/2 + K), which is 2 only when K is zero. With a KV cache in the traffic, the multiplier is smaller.</p>
+<p>The same four prompts fired concurrently completed in 15.1 s, or 106.2 tokens per second aggregate. The ratio to the sequential run is 106.2 / 59.1 = 1.80. That ratio is consistent with several costs: weight reads, KV-cache reads, scheduling, and contention. It does not isolate any one of them. A ratio below 4× means the step is not purely bandwidth-bound on weights; it does not prove which other cost dominates.</p>
+<p>A mixed-precision training step makes the policy concrete. PyTorch’s autocast keeps a list of operations that run in the low-precision format and a list that stay in fp32. Matrix multiplies and convolutions go low. Softmax, layer norm, batch norm, losses, and reductions stay fp32. Master weights and optimizer states stay fp32. Gradient clipping happens after the gradients are unscaled, because clipping a scaled gradient changes the clip threshold. Batch norm statistics stay fp32 because a running mean updated in bf16 accumulates rounding bias. For fp8 training, the forward scale applies to weights and activations before the cast, and the backward scale applies to gradients before the cast. The scale is a power of two when possible, so multiplying and dividing are exact.</p>
+<p>The exponent field is where range lives. fp8 does shrink it relative to bf16, so you must compensate with scaling to preserve effective dynamic range bf16 has eight exponent bits and seven mantissa bits. e4m3 has four exponent bits and three mantissa bits, so it gives up four exponent bits and four mantissa bits. e5m2 gives up three exponent bits and five mantissa bits. The loss of range is what makes per-tensor scaling necessary for fp8 A four-bit format such as e2m1 has one mantissa bit and a small exponent. Quantization maps a tensor to fewer bits, and outliers are values far from the rest. A tensor with a few outlier weights forces a per-tensor scale large enough that many small weights can underflow to zero; per-block scaling and outlier handling are required. That is a dynamic-range problem: the spread between outliers and typical weights exceeds what a single per-tensor scale can represent, so per-block scaling and outlier handling are required What matters here is the ordering: the field gave up resolution first, because resolution degrades gracefully, and held on to range last, because range failures are not degradations at all.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 484 252" width="100%" role="img" aria-label="Bit-field layouts of fp32, fp16, and bf16" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Bit-field layouts of fp32, fp16, and bf16</title><rect x="12" y="12" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="42.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">fp32: sign 1, exponent 8, mantissa 23</text><line x1="242.0" y1="66" x2="242.0" y2="88" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="88" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="118.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">fp16: sign 1, exponent 5, mantissa 10</text><line x1="242.0" y1="142" x2="242.0" y2="164" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="164" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="194.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">bf16: sign 1, exponent 8, mantissa 7</text></svg>
+<figcaption><strong>Bit-field layouts of fp32, fp16, and bf16</strong> It shows the structural trade between exponent width and mantissa width across the three formats, which the prose describes in sequence.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">1,600 tokens</td><td class="ps">measured: 4 requests x 400 completion tokens</td><td class="pc">Total tokens generated in the concurrency benchmark.</td></tr><tr><td class="pv">15.1 s</td><td class="ps">measured: wall clock for 4 concurrent 400-token requests</td><td class="pc">Concurrency-4 benchmark wall time.</td></tr><tr><td class="pv">27.1 s</td><td class="ps">measured: total time for the same 4 prompts run sequentially</td><td class="pc">Concurrency-1 benchmark total time.</td></tr><tr><td class="pv">400 tokens</td><td class="ps">measured: max_tokens=400 in the concurrency benchmark requests</td><td class="pc">Completion budget used in the throughput comparison.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="19-moe.html">&larr; More parameters without more arithmetic</a><a href="21-quantization.html">Four bits and the outlier problem &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

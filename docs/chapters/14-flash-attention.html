@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attention that never builds the matrix</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">III. The cache &middot; Chapter 14</span>
+  <h1>Attention that never builds the matrix</h1>
+  <p class="thesis">The attention matrix is rarely the bottleneck; writing it to memory and reading it back is.</p>
+</header>
+
+<article class="prose">
+<p>A GPU is a stack of memories, and the distances between the layers explain most of what modern attention kernels do. Start with the execution model, since everything later leans on it. A kernel launches a grid of thread blocks. Each block runs on one streaming multiprocessor and contains some number of warps, each warp 32 threads that execute in lockstep. Registers belong to individual threads. Shared memory belongs to the block, is sized at launch, and is the only scratchpad a block has for sharing data between warps without going back out to global memory.</p>
+<p>Registers hold a few hundred bytes per thread and are effectively free to read. Shared memory runs to tens or a couple hundred kilobytes per SM, addressed in tens of cycles. Then L2, shared across the chip. Then the unified LPDDR5X pool, the large address space where tensors actually live.</p>
+<p>The bandwidth gap is the number that matters. On the DGX Spark this book measures, the unified LPDDR5X pool delivers 273 GB/s shared between CPU and GPU, per NVIDIA's hardware guide for the machine. Shared memory on a single SM moves 128 bytes per clock. At the 2,197 MHz SM clock observed on this box under load, one SM's scratchpad sustains 128 bytes × 2,197 MHz = 281 GB/s by itself. That is more than the entire chip, which is the ratio in its bluntest form. One multiprocessor, working out of its own scratchpad, outruns the memory system that feeds all of them.</p>
+<p>Latency tells the same story from the other side. A shared-memory load retires in tens of cycles. A miss to HBM costs several hundred. A kernel that touches HBM pays per byte and pays again per round trip.</p>
+<p>Standard attention, as Vaswani and colleagues specified it in 2017, does exactly that. Take one head with queries Q, keys K, values V, each of shape L × d. The first step forms S = QKᵀ, an L × L matrix. The reference deployment in this book serves a mean prompt of 130,659 tokens, a figure derived from 12,804,579 prompt tokens across 98 requests recorded in the engine's metrics, so L = 130,659 and, for a typical head, d = 128. Then L² is 1.707 × 10¹⁰ entries, and at two bytes each, S occupies 34.1 GB for a single head in a single layer.</p>
+<p>Run the roofline on that. Forming S costs 2L²d = 4.37 × 10¹² FLOPs. Materializing it is the problem. Stored in fp16 at L = 130,659 and d = 128, S for one head of one layer occupies L × L × 2 bytes, which is 130,659 × 130,659 × 128 × 2 = 4.37 TB. No accelerator holds that, which is why naive attention is not merely slow but impossible at this length; the matrix must be produced tile by tile and consumed as it is produced. Softmax needs the row maximum before any element can be finalized, so a kernel that writes S out and reads it back four times moves five times the matrix through memory. At 273 GB/s, moving 4.37 TB once takes 4.37 TB ÷ 273 GB/s = 16 seconds. The whole 130,659-token prefill, across every layer of the model, averages 3.33 seconds per request, so one head of one layer of naive attention costs several times the entire model's prefill budget.</p>
+<p>The arithmetic intensity of that kernel comes to 8.74 × 10¹² FLOPs divided by 2.19 × 10¹³ bytes, or about 0.4 FLOPs per byte. To be compute-bound at that intensity the machine would have to sustain 42.6 × 273 = 11.6 TFLOP/s. It does not, because the kernel stalls on the four round trips. The matmuls are cheap by comparison. The materialization dominates.</p>
+<p>That diagnosis is what Tri Dao, Daniel Fu, Stefano Ermon, Atri Rudra and Christopher Ré published in 2022 as "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness." The title states the method. Count the bytes, not the FLOPs.</p>
+<p>Their fix is tiling, borrowed from cache-aware numerical linear algebra. Split Q into row blocks of size Br and K, V into column blocks of size Bc. Load one Q block and one K block into shared memory, compute the Br × Bc score tile, apply the softmax pieces to it, multiply by the matching V block, and accumulate into a Br × d output block that also stays on chip. Advance to the next K block. The L × L matrix never exists anywhere.</p>
+<p>Tile sizes follow from the shared-memory budget rather than from taste. With d = 128 and fp16 operands, a Br = 128 Q tile takes 128 × 128 × 2 = 32 KB. A Bc = 64 K tile takes 16 KB, the matching V tile another 16 KB, and the Br × Bc score tile 128 × 64 × 2 = 16 KB. That totals 80 KB. NVIDIA's Hopper tuning guide lists a maximum of 228 KB of shared memory per SM, so one block fits comfortably and leaves room for double buffering, which is what lets the next K tile load while the current one is being multiplied. The Ampere tuning guide lists 164 KB per SM, which fits the same configuration with room for double-buffered K and V (112 KB total), and even double-buffered Q (144 KB), though not comfortably for all four buffers. That shared-memory budget—together with register/accumulator pressure and occupancy—is what sets the tile shape, not the arithmetic alone; a 16×128 fp32 accumulator slice already costs 64 registers per thread per warp</p>
+<p>The block runs 8 warps. Each warp owns a 16-row strip of the Q tile and the corresponding 16 × d accumulator slice for those rows, held in registers The QKᵀ product issues as warp-level matrix multiply-accumulate instructions, and the score tile stays in registers, where row-wise softmax is computed with warp-level reductions/shuffles. One detail bites here. Shared memory is banked in 32 banks of 4 bytes, a 128-byte period. A row of the score tile at Bc = 64 fp16 is 128 bytes, exactly one period,, so every row starts on the same bank and a column-wise read serializes into 32-way conflicts. Padding the row stride to 136 elements moves each row's start by 16 bytes and spreads the accesses across banks.</p>
+<p>One obstruction stands in the way, and it is why this is an algorithm rather than a loop reorganization. Softmax needs two quantities per row, the maximum score and the sum of exponentials, and neither is known until every key has been seen. Process keys in tiles and the maximum arrives late.</p>
+<p>Online softmax, published by Maxim Milakov and Natalia Gimelshein in 2018 and adopted by Dao's group, resolves it. Keep a running maximum m and a running sum l. When a tile arrives carrying a larger maximum, rescale the accumulated state by α = exp(m_old − m_new). The validity of that rescaling is a one-line derivation. The accumulator after the old tiles is O_old = Σ_j exp(s_j − m_old) v_j. Rewriting each term in the new scale gives exp(s_j − m_new) = exp(s_j − m_old) · exp(m_old − m_new), and since the factor is constant across the row it factors straight out of the sum, so O_new = α · O_old + Σ_{j∈tile} exp(s_j − m_new) v_j. The same factor applies to l, because l is a sum of the same exponentials.</p>
+<p>Here is the loop.</p>
+<pre><code>for each K/V tile j:
+    s = Q_tile @ K_j^T            # Br x Bc
+    m_tile = rowmax(s)
+    m_new  = max(m, m_tile)
+    alpha  = exp(m - m_new)       # Br x 1
+    l      = l * alpha + rowsum(exp(s - m_new))
+    O      = O * alpha + exp(s - m_new) @ V_j
+    m      = m_new
+O = O / l</code></pre>
+<p>A numeric pass makes the rescaling concrete. Suppose the first tile yields scores 1.0 and 2.0 for one row, and the second tile yields 3.0 and 0.5. After tile one, m = 2.0, the exponentials are exp(−1) = 0.3679 and exp(0) = 1.0, and l = 1.3679, with O holding 0.3679·v₁ + 1.0·v₂. Tile two brings a larger maximum, so α = exp(2.0 − 3.0) = 0.3679. The running sum becomes 1.3679 × 0.3679 = 0.5033 and O is scaled by the same 0.3679. Adding tile two's contributions, exp(0) = 1.0 and exp(−2.5) = 0.0821, gives l = 1.5854. The full-matrix softmax with the global maximum of 3.0 gives 0.1353 + 0.3679 + 1.0 + 0.0821 = 1.5853. The two agree once intermediate values are not rounded; using unrounded intermediates gives l = 1.5853</p>
+<p>On the question of exactness, the running maximum is a max over values that are already exactly representable, so it is exact. Every exponent argument is therefore ≤ 0, so no exponential overflows. Underflow happens only for scores more than about 103 below the maximum in fp32 (with subnormals beginning around 87 below). and those terms contribute nothing to the sum in any case. What remains is rounding. Each rescale multiplies the accumulator by a factor and rounds, so relative error grows with the number of tiles, on the order of one unit in the last place per tile in fp32. The naive kernel accumulates the same class of error over its single pass. Flash Attention adds a small multiple of it and nothing else.</p>
+<p>The backward pass is where the memory savings turn dramatic. Ordinary attention stores the L × L matrix from the forward pass so the gradient can reuse it. Flash Attention stores none of it and recomputes the score tiles from Q, K and V during the backward pass, then applies the chain rule through softmax using the recomputed scores and the stored row normalization. The cost is one extra QKᵀ per head-layer, 4.37 × 10¹² FLOPs, against 34.1 GB of storage saved. That trade is not close on this machine. The deployment holds 111.5 GB of unified memory in total, weights and caches and live streams together, as reported by the engine's device_memory_bytes metric on 2026-10-31. Dividing 111.5 by 34.1 gives 3.3, so the full score matrices for three head-layers would consume the entire machine. A 130,659-token prefill touches thousands of head-layers.</p>
+<p>The footprint drops from quadratic to linear in sequence length. Per head, the quadratic term is 2L² bytes and the linear term is the K and V themselves, 4Ld bytes. The ratio is L/2d, which at L = 130,659 and d = 128 comes to 510×. Concretely, the score matrix for one head of one layer is 34.1 GB in fp16 (68.3 GB in fp32). while the keys and values it summarizes are 2 × 130,659 × 128 × 2 bytes = 66.9 MB. That is what made long-context models practical. The reference deployment's KV pool holds 262,144 positions, and a stored score matrix at that length would be larger again by the square of the ratio between the two lengths.</p>
+<p>Flash Attention 2, published by Dao in 2023, is a scheduling rewrite. The first version rescaled the Br × d accumulator on every tile iteration and divided by l inside the loop. Both operations are elementwise work on 128 × 128 = 16,384 values, against 2·128·64·128 = 2.1 × 10⁶ FLOPs in the matmul for the same tile, so by count they look negligible. They are not, because exp and the elementwise multiply issue on units that run at a small fraction of the matrix-multiply rate, and they serialize behind the matmul. The second version keeps O unnormalized and defers the division to the end, and it rescales only when the running maximum actually changes, which after the first few tiles is rare. It also reverses the loop so the K and V tile stays resident in shared memory while Q blocks stream past, cutting shared-memory traffic on K and V. and it partitions causal attention so that blocks working on early rows, which have few keys to visit, are paired with blocks working on late rows.</p>
+<p>Flash Attention 3, from Jay Shah and colleagues in 2024, targets Hopper. Three mechanisms carry it. The Tensor Memory Accelerator is a copy engine that takes a descriptor giving a tile's shape and strides and moves it from global to shared memory in one instruction, asynchronously, without occupying registers or the load-store units. Warp specialization splits the block into producer warps that issue those copies and consumer warps that run the matrix multiplies, synchronized through mbarriers that track TMA copy completion, so copy and compute overlap without a software pipeline inside a single warp. And the matmuls run in fp8, e4m3, with a per-tile scale factor applied before the multiply and undone after, which doubles throughput against fp16 at a precision cost the scaling keeps bounded.</p>
+<p>What Flash Attention does not fix is decode. During decode the model emits one token at a time and attention is a single query against a long row of cached keys and values. There is no L × L matrix to avoid, and the kernel is bandwidth-bound on the cache instead. Layout matters here. Keys and values are stored per layer, per KV head, per position, contiguous along the head dimension, so a decode step reads one long run rather than chasing a stride. At d = 128 in fp16, one KV head at one layer over the full 262,144-position pool occupies 262,144 × 128 × 2 = 67.1 MB for keys and the same for values, and 67.1 MB × 2 = 134.2 MB together, so every decode token reads that slab once per layer and per KV head — layers × KV heads × 134.2 MB in total, which is why the kernel is bandwidth-bound. Prefix sharing sits on top of that layout. Requests that begin with the same tokens map onto the same physical blocks through a radix tree over token blocks, so a shared system prompt is stored once and read by every request that uses it. In the sampled window this deployment reports a 95.9% hit rate on prompt tokens, which means nearly all of the prefill work those requests would otherwise have done was skipped. Flash-Decoding, also from Dao's group in 2023, splits the key sequence across blocks and merges the partial results with the same online rescaling, which helps long-context decode, though the dominant cost stays the bytes moved over the cache.</p>
+<p>The measured numbers on this box show where the wall sits. Single-stream decode runs at 59.1 tok/s, from four sequential 400-token requests completing in 27.1 seconds. Firing the same four concurrently gives 106.2 tok/s over 15.1 seconds, a 1.80× multiplier. Prefill runs at 39,237 tok/s, derived as prompt_tokens_total over request_prefill_seconds_sum across 98 requests, with a mean prefill of 3.33 seconds, a mean time to first token of 3.46 seconds, and a mean decode of 8.38 seconds. The draft model accepts 67.6% of its drafted tokens, 42,181 of 62,390. The next chapter picks up at the cache, where the question becomes how many of those bytes a decode step actually has to touch.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 484 632" width="100%" role="img" aria-label="Memory hierarchy and the materialized L×L attention matrix" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Memory hierarchy and the materialized L×L attention matrix</title><rect x="12" y="12" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="42.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Registers (per thread)</text><line x1="242.0" y1="66" x2="242.0" y2="88" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="88" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="112.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Shared memory (per SM; 128 bytes/clk; 281 GB/s at 2,197</text><text x="242.0" y="125.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">MHz)</text><line x1="242.0" y1="142" x2="242.0" y2="164" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="164" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="194.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">L2</text><line x1="242.0" y1="218" x2="242.0" y2="240" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="240" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="270.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">HBM/LPDDR5X (273 GB/s shared CPU+GPU)</text><line x1="242.0" y1="294" x2="242.0" y2="316" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="316" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="346.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Q, K, V: each L×d with L=130,659, d=128</text><line x1="242.0" y1="370" x2="242.0" y2="392" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="392" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="422.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">S = QKᵀ: L×L = 1.707×10¹⁰ entries; 34.1 GB at 2 bytes</text><line x1="242.0" y1="446" x2="242.0" y2="468" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="468" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="498.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">softmax(S)</text><line x1="242.0" y1="522" x2="242.0" y2="544" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="544" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="574.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">O</text></svg>
+<figcaption><strong>Memory hierarchy and the materialized L×L attention matrix</strong> It shows the GPU memory stack and the standard attention dataflow that writes S to HBM, carrying the section's structural argument rather than restating one sentence.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">2,197 MHz</td><td class="ps">nvidia-smi clocks.sm, 2026-10-31 01:0x</td><td class="pc">Observed SM clock under load. Silicon max is 3003 MHz.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">39,237 tok/s</td><td class="ps">derived: prompt_tokens_total / request_prefill_seconds_sum from /metrics</td><td class="pc">Prefill throughput over 98 sampled requests.</td></tr><tr><td class="pv">95.9%</td><td class="ps">derived: prefix_cache_hits_total / prefix_cache_queries_total = 12,285,952 / 12,804,579</td><td class="pc">Cached prompt tokens as a share of all prompt tokens.</td></tr><tr><td class="pv">67.6%</td><td class="ps">derived: mtp_accepted_total / mtp_drafted_total = 42,181 / 62,390</td><td class="pc">DSpark draft acceptance rate.</td></tr><tr><td class="pv">3.46 s</td><td class="ps">derived: time_to_first_token_seconds_sum / _count over 98 requests</td><td class="pc">Mean time to first token.</td></tr><tr><td class="pv">3.33 s</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td><td class="pc">Mean prefill duration per request.</td></tr><tr><td class="pv">8.38 s</td><td class="ps">derived: request_decode_seconds_sum / _count over 98 requests</td><td class="pc">Mean decode duration per request.</td></tr><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">12,804,579 tokens</td><td class="ps">tensorfold:prefix_cache_queries_total from /metrics</td><td class="pc">Raw count of prompt tokens looked up.</td></tr><tr><td class="pv">62,390 tokens</td><td class="ps">tensorfold:mtp_drafted_total from /metrics</td><td class="pc">Raw count of drafted tokens.</td></tr><tr><td class="pv">15.1 s</td><td class="ps">measured: wall clock for 4 concurrent 400-token requests</td><td class="pc">Concurrency-4 benchmark wall time.</td></tr><tr><td class="pv">27.1 s</td><td class="ps">measured: total time for the same 4 prompts run sequentially</td><td class="pc">Concurrency-1 benchmark total time.</td></tr><tr><td class="pv">400 tokens</td><td class="ps">measured: max_tokens=400 in the concurrency benchmark requests</td><td class="pc">Completion budget used in the throughput comparison.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="13-prefix-caching.html">&larr; Why the second request is cheaper</a><a href="15-sparse-sliding.html">Not every token needs to see every token &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

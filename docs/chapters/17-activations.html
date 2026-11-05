@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReLU, GELU, and the gated turn</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">IV. The rest of the block &middot; Chapter 17</span>
+  <h1>ReLU, GELU, and the gated turn</h1>
+  <p class="thesis">The nonlinearity inside the feed-forward network looks like a detail and turns out to change both quality and parameter count.</p>
+</header>
+
+<article class="prose">
+<p>A transformer block does two things to a token's vector. It lets tokens look at one another through attention, and then it passes the vector through a feed-forward network. The feed-forward network is two matrix multiplies with a bend between them. The residual stream has width d. The first matrix projects the d-dimensional vector up to an intermediate width m. The activation bends each coordinate. The second matrix projects back down to d. The result is added back to the residual stream.</p>
+<p>Remove the bend and the two matrices collapse into one. Matrix multiplication is associative, so W₂(W₁x) = (W₂W₁)x. A product of matrices is a matrix. Two linear layers stacked without a nonlinearity have exactly the expressive power of one. The model's depth in the width direction buys nothing.</p>
+<p>That identity is the reason the activation exists. The intermediate layer is the model's private scratch space, wider than the residual stream, and the nonlinearity stops the scratch space from being a relabeling of the input. Everything else in this chapter is about which bend to use.</p>
+<p>For most of the pre-2010 era the answer was sigmoid or tanh. Both saturate. The sigmoid derivative is σ(x)(1−σ(x)), which has a maximum of 1/4 at x=0. If a network has L sigmoid layers, the activation-derivative factor in the backpropagated gradient is at most (1/4)^L. For L=10, that factor is 1/1,048,576, about 9.5×10⁻⁷. The signal dies on the way down. Tanh has derivative 1−tanh²(x). For |x|&gt;3, tanh²(x) is above 0.99, so the derivative is below 0.01 Ten such layers multiply the gradient by less than 10⁻²⁰. Saturation is the mechanism behind the vanishing gradient.</p>
+<p>Nair and Hinton proposed the rectified linear unit in 2010, and Glorot, Bordes and Bengio made the case for it in 2011. Krizhevsky's AlexNet in 2012 made it standard. ReLU is max(0,x). Its derivative is exactly 1 for any positive input and exactly 0 for any negative one. There is no saturation on the positive side, so gradients pass through undiminished. The operation is a compare and a select, which is why it was cheap.</p>
+<p>The cost is the dead unit. If a unit's pre-activation is negative for every input in the training set, its gradient is exactly zero. The weights never move. Its own incoming weights and bias receive zero gradient and stay put, but the unit can revive if upstream weights or data shift its pre-activation above zero. While dead, its output is zero, so it contributes nothing to the next layer Take a unit with weight w=0.1 and bias b=−1. For inputs x=1,2,3, the pre-activations are 0.1−1=−0.9, 0.2−1=−0.8, and 0.3−1=−0.7. All are negative. The output is zero for every input, and the derivative is zero for every input. The gradient with respect to w and b is zero, so the unit stays dead.</p>
+<p>A single large learning-rate step can push a whole slice of units into that state. Suppose a unit has w=1 and b=0, and the training inputs are x=1 and x=2. The pre-activations are 1 and 2, both positive. A gradient step that sets b=−3 makes the pre-activations 1−3=−2 and 2−3=−1. Both are negative. The derivative is zero, so the unit cannot recover. Leaky ReLU and its relatives let a small fraction of the negative input through, which keeps a gradient alive. They never displaced plain ReLU in practice.</p>
+<p>GELU arrived in 2016 from Dan Hendrycks and Kevin Gimpel. Its construction is worth stating precisely because it explains why it behaves differently. GELU multiplies the input by the standard normal cumulative distribution function evaluated at that input: GELU(x)=xΦ(x). The standard normal CDF is Φ(x)=0.5(1+erf(x/√2)). So GELU(x)=0.5x(1+erf(x/√2)). Read that as a probabilistic gate. Φ(x) is the probability that a standard normal draw comes out below x. The unit's output is the input scaled by how likely that input is to be kept. For large positive x, Φ approaches 1 and GELU is the identity. For large negative x, Φ approaches 0 and GELU approaches zero from below; for any finite x it remains slightly negative with a small nonzero gradient, so GELU does not produce exact zero-gradient dead units the way ReLU does</p>
+<p>The derivative is Φ(x)+xφ(x), where φ(x) is the standard normal density. At x=0, Φ(0)=0.5 and φ(0)=0.3989, so the derivative is 0.5. At x=1, Φ(1)=0.8413 and φ(1)=0.2420, so GELU(1)=0.8413 and the derivative is 0.8413+0.2420=1.0833. At x=−1, Φ(−1)=0.1587 and φ(−1)=0.2420, so GELU(−1)=−0.1587 and the derivative is 0.1587−0.2420=−0.0833. At x=−2, GELU(−2)=−0.0455 and the derivative is 0.0228−0.1080=−0.0852. At x=−3, GELU(−3)=−0.0040 and the derivative is 0.00135−0.0133=−0.0119. At x=−4, the derivative is about −0.0005.</p>
+<p>The derivative is zero at the minimum near x=−0.75, and it approaches zero as x→−∞. GELU lacks ReLU's hard zero region, yet it saturates for large negative inputs. A unit whose pre-activation is consistently below −3 learns very slowly. The difference from ReLU is the smooth transition and the negative dip. For inputs just below zero, GELU outputs a small negative value, and the derivative stays nonzero until the minimum. That gives the unit a gradient signal in the region where ReLU would be flat. The dip helps because it keeps the unit responsive for moderately negative inputs, but it does not make the unit immortal. Practical dead-unit behavior still exists under GELU when the input distribution drives a unit far into the negative tail.</p>
+<p>The exact form needs the error function. The tanh approximation is 0.5x(1+tanh(√(2/π)(x+0.044715x³))). The factor √(2/π) matches the slope of erf(x/√2) at zero, and the cubic term improves the fit in the tails. At x=1, the exact value is 0.8413 and the approximation gives 0.84125. At x=−1, the exact value is −0.1587 and the approximation gives −0.15875. The maximum absolute difference over the range where the gradient is nonzero is on the order of 10⁻⁴. That is the sense in which the difference is negligible.</p>
+<p>GELU appeared in BERT (Devlin et al. 2018), and GPT-2 and GPT-3 followed. That adoption made it the default in many later models. The original GELU paper reported modest gains over ReLU and ELU on some tasks when substituted into fixed architectures; later adoption evidence does not separate architecture from activation It is smooth, it does not kill units outright, and it costs one transcendental function per element. That cost is more than a compare and select.</p>
+<p>The gated turn came from a different direction. Yann Dauphin and colleagues at Facebook AI Research introduced gated linear units in 2017 for convolutional language models. The idea is to split the up-projection into two halves and multiply them elementwise. Write the up-projection as a matrix W₁ of size 2m×d. Split W₁ into two d×m matrices, W_g for the gate and W_v for the value. The GLU is GLU(x)=(W_v x+b_v)⊗σ(W_g x+b_g), where ⊗ is elementwise multiplication. The gate half goes through a sigmoid and becomes a soft switch between 0 and 1. The value half passes through unchanged. The product is what the down-projection sees. The down-projection is a matrix W_d of size m×d.</p>
+<p>The mechanism is worth more attention than the benchmark table. In a plain feed-forward network, the output is a weighted sum of univariate functions of the input. Each hidden unit computes σ(w·x), and the next matrix adds those up. The gate changes that. If the gate unit computes g(x) and the value unit computes v(x), the contribution to the next layer is g(x)·v(x), a product of two functions of the input. That product can represent a multiplicative interaction. Suppose the input has two features a and b. Let the gate be g=σ(a) and the value be v=b. The product is σ(a)b. When a is negative, the gate is near 0 and the product is near 0. When a is positive, the gate is near 1 and the product is close to b. The value b passes only when a is present. That is the sense in which the gate is a soft switch. The gate and value are separate projections, so g_i and v_i can depend on different combinations of input features. If both were functions of the same scalar, the product would be univariate. The GLU uses separate projections to create the interaction.</p>
+<p>A sum of one-dimensional bends can approximate a product given enough width. The gated form builds the product into the layer with fewer parameters. That is an architectural shortcut.</p>
+<p>Noam Shazeer's 2020 paper, "GLU Variants Improve Transformer," took the construction and swapped the sigmoid for other activations. He tested ReLU, GELU and Swish as the gate. Swish is defined as Swish(x)=x·σ(x). The SwiGLU is SwiGLU(x)=(W_v x)⊗Swish(W_g x)=(W_v x)⊗(W_g x·σ(W_g x)). SwiGLU won on the T5 language-modeling benchmarks. Shazeer writes that he offers no explanation for the result and attributes the success to "divine benevolence" (Shazeer, 2020, arXiv:2002.05202).</p>
+<p>The price is a third matrix. The original Transformer (Vaswani et al. 2017) set the intermediate width to four times the model width. That choice became a default rather than a derivation. The plain feed-forward network is two matrices, one of size d×4d and one of size 4d×d. The weight count is 2·d·4d=8d² per layer. The multiply-adds per token are the same 8d². Now gate it. Two d×m matrices for the gate and value, plus one m×d down-projection matrix; each has dm parameters, so the total is 3dm. Holding the parameter count at 8d² requires 3dm=8d², so m=8d/3, about 2.67d. That is two-thirds of the original 4d width, a one-third reduction in width. The linear-layer multiply-adds land in the same place, since 3dm=8d²; the Swish gate adds a sigmoid and elementwise multiplications, so total FLOPs are somewhat higher Leave m at 4d instead and the layer grows from 8d² to 12d², a fifty percent increase in FFN parameters.</p>
+<p>Biases change the count slightly. The plain FFN has 4d biases in the up-projection and d in the down-projection, for 5d total. The gated FFN has two up-projection biases of size m each and one down-projection bias of size d, for 2m+d. With m=8d/3, that is 16d/3+d=19d/3, about 6.33d. So the gated layer has slightly more parameters when biases are present. Many modern models omit biases, which makes the equal-parameter calculation exact. Initialization does not change the count, but it changes whether the gate starts near open or closed.</p>
+<p>Implementations round 8d/3 up to a multiple that suits the kernel. For d=4096, the exact value is 10922.67. Rounding to a multiple of 256 gives 11008, which is 0.78% above the exact value. Llama 2 7B uses 11008. That is one concrete example; the overshoot depends on d and the chosen kernel/tensor-parallel multiple, so other models can sit closer to or much further above the exact value</p>
+<p>Where each activation still lives tells you what each one is good for. ReLU survives in vision models, in cheap inference stacks where a single compare beats a transcendental, and inside some mixture-of-experts implementations where the expert FFNs are kept deliberately simple. GELU is in BERT, GPT-2, GPT-3, ViT, and many of the models that inherited from them. SwiGLU is in PaLM (Chowdhery et al. 2022), Llama (Touvron et al. 2023), Mistral, and Qwen. GeGLU, the GELU-gated variant, appears where a team preferred it.</p>
+<p>My view is that SwiGLU won for a reason that is only half about quality. The gated form does seem to be better at equal parameters, and the multiplicative interaction is a real mechanism rather than a lucky initialization. The decisive fact is that Shazeer re-derived the intermediate width to keep the budget fixed, and that re-derivation changed the shape of gated feed-forward networks built afterwards. The activation itself is a small lever. The parameter accounting around it is the large one. The next chapter applies that counting to mixture-of-experts, where the FFN is split into many expert blocks.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Feed-forward network: d → m → d with a nonlinear bend" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Feed-forward network: d → m → d with a nonlinear bend</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">residual vector</text><text x="96.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x, width d</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">W₁ up-projection</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">intermediate</text><text x="524.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vector, width m</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">activation bend</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">W₂</text><text x="96.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">down-projection</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">output, width d</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">add back to</text><text x="524.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">residual stream</text></svg>
+<figcaption><strong>Feed-forward network: d → m → d with a nonlinear bend</strong> It shows the two-matrix pipeline and where the activation sits, including the residual add and the collapse without a bend.</figcaption>
+</figure>
+
+
+
+
+
+
+<nav class="chapter-nav">
+<a href="16-ffn.html">&larr; Where most of the parameters actually live</a><a href="18-normalization.html">Keeping the residual stream in range &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

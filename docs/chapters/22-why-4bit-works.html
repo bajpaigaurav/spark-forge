@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why four bits is enough</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">V. Precision &middot; Chapter 22</span>
+  <h1>Why four bits is enough</h1>
+  <p class="thesis">Weight quantization survives because the function a layer computes is robust to small perturbations, but activation quantization is a different and harder problem.</p>
+</header>
+
+<article class="prose">
+<p>The engine's /metrics endpoint reports tensorfold:device_memory_bytes = 111,515,771,428 bytes on 2026-10-31, which is 111.5 GB of unified memory shared by CPU and GPU. NVIDIA's DGX Spark hardware guide lists 273 GB/s of LPDDR5X bandwidth for that shared pool. The KV pool is 262,144 positions, set by CONTEXT=262144 in scripts/local.sh. The live container has PARALLEL=4 and TF_DS_STREAMS=4, so four streams share the pool. Each stream's equal share is 262,144/4 = 65,536 positions. Admission reserves the default reply budget of 32,768 tokens (MAX_TOKENS=32768), the decode round batch width ROUND_ROWS=16, and two guard positions. The per-stream ceiling is 65,536 - 32,768 - 16 - 2 = 32,750 tokens. The 18 positions beyond the reply budget are the admission overhead. Raising the pool to the native 1,048,576 positions gives 1,048,576/4 - 32,768 - 16 - 2 = 229,358 tokens per stream.</p>
+<p>The memory cost of that raise is 0.68 GiB per rank. scripts/config.sh gives 0.9 GiB per 1,048,576 positions per rank. The increment from 262,144 to 1,048,576 is 0.75 of the full window, so 0.9 * 0.75 = 0.675 GiB, rounded to 0.68 GiB per rank. A rank is one process holding a shard of the model and cache. The cited metrics do not give the rank count, so the per-rank figure is the unit to use; multiply by the number of ranks for the deployment total. The same config implies 0.9 GiB / 1,048,576 = 921.6 bytes per position per rank. With 16-bit keys and values, each element is 2 bytes and there are two tensors, so 921.6/4 = 230.4 stored elements per position per rank per tensor (460.8 total across the K and V tensors). The layer, KV-head and head-dimension product must equal that per-tensor effective count At four bits, each element is half a byte, so the same bytes hold four times the positions. The current 262,144-position pool would become 1,048,576 positions, and the per-stream ceiling would become 229,358.</p>
+<p>A transformer block takes a residual stream, normalizes it, runs self-attention, adds the attention output back, normalizes again, runs a feed-forward network, and adds that output. Attention forms queries, keys and values from the stream. Each output position is a softmax-weighted sum of value vectors. Layer normalization subtracts the mean across channels, divides by the standard deviation, then applies a learned scale and bias. Quantization maps a real value to a finite grid with a scale and sometimes a zero-point. Symmetric quantization uses a signed grid over [-m,m]; with an even number of levels, zero falls between two levels. Asymmetric quantization adds a zero-point so zero is exactly representable and the grid can cover [min,max]. Clipping sets values beyond m to ±m. Group size is the number of contiguous weights sharing a scale; smaller groups reduce outlier contamination and cost more scale bits.</p>
+<p>Take a symmetric four-bit group with m=1.0. Sixteen signed levels over [-1,1] have 15 intervals, so the step is 2/15 = 0.1333. The levels are -1, -0.8667, -0.7333, .. 1. A weight of 0.41 rounds to 0.4667, an error of +0.0567, which is less than half a step, 0.0667.</p>
+<p>Now the dot product. A linear layer computes y = sum_i w_i x_i over N terms. Quantize each w_i to q_i and let e_i = q_i - w_i. The output error is sum_i e_i x_i. Take N=4,096, a half-step of 0.067, and an input RMS of 0.5. Each term. If every e_i had the same sign and every x_i the same sign, the total would be 4,096 <em> 0.0335 = 137.2. If the e_i are independent with zero mean, the variance is sum_i Var(e_i x_i) plus covariance terms. With zero covariance, the standard deviation is at most sqrt(4,096) </em> 0.0335 = 64 * 0.0335 = 2.14; using the actual per-term std for uniform rounding, (step/√12)·x_rms ≈ 0.0385·0.5 ≈ 0.0192, gives ≈ 1.23. The ratio between the linear and quadrature totals is 64, the square root of N. That is the effect of independence.</p>
+<p>The quadrature step requires cov(e_i x_i, e_j x_j) to be near zero. Rounding error e_i is a deterministic function of the fractional part of w_i/step. For fixed rounding errors, Cov(e_i x_i, e_j x_j) = e_i e_j Cov(x_i, x_j), so the covariance is small only when either the rounding-error product is small or the corresponding inputs are uncorrelated; correlated inputs can keep it nonzero regardless of fractional-part/sign alignment GPTQ (Frantar, Ashkboos, Hoefler and Alistarh, 2022) uses a second-order approximation of the layer-wise reconstruction error to update the remaining weights after each rounding, so later weights compensate for earlier quantization errors. Its objective is ||WX - ŴX||^2 = (W-Ŵ) H (W-Ŵ)^T with H = XX^T. The Hessian tells you which directions in weight space change the layer output little. GPTQ rounds weights in an order that lets later weights compensate earlier errors, pushing error into low-curvature directions. AWQ (Lin and colleagues, 2023) scales weight channels with large activation magnitude before quantization so those channels get a finer effective quantization step, at the cost of reduced clipping headroom. Both methods are ways to handle correlated inputs and weights; neither makes the independence assumption true in general.</p>
+<p>The residual stream adds another layer. Each block adds its output to the stream, so the final logits are a sum of the embedding contribution and every block's contribution. If the weight errors in different blocks are independent, their contributions add in quadrature. Layer normalization sits between the stream and each block. Let x be the stream, μ its mean, σ its standard deviation, and δ a perturbation. The normalized vector is z = (x-μ)/σ. To first order, the perturbation in z is Δz = (δ - mean δ)/σ - z * (mean(z δ)/σ). The first term removes the mean shift. The second removes the component along z that would change the variance. The remaining perturbation is orthogonal to the constant vector and to z, with norm at most ||δ||/σ. Layer normalization does not make δ vanish. It projects out two directions and rescales by 1/σ. If σ is small, the perturbation can grow. Layer normalization normalizes the input to each block to a fixed scale before the learned scale and bias. The perturbation entering the next block is measured against that fixed scale, so it does not compound multiplicatively with the stream's magnitude. The residual connection adds block outputs; it does not multiply them.</p>
+<p>The bandwidth argument needs a roofline check. At batch one, decoding reads the weight matrix once per token and does little arithmetic per byte. The measured 59.1 tok/s at 273 GB/s implies 273e9 / 59.1 = 4.62e9 bytes per token, or 4.62 GB of bandwidth-equivalent traffic. Four-bit weights are half the bytes of eight-bit and a quarter of sixteen-bit, so the read time falls in proportion if nothing else binds. At concurrency four, if the four streams were fused into one weight read and KV traffic were negligible, the ceiling would be 4 * 59.1 = 236.4 tok/s; more generally, with KV reads scaling with batch, the ceiling is 4·BW/(W+4KV), below 4×. The measured 106.2 tok/s is 1.80x, so the engine gets partial reuse. The gap comes from KV traffic, attention math, and batch formation. The roofline moves from memory-bound toward compute-bound but does not reach the ideal 4x.</p>
+<p>Four is close to a floor for weights. At four bits the step is m/7. At three bits it is m/3. At two bits it is m If the largest weight in a group is about 3σ, the half-step at four bits is 0.2σ, at three bits 0.43σ, at two bits 1σ. Once the half-step approaches σ, rounding stops being a perturbation and starts being a different function. The exact quality depends on group size and model, so four is an empirical default rather than a theorem. The failure mode at four bits lives in the tail. Suppose a group has weights 0.1, 0.2, 0.3 and 4.0. The scale is m=4.0, the step is 2*4/15 = 0.533. The first three weights all round to 0.2667; the outlier sets the grid and the small weights collapse to one level. If the group is split so 4.0 is alone, the other three get m=0.3, step 0.04, and they are represented with much finer resolution. Group quantization gives separate scales to small blocks so one outlier contaminates only its own block.</p>
+<p>Activations have a different shape. LLM.int8() (Dettmers and colleagues, 2022) reported that a small set of hidden dimensions carries much larger magnitudes than the rest, and that the same dimensions recur across tokens in the batches they studied. A single per-tensor scale set by an outlier makes ordinary channels coarse. If an ordinary channel's values are mostly positive and the grid step is larger than their spread, they all round to the same level. The error is level minus value, with the same sign across tokens. That is a bias. Averaging over more tokens reduces the variance of independent noise and does nothing to a bias. The correlation comes from the shared scale and from the channel's own distribution, not from a claim that every token in every sequence is identical.</p>
+<p>SmoothQuant (Xiao, Lin, Seznec, Wu, Demouth and Han, 2022) moves the difficulty from activations to weights. Take activation channel j with values around 10 and weight column j with values around 0.1. The product is 1. Scale the activation down by s=0.1 and the weight up by 1/s=10. The activation becomes 1, the weight becomes 1, and the product is still 1. The activation dynamic range is reduced by 10, the weight range is increased by 10, and the product is unchanged. Choose s to balance activation and weight quantization error; equalizing the two ranges is the special case α=0.5, but α is tuned because over-migrating outliers into weights can hurt 4-bit weight accuracy Per-token scaling gives each token's activation vector its own scale, so a token with a large outlier does not set the step for other tokens. That removes token-to-token correlation from the scale. Channels within a token can still be correlated. Four-bit activations need outlier handling and per-token scaling; the methods are not interchangeable with weight-only quantization.</p>
+<p>Keys and values fail differently. The output of an attention head is a weighted average of value vectors whose weights sum to one. If value errors e_j were independent across positions, the error variance would be sum_j a_j^2 Var(e_j), and the errors would average in quadrature. Positions are correlated through attention and context, so e_j can covary. Per-token value quantization removes the shared-scale source of correlation, not all of it. Keys are compared against queries and passed through a softmax. For two logits 0 and 0, p=(0.5,0.5). Perturb the first logit by 0.1. The new p1 is e^0.1/(e^0.1+1) = 0.525, a change of 0.025. The first-order formula is p1(1-p1)Δ = 0.5<em>0.5</em>0.1 = 0.025. A key error changes an attention weight by p(1-p)Δ, with the largest effect near p=0.5. Keys also carry channel-outlier structure, with certain dimensions consistently large across positions. KIVI (Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen and Hu, 2024) quantizes keys per-channel and values per-token. The axis you can average over decides the format. For values it is the token axis. For keys it is the channel axis.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 660 236" width="100%" role="img" aria-label="Quantization error in a dot product: aligned vs independent" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Quantization error in a dot product: aligned vs independent</title><text x="162.0" y="20" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="12" font-weight="600" fill="var(--accent, #b4532a)" text-anchor="middle">first configuration</text><text x="498.0" y="20" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="12" font-weight="600" fill="var(--accent, #b4532a)" text-anchor="middle">second configuration</text><rect x="12" y="34" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="60.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">N = 4,096 terms</text><rect x="12" y="94" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="114.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">per-term bound = 0.067 × 0.5 =</text><text x="162.0" y="127.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.0335</text><rect x="12" y="154" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="174.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">aligned total = 4,096 × 0.0335 =</text><text x="162.0" y="187.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">137.2</text><rect x="348" y="34" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="498.0" y="54.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">independent std = sqrt(4,096) ×</text><text x="498.0" y="67.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">0.0335 = 2.14</text><rect x="348" y="94" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="498.0" y="120.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">ratio = 64 = sqrt(N)</text></svg>
+<figcaption><strong>Quantization error in a dot product: aligned vs independent</strong> It shows the structural difference between worst-case aligned error accumulation and independent zero-mean error accumulation over N terms.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">1.80x</td><td class="ps">derived: 106.2 / 59.1</td><td class="pc">Aggregate throughput multiplier from 1 to 4 concurrent streams.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">32,750 tokens</td><td class="ps">derived: POOL/PARALLEL - MAX_TOKENS - ROUND_ROWS - 2 = 65536 - 32768 - 16 - 2</td><td class="pc">Equal-split per-stream context ceiling under admission reservation.</td></tr><tr><td class="pv">229,358 tokens</td><td class="ps">derived: 1048576/4 - 32768 - 16 - 2</td><td class="pc">Per-stream ceiling if POOL were raised to 1,048,576.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="21-quantization.html">&larr; Four bits and the outlier problem</a><a href="23-logits.html">From a vector to a word &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The one lane everything writes into</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">I. The raw material &middot; Chapter 03</span>
+  <h1>The one lane everything writes into</h1>
+  <p class="thesis">Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks.</p>
+</header>
+
+<article class="prose">
+<p>In 2015 Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun at Microsoft Research put "Deep Residual Learning for Image Recognition" on arXiv, and it was published at CVPR in 2016. The idea inside it is one of the key enabling ingredients that lets you train a transformer with forty layers instead of four; normalization, initialization, attention scaling, and optimization also matter They were training convolutional networks on ImageNet and hit a wall that had nothing to do with overfitting. In the 2015 ResNet paper, a 56-layer plain network on CIFAR-10 had higher training error than a 20-layer plain network on the same data; on ImageNet, a 34-layer plain net had higher validation error than an 18-layer one. Overfitting would show up as a gap between training and test error; here the training loss itself refused to come down. Adding layers had made the optimization problem harder.</p>
+<p>The fix was to stop asking a block to compute the whole transformation. Each block computes a correction F(x), and the layer outputs F(x) + x. The original input is added back, unchanged, at every block.</p>
+<p>Why that trains is a statement about the backward pass. A Jacobian is the matrix of partial derivatives of a vector output with respect to a vector input. Its spectral norm is its largest singular value, which bounds how much it can stretch a vector. For a plain stack, the gradient reaching the first block is a product of L Jacobians. If each has spectral norm s, the product has norm at most s^L. For two layers with s=0.9, the product norm is at most 0.81; with s=1.1, at most 1.21. At 56 layers, the bound is about 0.003 and 208 The first vanishes, the second explodes.</p>
+<p>With the residual, the layer map is x_{l+1}=x_l+F_l(x_l). Its Jacobian is I + J_l, where J_l is the Jacobian of F_l. The product over L layers is ∏(I+J_l). Expand for two layers: (I+J_1)(I+J_2)=I+J_1+J_2+J_1J_2. For L layers, the product is I plus every ordered product of a subset of the J_l, including the empty product I. The identity path has derivative exactly I. Even if each J_l is small, that term still delivers a gradient to the first layer. The expansion is usable when the J_l are small enough that the higher-order products do not dominate; initialization and normalization are chosen to keep them small at the start. He et al. trained a 110-layer ResNet on CIFAR-10 and a 152-layer one on ImageNet, so depth stopped being a gamble.</p>
+<p>They were not first. Srivastava, Greff and Schmidhuber published highway networks earlier in 2015, with y=T(x)H(x)+(1-T(x))x, where T is a learned gate. ResNet dropped the gate and used a bare identity. A plain addition has no parameters, cannot be trained to close itself off, and costs nothing. The gated version could learn something richer, but the ungated one scaled further in practice.</p>
+<p>Vaswani and colleagues built the 2017 transformer on the same spine. Every sublayer in the encoder and decoder ends by adding its output to its input. Encoder layers have two residual sublayers—self-attention and the feed-forward network—so the encoder stream is written to twice per layer. Decoder layers have three—masked self-attention, cross-attention, and the feed-forward network—so the decoder stream is written to three times per layer.</p>
+<p>Here is where the picture changes. It is natural to draw a transformer as a stack of blocks, each handing a transformed representation to the next, the way a CNN hands feature maps up a hierarchy. That drawing misses the object that persists. There is one vector per token, its width is set once and never changes, and it lasts from the embedding lookup to the final unembedding. Attention and the feed-forward network do not replace it. They read from it and add to it.</p>
+<p>Concretely, attention projects the stream three ways into queries, keys and values. Each head computes a weighted sum over the values at all positions up to and including the current one (causal masking blocks only future positions). The heads' outputs are concatenated, projected back up to the stream's width by an output matrix, and added. The feed-forward network reads the stream, expands it into a wider hidden layer, applies a nonlinearity, projects back down, and adds. Neither sublayer carries state from one layer to the next. The only thing that survives the whole depth is the stream itself.</p>
+<p>The division of labor is clean. Attention is the only operation that moves information between positions; everything else in the block is per-token. The feed-forward network is where a token does its own computation, reading what attention brought in and writing conclusions back. Because the width never changes, any sublayer can read the stream at any depth without an adapter. The unembedding matrix at the end can be applied to the stream after layer three, provided the final layer norm is applied first, just as mechanically as after layer forty. That is what makes the stream a bus rather than a pipeline. Every component is wired to the same lane, at the same gauge. It is also why deleting a layer at inference time can still yield coherent text. Deleting a block removes the sublayer computation and its write; the identity path still carries the stream forward, but every later block now reads a different vector. Coherence after deletion is an empirical property of trained networks, not a theorem.</p>
+<p>The placement of layer normalization determines what the stream looks like. The 2017 paper put the norm after the residual addition, so each block computed LayerNorm(x+Sublayer(x)). That renormalizes the stream at every layer, keeping its magnitude bounded, but it also puts a rescaling operation directly in the identity path. Post-norm transformers in practice used learning-rate warmup. GPT-2 in 2019 used pre-norm instead, normalizing the input to the sublayer and then adding the sublayer's raw output to the unnormalized stream. Xiong and colleagues analyzed the two arrangements in 2020 and showed that pre-norm gives better-behaved gradients at initialization, which is why warmup can be dropped. GPT-3 in 2020 and LLaMA in 2023 also use pre-norm.</p>
+<p>The gradient argument is worth writing out. For pre-norm, the block is y=x+F(N(x)). Its Jacobian is I+J_F J_N. The identity term I is separate; the LayerNorm Jacobian J_N multiplies only the branch. For post-norm, the block is y=N(x+F(x)). Its Jacobian is J_N(I+J_F)=J_N+J_N J_F. The identity path is multiplied by J_N. LayerNorm's Jacobian is not the identity. With scale γ=1 and ignoring the derivative of the variance for a moment, it is (1/σ)(I-(1/n)11^T), which subtracts the mean and scales the mean-zero part by 1/σ. That factor sits on the identity gradient path in post-norm but not in pre-norm; in pre-norm it multiplies only the sublayer branch At initialization, if the sublayer output is scaled small, J_F is small and the identity term dominates in pre-norm. That is the mechanism behind the warmup difference.</p>
+<p>The consequence is that the stream is never renormalized. Every sublayer adds its output, so the norm of the stream grows with depth. If each write has variance v and the writes are independent, the sum of L writes has variance Lv and standard deviation √(Lv). With v=0.01 and L=40, the per-coordinate standard deviation is 0.1√40, about 0.63; the L2 norm also scales with √width. Positively correlated writes grow faster; negative correlations can make the variance grow more slowly A final norm before the unembedding has to undo that growth. This is a real wart. Wang and colleagues at Microsoft proposed DeepNorm in 2022, with x_{l+1}=LN(α x_l+G_l(x_l)), α=(2N)^{1/4}, and sublayer initialization scaled by β=(2N)^{-1/4}. They trained post-norm transformers with a thousand layers. DeepNorm shows post-norm can be trained at that scale with a different residual scaling; it did not settle the practical choice.</p>
+<p>The fixed width has a cost that shows up in interpretability work. Every attention head and every feed-forward neuron writes into the same vector. There is no separate channel for separate concepts. Elhage and colleagues at Anthropic described the stream in 2021 as a communication channel of limited bandwidth, and in their 2022 work on superposition they showed what happens when a model needs to represent more features than the channel has dimensions. A toy case makes the interference concrete. Take a two-dimensional stream and three unit features placed at 0°, 120° and 240°. The dot product between any two feature directions is cos 120° = -0.5. If the stream holds a u1 + b u2 + c u3, reading feature 1 by projecting onto u1 gives a -0.5b -0.5c. The other features leak into the readout. The model can represent three features in two dimensions, but it pays interference. Width bounds how many linearly independent directions the stream can carry, and hence how many orthogonal features it can represent; superposition lets the model represent more features than that by using non-orthogonal directions, at a cost in interference Whether width is the binding constraint in a given model is an empirical question, but the arithmetic sets a hard ceiling on orthogonal features.</p>
+<p>That same additivity is what makes the model tractable to inspect, with a caveat. At block boundaries the final stream is a sum of terms, and each term came from a specific head or neuron. But each write is a nonlinear function of the stream, so the terms are not independent. Zeroing a component changes the inputs to later sublayers and therefore changes their writes. Attribution is local and approximate. You can project a single term through the final layer norm and the unembedding and ask what it alone would predict, but the final norm blocks a clean linear decomposition. LayerNorm is nonlinear. Take x=(2,0), a=(1.5,0.5), b=(0.5,-0.5), γ=1, β=0. For x, the mean is 1 and the standard deviation is 1, so LN(x)=(1,-1). For a, the mean is 1 and the standard deviation is 0.5, so LN(a)=(1,-1). For b, the mean is 0 and the standard deviation is 0.5, so LN(b)=(1,-1). Then LN(a)+LN(b)=(2,-2), while LN(a+b)=LN(x)=(1,-1). The norm does not commute with addition. A logit lens that applies the final norm and then the unembedding is not a sum of per-term logits. To attribute a term, you linearize the norm at the actual stream, or you compare ablations. Meng and colleagues used causal tracing (activation patching) in 2022 to follow factual associations through the layers.</p>
+<p>The logit lens, posted by nostalgebraist in 2020, is the cleanest demonstration. Take the stream at an intermediate layer, apply the final layer norm and the unembedding matrix, and read off a distribution over next tokens. Early layers produce a broad, high-entropy distribution. Middle layers produce plausible continuations. Late layers sharpen them. The model has a usable guess long before its last layer, and the remaining depth refines it.</p>
+<p>That lens works when the stream stays in a consistent basis across depth. A basis here means the coordinate system in which the stream vector is expressed. If the map from layer l to the final stream changes with l, applying the final unembedding early reads the vector in the wrong coordinates. Pre-norm helps because it leaves the stream unnormalized and preserves a clean identity path, but it does not guarantee a fixed basis. Belrose and colleagues introduced the tuned lens in 2023, training a small affine map per layer before the unembedding. In their paper, the tuned lens reported lower KL divergence from the model's final distribution than the raw logit lens across the layers they tested. That improvement is consistent with basis drift, but it does not isolate drift as the cause. A trained affine map also adds capacity that the raw unembedding lacks. You would need a capacity-matched probe to separate the two.</p>
+<p>For scale, consider what this looks like in a running engine. The /metrics endpoint reported 111,515,771,428 bytes, or 111.5 GB, of unified memory on 2026-10-31, covering weights, caches and live streams. The KV pool is set to 262,144 positions by CONTEXT=262144 in scripts/local.sh and rank1 --pool 262144. The config uses 0.9 GiB per 1,048,576 positions per rank, so 262,144 positions cost 0.9 × 262,144 / 1,048,576 = 0.225 GiB per rank. In a sampled window of 98 requests, the mean prompt was 130,659 tokens and the mean prefill took 3.33 seconds. The aggregate prefill rate is total prompt tokens divided by total prefill seconds, 39,237 tok/s over that sample. The mean prompt divided by mean prefill gives the same number because both averages use the same count. That number is a ratio of totals; it is not the mean of per-request rates.</p>
+<p>During prefill, every one of those 130,659 tokens has a live stream vector at whatever layer is currently being computed, and each layer reads and writes that vector twice. The stream is transient. It exists only for tokens in flight. The KV cache is persistent. It holds keys and values for every position in the context across the whole generation. At width d and two bytes per element, the live stream for 130,659 tokens costs 130,659 × d × 2 bytes. Take d=4,096 as an illustration. That is 130,659 × 8,192 = 1,070,358,528 bytes, about 1.07 GB. At d=4096, a single K or V tensor for 262,144 positions is 2 GiB; the full KV pool per rank is 262,144 × d × 2 bytes × 2 × L / TP, which is far larger than 0.225 GiB unless L and TP are specified. The stream is small beside the 111.5 GB total, but at long context it is the part that decides how many tokens can be pushed through at once, because it scales with the number of tokens in flight while the KV pool scales with the number of positions reserved.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Residual block: one shared lane with an identity path" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Residual block: one shared lane with an identity path</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l (input</text><text x="96.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vector)</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">residual branch</text><text x="310.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">F_l(x_l)</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">identity skip</text><text x="524.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="44.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">addition</text><text x="738.0" y="57.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">F_l(x_l) + x_l</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_{l+1} (output</text><text x="96.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">vector)</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="139.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">backward</text><text x="310.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">gradient path</text><text x="310.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">through identity</text><text x="310.0" y="178.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">I</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="145.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">backward</text><text x="524.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">gradient path</text><text x="524.0" y="171.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">through J_l</text></svg>
+<figcaption><strong>Residual block: one shared lane with an identity path</strong> It shows the forward dataflow and backward gradient path that the prose describes sequentially: x branches into F(x) and an unchanged identity, then rejoins by addition.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">3.33 s</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td><td class="pc">Mean prefill duration per request.</td></tr><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="02-embeddings.html">&larr; A vector is a coordinate, not a meaning</a><a href="04-before-attention.html">The bottleneck attention was invented to fix &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

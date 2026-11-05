@@ -1,0 +1,22 @@
+{
+  "decode_tps": 3.0245720160421614,
+  "prefill_tps": 697.1673584819597,
+  "cache_hit": 0.9688965836571176,
+  "mtp_accept": 0.6751662971175167,
+  "running": 1.0,
+  "waiting": 0.0,
+  "kv_usage": 0.0,
+  "device_mem": 112130761252.0,
+  "mem_avail": 5952659456.0,
+  "gpu_temp": 55.0,
+  "gpu_power": 9.89,
+  "sm_clock": 2190.0,
+  "gpu_util": 0.0,
+  "pair_stall_ms": 120000.0,
+  "requests_total": 2200.0,
+  "cache_hit_cumulative": 0.6227654192196206,
+  "mtp_accept_cumulative": 0.7382752018606662,
+  "chapters_total": 31,
+  "chapters_published": 31,
+  "chapters_pending": 0
+}

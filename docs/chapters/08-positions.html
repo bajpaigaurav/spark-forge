@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attention has no idea where it is</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">II. Attention &middot; Chapter 08</span>
+  <h1>Attention has no idea where it is</h1>
+  <p class="thesis">Self-attention is permutation invariant, so position has to be injected deliberately, and the four generations of doing so explain a lot of modern behaviour.</p>
+</header>
+
+<article class="prose">
+<p>Take "the dog bit the man", run it through one bidirectional self-attention layer, then run "man the dog the bit" through the same layer. Compare the two outputs. Every vector from the first run appears in the second. The set is identical. Only the ordering changed.</p>
+<p>That follows from the arithmetic for a layer with no mask. For token i the layer produces a weighted average of value vectors, where the weight on token j is the softmax over q_i · k_j / √d_k across all j. Permute the input by some π and every query, key and value travels with its token. The collection of dot products is the same collection, so the softmax normalises over the same numbers and assigns the same weights, so the output that used to sit at position i now sits at position π(i). Unmasked self-attention is equivariant to permutation. No index is read in the score.</p>
+<p>Decoder self-attention is different. A causal mask adds negative infinity to score i,j when j is greater than i, so token i can attend only to j less than or equal to i. The mask depends on i and j, so permuting tokens changes which pairs are allowed. A three-token example makes the break visible. Use scalar queries q=(1,2,3), keys k=(1,0,1), and values v=(10,20,30). Without a mask, token 2 scores against all keys as (2,0,2); softmax gives (0.468,0.063,0.468) and output 19.98. With a causal mask, token 2 sees only keys 1 and 2, scores (2,0); softmax gives (0.881,0.119) and output 11.19. Move token 2 to first position and the allowed set changes again. The bag-of-tokens claim holds only for unmasked attention. A decoder is order-sensitive by construction.</p>
+<p>The consequence is blunt for a transformer with no positional signal and no mask. It sees a bag of tokens. "Dog bites man" and "man bites dog" are the same input to it. Word order has to be inserted deliberately, and the four generations of doing that insertion explain a surprising amount of how modern models behave at long context.</p>
+<p>The first generation is the sinusoidal encoding of Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser and Polosukhin, published as "Attention Is All You Need" in 2017. For dimension pair i and position p they set one slot to sin(p / 10000^(2i/d)) and the next to cos of the same argument. The wavelengths form a geometric ladder. The fastest pair completes a full cycle every 2π positions; the slowest takes roughly 10000·2π. The design has a property worth pausing on. Because sin(a+k) equals sin a cos k plus cos a sin k, and cos(a+k) equals cos a cos k minus sin a sin k, the pair at position p+k is the pair at p multiplied by the matrix [[cos k, sin k], [-sin k, cos k]]. For k=1 and p=1, the pair (sin 1, cos 1) is (0.841,0.540); the matrix [[0.540,0.841],[-0.841,0.540]] gives (0.908,-0.415), which is (sin 2, cos 2). The map depends only on k. A linear projection inside the attention layer can therefore learn to compare tokens by offset rather than by absolute address. The property gives a route, not a guarantee. The projections are fit on a finite range; at longer positions the phase pattern enters combinations not present in training, and high-frequency pairs wrap many times. The original paper trained and tested within a fixed range, so the property was a hope rather than a demonstrated long-context result.</p>
+<p>The second generation dropped the sinusoids for a lookup table. BERT (Devlin, Chang, Lee and Toutanova, 2018) and GPT-2 (Radford, Wu, Child, Luan, Amodei and Sutskever, 2019) learned one vector per position and added it to the token embedding. This works well inside the training length. At position 1025 in a table built for 1024 positions there is no row. Clamping reuses a trained row, typically the last one, at an untrained position; inventing a row feeds a vector the model never trained on. Either way, the model sees a position encoding outside its training distribution A learned table also entangles where a token is with what it is. The same word at position 5 and position 500 arrives at the first layer wearing different vectors. Because the position vector occupies the same dimensions as the token embedding, downstream layers that need position-invariant content must disentangle it from position; layers can also use the entangled signal, so this is a capacity trade-off rather than a hard requirement</p>
+<p>The third generation made position relative. Shaw, Uszkoreit and Vaswani proposed relative position representations in 2018, adding a learned vector indexed by the clipped offset i−j to each key before the dot product. The score becomes q_i · (k_j + a_clip(i−j,−k,k)), which equals q_i · k_j plus q_i · a_clip(i−j,−k,k). Offsets beyond the maximum distance k share the same vector. Transformer-XL (Dai, Yang, Yang, Carbonell, Le and Salakhutdinov, 2019) built a similar bias out of sinusoids. The extra term is computable. It is not a plain q·k product, so you cannot fold the whole thing into one matmul over cached keys. A cached key vector no longer suffices because the same key needs a different added term for every query position. For a new query i, the q_i·k_j scores are one matmul over cached keys, but the relative term needs q_i·a_{i−j} for each j. Naively that is O(nd) multiply-adds; with clipped offsets there are at most 2k+1 distinct a_r, so you can compute q_i·a_r for all r in O(kd) as a separate matmul against the relative-embedding table, then add the appropriate scalar bias to each of the n scores in O(n). So the whole score is not one matmul over cached keys alone</p>
+<p>Rotary position embedding arrived in April 2021 from Jianlin Su and colleagues, in "RoFormer: Enhanced Transformer with Rotary Position Embedding". It applies a rotation instead of an addition. Take the query and key vectors, split them into pairs of dimensions, and for pair m rotate the two components by an angle proportional to position, with frequency θ_m = 10000^(−2m/d). Do the same to the key at its own position. Consider one pair with frequency θ. A query whose unrotated value is (1,0), sitting at position i, becomes (cos iθ, sin iθ). A key with the same unrotated value at position j becomes (cos jθ, sin jθ). Their dot product is cos iθ cos jθ plus sin iθ sin jθ, which is cos((i−j)θ). The absolute positions vanished. For general q and k the pair dot is a linear combination of cos and sin of (i−j)θ, still a function of offset alone. The full dot product is a sum over pairs of linear combinations of cosines and sines of the offset at a spread of frequencies Position enters the score as a function of distance and nothing else.</p>
+<p>Press, Smith and Lewis published ALiBi in 2021, in "Train Short, Test Long". ALiBi adds no positional vector at all. It subtracts a penalty proportional to distance from the attention score, m_h·|i−j|, with a different slope m_h for each head. For n heads, m_h = 2^(−8h/n) for h from 1 to n. For 8 heads the slopes are 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128 and 1/256. The sequence is geometric because each head's penalty slope sets its effective range, and multiplicative spacing covers a log scale. A head with m=1/2 drops a score by 0.5 per token of distance; at 100 tokens the penalty is 50. A head with m=1/256 drops 0.39 at 100 tokens. Softmax turns that into near-zero weight for far tokens in fast-decay heads. Because the penalty grows linearly, far scores go to negative infinity; there is no periodic ambiguity. That is why ALiBi avoids RoPE's unscaled long-range failure.</p>
+<p>RoPE became the default for mechanical reasons. The rotation is applied to the query and key once, at the moment they are produced, so the cached key is already rotated and the cache stays an ordinary matrix. It adds no parameters. And it exposes a knob, the base 10000, which turns out to be tunable at inference time. ALiBi is simpler and extrapolates more gracefully out of the box; its fixed linear decay does not blow up past the training length the way an unscaled rotation does. But ALiBi offers no equivalent knob. By early 2023 LLaMA (Touvron, Lavril, Izacard and colleagues) had adopted RoPE, many derivative models followed, and kernel libraries standardised around it. Adoption is evidence about tooling and pretrained weights, not proof RoPE is better at every length.</p>
+<p>The knob is where the modern story lives. If you want a model trained on a shorter window to handle a longer one, the naive fix is position interpolation, published by Chen, Wong, Chen and Tian in 2023. Divide every position by a scale factor s so the extended sequence occupies the same angular range the model was trained on. It works, but with a cost. Take a training length L=1024 and a token at p=2048, with s=2. The interpolated position is 1024. For θ=0.01, the angle goes from 20.48 radians to 10.24 radians. Adjacent long-range tokens p=2048 and p=2049 become 1024 and 1024.5, so the angle gap is 0.005 instead of 0.01. Low-frequency dimensions lose the resolution that distinguishes them</p>
+<p>NTK-aware scaling, circulated by bloc97 in 2023 as a community post rather than a paper, fixes that by changing the base instead of the positions. Raise the base and the frequency ladder stretches unevenly. The formula is b' = b·s^(d/(d−2)). For d=128 and s=2, the exponent is 128/126=1.016, so b'=10000·2^1.016=20220. The per-frequency effect is θ_m' = b^(−2m/d)·s^(−2m/(d−2)). The fastest dimension m=0 stays at θ=1. The slowest pair m=63 goes from 10000^(−126/128)≈1/8660 to about 1/17320. Fast dimensions barely move; slow ones stretch a great deal.</p>
+<p>YaRN (Peng, Quesnelle, Fan and Shao, 2023) refined this into a per-dimension ramp between interpolated and extrapolated behaviour. Let λ_m=2π/θ_m and r_m=L/λ_m. With α=1 and β=32, the ramp is γ_m=clamp((r_m−α)/(β−α),0,1). When γ_m=0 the dimension is interpolated; when γ_m=1 it is extrapolated; values between blend the two angles. YaRN also adds a temperature correction on the attention logits because stretching changes the entropy of the softmax. The correction is t=0.1·ln(s)+1, and the logits are multiplied by 1/sqrt(t). For s=2, t=1.069 and the scale is 0.967. For s=8, t=1.208 and the scale is 0.910.</p>
+<p>What breaks when you stretch is easiest to see in the slowest dimensions. Those pairs complete less than one full rotation across the training window. Push past it and two positions far apart map to nearly the same angle, so the model cannot separate them in that subspace. The fast dimensions keep working, which is why extended models still produce fluent local text while quietly losing the ability to track a fact from the beginning of a long document. No amount of rescaling creates information the model never learned.</p>
+<p>Positional encoding sets what the model can distinguish. The KV cache sets what you can afford to store. A KV cache stores key and value vectors for past tokens so decode does not recompute them. Memory scales with positions. In general, KV bytes equal 2 × layers × kv_heads × head_dim × dtype_bytes × positions divided by tensor_parallel. The factor 2 is K and V; layers, kv_heads, head_dim and dtype set bytes per position; tensor parallel divides the cache across ranks. On the measured engine, the serving pool holds 262,144 positions against a native window of 1,048,576. Raising the pool to the full window costs about 0.68 GiB per rank. The arithmetic uses the config figure of 0.9 GiB per 1,048,576 positions per rank. Extra positions are 1,048,576−262,144=786,432. The fraction is 786,432/1,048,576=0.75. Extra memory is 0.9×0.75=0.675 GiB, rounded to 0.68 GiB per rank.</p>
+<p>Admission reserves space before a request runs. With 4 streams, the equal share of the pool is 262,144/4=65,536 positions. The default reply budget is 32,768 tokens, the decode round batch width is 16 rows, and two rows are reserved. The per-stream ceiling is 65,536−32,768−16−2=32,750 tokens. If the pool were raised to 1,048,576, the share would be 262,144 positions per stream, and the ceiling would be 262,144−32,768−16−2=229,358 tokens.</p>
+<p>On the measured pair the engine holds 111.5 GB of unified memory, with LPDDR5X at 273 GB/s shared by CPU and GPU. Under load the SM clock reads 2,197 MHz against a 3,003 MHz ceiling. Single-stream decode is 59.1 tok/s; four concurrent streams aggregate 106.2 tok/s, a 1.80x multiplier. Prefill runs at 39,237 tok/s over 98 requests. Prefix caching covers 95.9% of prompt tokens, which removed 313 s of prefill. Draft acceptance is 67.6%. Mean time to first token is 3.46 s, mean prefill 3.33 s, and mean decode 8.38 s. The sampled requests average 130,659 prompt tokens and 607 generated tokens. Pair stall has accumulated 120,000 ms, and memguard kills a rank below 2.5 GiB available.</p>
+<p>At 262,144 positions the pool is 786,432 positions short of the native window, and closing that gap costs 0.675 GiB per rank.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 660 236" width="100%" role="img" aria-label="Sinusoidal vs learned positional encoding" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Sinusoidal vs learned positional encoding</title><text x="162.0" y="20" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="12" font-weight="600" fill="var(--accent, #b4532a)" text-anchor="middle">first configuration</text><text x="498.0" y="20" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="12" font-weight="600" fill="var(--accent, #b4532a)" text-anchor="middle">second configuration</text><rect x="12" y="34" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="54.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Sinusoidal encoding (Vaswani et</text><text x="162.0" y="67.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">al., 2017)</text><rect x="12" y="94" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="120.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Learned lookup table (BERT, GPT-2)</text><rect x="12" y="154" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="162.0" y="180.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Geometric wavelength ladder</text><rect x="348" y="34" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="498.0" y="60.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Rotation by offset k</text><rect x="348" y="94" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="498.0" y="120.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">Fixed rows for positions 1..1024</text><rect x="348" y="154" width="300" height="46" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="498.0" y="180.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">No row at position 1025</text></svg>
+<figcaption><strong>Sinusoidal vs learned positional encoding</strong> Shows the structural difference between a continuous sinusoidal scheme with offset rotation and a fixed-length learned lookup table.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td></tr><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">2,197 MHz</td><td class="ps">nvidia-smi clocks.sm, 2026-10-31 01:0x</td><td class="pc">Observed SM clock under load. Silicon max is 3003 MHz.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">1.80x</td><td class="ps">derived: 106.2 / 59.1</td><td class="pc">Aggregate throughput multiplier from 1 to 4 concurrent streams.</td></tr><tr><td class="pv">39,237 tok/s</td><td class="ps">derived: prompt_tokens_total / request_prefill_seconds_sum from /metrics</td><td class="pc">Prefill throughput over 98 sampled requests.</td></tr><tr><td class="pv">95.9%</td><td class="ps">derived: prefix_cache_hits_total / prefix_cache_queries_total = 12,285,952 / 12,804,579</td><td class="pc">Cached prompt tokens as a share of all prompt tokens.</td></tr><tr><td class="pv">313 seconds</td><td class="ps">derived: 12,285,952 cached tokens / 39,237 tok/s prefill rate</td><td class="pc">Prefill time the cache removed over the sampled window.</td></tr><tr><td class="pv">67.6%</td><td class="ps">derived: mtp_accepted_total / mtp_drafted_total = 42,181 / 62,390</td><td class="pc">DSpark draft acceptance rate.</td></tr><tr><td class="pv">3.46 s</td><td class="ps">derived: time_to_first_token_seconds_sum / _count over 98 requests</td><td class="pc">Mean time to first token.</td></tr><tr><td class="pv">3.33 s</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td><td class="pc">Mean prefill duration per request.</td></tr><tr><td class="pv">8.38 s</td><td class="ps">derived: request_decode_seconds_sum / _count over 98 requests</td><td class="pc">Mean decode duration per request.</td></tr><tr><td class="pv">130,659 tokens</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td><td class="pc">Mean prompt length in the sampled window.</td></tr><tr><td class="pv">607 tokens</td><td class="ps">derived: generation_tokens_total / request count = 59,476 / 98</td><td class="pc">Mean generated tokens per request.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">4 streams</td><td class="ps">PARALLEL=4, TF_DS_STREAMS=4 in the live container env</td><td class="pc">Concurrent request slots.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">120,000 ms</td><td class="ps">tensorfold:pair_stall_ms from /metrics</td><td class="pc">Cumulative pair stall recorded since start.</td></tr><tr><td class="pv">2.5 GiB</td><td class="ps">memguard.sh run ... 2.5 ... in the live process list</td><td class="pc">MemAvailable floor below which memguard kills a rank.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">3,003 MHz</td><td class="ps">GB10 silicon maximum SM clock, NVIDIA DGX Spark documentation</td><td class="pc">Hardware ceiling; the thermal design holds the part well below it.</td></tr><tr><td class="pv">16 rows</td><td class="ps">ROUND_ROWS=16, the pinned kit's maximum row kernel</td><td class="pc">Decode round batch width.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="07-softmax.html">&larr; The function that turns scores into shares</a><a href="09-quadratic-wall.html">The cost that defines the field &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

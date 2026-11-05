@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual memory for the KV cache</title>
+<style>
+:root {
+  --paper: #f6f3ec;
+  --ink: #1c1a16;
+  --ink-soft: #55504a;
+  --rule: #d8d2c6;
+  --accent: #8a3324;
+  --code-bg: #ebe6da;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) * 1.6);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- frontispiece ---- */
+.frontis {
+  margin: 0 0 3.5rem;
+  padding: 2.5rem 0 0;
+}
+.frontis p {
+  max-width: var(--measure);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1.3rem;
+}
+.frontis p.lead {
+  font-size: 1.22rem;
+  line-height: 1.55;
+}
+.frontis .drop::first-letter {
+  float: left;
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+.rule-short {
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--accent);
+  margin: 2.5rem 0;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 3px double var(--rule);
+  padding: 3.5rem 0 1.75rem;
+  margin-bottom: 3rem;
+}
+.masthead .kicker {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.masthead h1 {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.015em;
+}
+.masthead .standfirst {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 32rem;
+  font-style: italic;
+}
+
+/* ---- parts ---- */
+.part { margin: 0 0 3rem; }
+.part-title {
+  font-size: 0.72rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+.part-count {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc li:last-child { border-bottom: 1px solid var(--rule); }
+.toc a {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  text-decoration: none;
+  color: var(--ink);
+  align-items: baseline;
+}
+.toc a:hover .t-title { color: var(--accent); }
+.t-num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.t-title { font-size: 1.12rem; }
+.t-status {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.3rem;
+}
+.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+
+/* ---- chapter page ---- */
+.chapter-head { margin-bottom: 2.5rem; }
+.chapter-head .num {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.chapter-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 400;
+  margin: 0.5rem 0 1rem;
+}
+.chapter-head .thesis {
+  font-style: italic;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.prose { max-width: var(--measure); }
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 2.8rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+.prose p { margin: 0 0 1.3rem; }
+.prose p + p { text-indent: 0; }
+.prose code {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose pre {
+  background: var(--code-bg);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  border-left: 2px solid var(--accent);
+}
+.prose pre code { background: none; padding: 0; }
+.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+
+/* drop cap on the first paragraph of a chapter */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.6rem;
+  line-height: 0.82;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- data figures ---- */
+.figures {
+  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.5rem 0;
+}
+.figures h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+}
+.fig .v {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.fig .u {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 0.2rem;
+}
+.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+
+/* ---- nav ---- */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding: 1.5rem 0 4rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.78rem;
+}
+.chapter-nav a { color: var(--accent); text-decoration: none; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ---- interactive devices ---- */
+.interactive {
+  margin: 3rem 0;
+  border: 1px solid var(--rule);
+  background: var(--code-bg);
+  padding: 1.5rem 1.6rem;
+}
+.interactive h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+.interactive .lede {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+  max-width: 30rem;
+}
+.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
+.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
+.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
+.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.slider-row label {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+input[type=text] {
+  flex: 1;
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 2px;
+  background: var(--rule);
+}
+.readout {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.readout strong { color: var(--ink); font-weight: 600; }
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2rem;
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.84rem;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+  transition: opacity 200ms;
+}
+.steps li .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--accent); }
+.steps li.done .k { color: var(--ink-soft); }
+.steps li.done .d { opacity: 0.55; }
+
+.btn {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+.btn:hover { background: var(--accent); color: var(--paper); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance {
+  margin: 3.5rem 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+}
+.provenance h3 {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.provenance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.provenance thead th {
+  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 0 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.provenance td {
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.provenance .pv {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.provenance .ps { color: var(--ink-soft); }
+.provenance .pc { color: var(--ink-soft); font-style: italic; }
+
+@media (max-width: 640px) {
+  .provenance .pc { display: none; }
+  .provenance td, .provenance thead th { padding-right: 0.4rem; }
+}
+
+/* ---- margin rail ---- */
+.prose {
+  position: relative;
+}
+.prose .sidenote {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .prose .sidenote {
+    display: block;
+    position: absolute;
+    left: calc(var(--measure) + 2.5rem);
+    width: 13rem;
+    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    border-left: 1px solid var(--rule);
+    padding-left: 0.8rem;
+  }
+}
+
+.colophon {
+  border-top: 3px double var(--rule);
+  padding: 2rem 0 3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  html { font-size: 17px; }
+  .masthead h1 { font-size: 1.9rem; }
+  .chapter-head h1 { font-size: 1.6rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16150f;
+    --ink: #e8e3d6;
+    --ink-soft: #9c9488;
+    --rule: #35322a;
+    --accent: #c96a4a;
+    --code-bg: #232019;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="chapter-head">
+  <span class="num">III. The cache &middot; Chapter 12</span>
+  <h1>Virtual memory for the KV cache</h1>
+  <p class="thesis">The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.</p>
+</header>
+
+<article class="prose">
+<p>Orca, the serving system Yu and colleagues described at OSDI in 2022, made a promise on every request it admitted. The scheduler reserved a contiguous stretch of GPU memory sized for the longest sequence the model could produce, and handed that stretch to the request for its entire life. The reservation happened before the first token existed. Nobody knew how long the answer would be. The engine had little choice. Keys and values accumulate one position per generated token, and a buffer cannot grow in place when the bytes after it belong to another request.</p>
+<p>Take the engine whose metrics run through this book. Its KV pool holds 262,144 positions and it admits four streams at a time. The admission rule divides the pool equally, so each stream is entitled to 65,536 positions. From that share it subtracts three config constants. The first is the default reply budget, 32,768 tokens, because the rule reserves room for a reply that names no length. The second is the decode round batch width, 16 rows, the widest row kernel the pinned kit ships; the scheduler keeps a 16-row margin so a round can always be assembled. The third is two positions of slack for the position counter's boundary bookkeeping. 65,536 − 32,768 − 16 − 2 = 32,750. A request is admitted against that ceiling whether or not it intends to use it, and it holds the whole 65,536-position share for as long as it runs.</p>
+<p>The model's native window is 1,048,576 positions. Raising the pool to that size costs 0.68 GiB per rank. The config script budgets 0.9 GiB per 1,048,576 positions; the increase here is 786,432 positions, three quarters of the full window, so 0.75 × 0.9 = 0.675 GiB, rounded to 0.68. The per-stream ceiling then becomes 1,048,576 / 4 − 32,768 − 16 − 2 = 229,358 tokens. The ceiling is a function of the pool divided by the number of streams. It has almost nothing to do with what any particular request needs.</p>
+<p>Two kinds of waste follow. Internal fragmentation is the gap between what a sequence reserved and what it used. A request that finishes at 100 tokens still held its whole 65,536-position share until it finished, so 65,436 positions sat idle for its whole life External fragmentation is the gap between buffers. Each sequence needs one contiguous run, so a hole left by a departing request can only be reused by a new request whose worst-case length fits inside it. Large holes are rare, since they require a large request to leave first, and the allocator ends up holding plenty of free memory in pieces too small to admit anything.</p>
+<p>Kwon and his coauthors at Berkeley measured the cost in 2023, running against FasterTransformer and Orca. Between 20 and 40 percent of the memory reserved for KV cache actually held token state. The rest was a reservation against a future that mostly did not arrive. Orca had already introduced continuous batching, which admits new requests as old ones finish and raises utilization considerably. Continuous batching fixed <em>when</em> memory was allocated. It did not fix <em>how much</em>.</p>
+<p>That distinction matters because decoding is bandwidth-bound. The DGX Spark's LPDDR5X unified memory moves 273 GB/s, shared between CPU and GPU, per NVIDIA's hardware guide for the machine. Every decode step reads the weights once and the KV cache of every active sequence. Write W for the bytes of weights, k for the KV bytes per token per sequence, and n for the batch. A step reads W + nk bytes and cannot finish faster than (W + nk) / 273×10⁹ seconds. The weights term is fixed; the cache term scales with n. Adding one more sequence adds k / 273×10⁹ seconds to the step and one more share of a weight read you were going to pay for anyway. Memory wasted on reservations is throughput you cannot buy back.</p>
+<p>The measured numbers on this pair follow the arithmetic. Four sequential requests of 400 tokens each finished in 27.1 s for 1,600 tokens, or 59.1 tok/s. The same four fired concurrently finished in 15.1 s, or 106.2 tok/s, a multiplier of 1.80. One run each, on 2026-10-31, so treat the ratio as a point estimate rather than a distribution. The gain is real and sublinear, which is what the bandwidth arithmetic predicts.</p>
+<p>The fix came from an operating system textbook. In virtual memory a process sees a flat, contiguous address space that has nothing to do with where its bytes live. Physical memory is divided into frames of a fixed size. A per-process page table maps each virtual page number to a physical frame number, and the hardware translates every access, consulting a TLB of recent translations and walking the table only on a miss. Because frames need not be adjacent, allocation means finding any free frame rather than finding a contiguous run, and fragmentation collapses to the unused tail of the last page.</p>
+<p>PagedAttention, published by Kwon and colleagues at SOSP in October 2023 and shipped as vLLM, applies that arrangement to the KV cache. Physical memory is carved at startup into blocks holding a fixed number of token positions. Each physical block ID indexes the KV storage for those positions across all layers, with one per-layer slice per block, for one sequence. A sequence owns a single block table, an array indexed by logical block number whose entries are physical block numbers Growing a sequence past a block boundary means allocating one more block and writing one more pointer. Nothing is copied, and no contiguity is required. Internal fragmentation is bounded by the unused tail of a single block per sequence.</p>
+<p>The kernel that reads this layout works one query at a time. For a query at position p, the logical block is p / B and the offset within it is p mod B. The kernel walks the sequence's logical blocks in order, reads each physical block number from the table, loads that block's K and V, and computes Q·Kᵀ over at most B keys. Softmax has to span blocks, so the kernel carries a running maximum m and a running normalizer l, the online-softmax trick from Milakov and Gimelshein in 2018 and Dao's FlashAttention in 2022. For each block it computes the block's local max, rescales the accumulator by exp(m_old − m_new), adds the block's exponentials, and moves on. The final block is usually partial, so the kernel masks positions past the sequence length before taking the max. Block boundaries never split an attention computation; they only split the loop.</p>
+<p>Gathering through a table costs something. Each block is a separate memory transaction, and the table read is a dependent load that must complete before the K/V load can start. A contiguous run lets the prefetcher stream and lets the compiler emit one wide vectorized load; a gather cannot. The first paged kernels paid for this. One rewrite hoisted the block-table read into shared memory once per block per warp instead of once per query. Another double-buffered the next block's K/V while computing the current one, to hide the dependent-load latency. A third replaced a separate tail kernel with in-kernel masking of the partial block. In the reported benchmarks, those changes brought the paged kernel to parity with the contiguous one; parity is workload- and block-size-dependent, and small blocks or high concurrency can still make the dependent block-table gather lose</p>
+<p>The block table made sharing cheap. Two sequences that branch from the same prompt have block tables whose entries point at the same physical blocks, and each block carries a reference count. Take a prompt of 100 tokens with 16-position blocks. It occupies seven blocks, six full and one holding four tokens. Sequence A's table reads [7, 12, 3, 19, 22, 8, 41], and every one of those blocks has refcount 1. Fork into A and B, and both tables point at the same seven blocks with refcount 2. B generates token 101, which lands in logical block 6, physical block 41. Its refcount is 2, so the engine takes a free block, say 55, copies 41's contents into it, rewrites B's entry 6 to 55, and decrements 41 to 1. A's table is untouched. The copy is one block, not the prefix. This is <code>fork()</code> and copy-on-write, transplanted, and it is what makes parallel sampling and beam search affordable.</p>
+<p>The same mechanism extends across requests that were never related. vLLM added automatic prefix caching in 2024. The hash granularity is one block, and each block's hash is chained to the hash of the block before it, so a hash identifies the whole prefix up to that block rather than the block alone. On a hit the engine compares the stored token IDs against the incoming ones before reusing the block, which is how collisions are caught; a 64-bit hash by itself would not be enough. Only full blocks are cached. A partial tail block is never shared, because its contents change as tokens are appended. Eviction is LRU over blocks whose refcount has fallen to zero, and a cached block stays in the hash map until it is evicted or reused, at which point its refcount goes back to 1.</p>
+<p>On the engine measured here, 12,285,952 of 12,804,579 looked-up prompt tokens were served from cache, a hit rate of 95.9%, counted over the sampled window of 98 requests in the <code>/metrics</code> counters. At the measured prefill rate of 39,237 tokens per second, that removed 313 seconds of prefill work. A hash and a pointer chase replaced the forward pass.</p>
+<p>Admission in a paged engine looks different from the reserved engine's ceiling. The scheduler admits a request when the free-block count covers the blocks its prompt needs; the next token may fit in the last partial block, and a new block is allocated only if that block is full. It does not reserve the reply budget. If the pool runs dry, the scheduler preempts the lowest-priority sequence, either swapping its blocks to CPU memory or dropping them and recomputing the prefix later. The ceiling becomes the pool itself, and no per-stream division applies.</p>
+<p>Block size is the tuning knob, and the trade is visible in a table. Take a 100-token sequence.</p>
+<p>| Block size | Blocks | Tail waste | Table entries | |---|---|---|---| | 8 | 13 | 4 | 13 | | 16 | 7 | 12 | 7 | | 32 | 4 | 28 | 4 | | 64 | 2 | 28 | 2 |</p>
+<p>Small blocks cut the tail waste and multiply the table entries the kernel must chase; large blocks do the reverse. Sixteen positions is the common default because it keeps the table small enough to cache and the waste small enough to ignore.</p>
+<p>The virtual-memory analogy has limits worth naming. There is no page fault. Blocks come from a pool allocated at startup, and the engine never migrates a block to disk mid-step. There is no TLB. The block table is read from global memory on each kernel launch and cached in shared memory or registers by hand, which is why the hoisting rewrite mattered. And the indirection has a real cost that reservation does not pay. When sequences are short and uniform, reservation waste is small and the gather overhead dominates, so a contiguous allocator can win. Paging pays when lengths vary widely, which is the normal case for chat traffic.</p>
+<p>Against FasterTransformer and Orca, the vLLM paper reported two to four times the throughput on the same hardware. Memory capacity bounds the batch size, and in the bandwidth-bound decode regime batch size is the dominant throughput lever — though compute or attention bandwidth can cap it sooner. Paging cuts the waste per sequence from most of a worst-case buffer to at most one block, and a larger batch amortizes each weight read over more tokens Paging cuts the waste per sequence from most of a worst-case buffer to at most one block, and a larger batch amortizes each weight read over more tokens.</p>
+<p>NVIDIA's TensorRT-LLM ships paged KV blocks, and SGLang's RadixAttention, described by Zheng and colleagues in 2024, manages the KV cache as a radix tree of token prefixes, a different allocation abstraction from vLLM’s fixed-size paged block table, so that shared prefixes are found by tree walk rather than by hash. so that shared prefixes are found by tree walk rather than by hash. The idea changed the KV cache from a private buffer into an addressable resource, and once memory is reached through a table, sharing, eviction, offloading and defragmentation become ordinary allocator problems rather than special cases.</p>
+<p>The machine this book measures still reserves. Its per-stream ceiling sits at 32,750 tokens while the model's window is 1,048,576, and the gap is a line in a config file. Raising the pool as far as the memory floor allows would cost 0.68 GiB per rank and lift the ceiling to 229,358 — still well short of the 1,048,576-token window, which would need several GiB more per rank, but the pool stops at the 2.5 GiB MemAvailable floor that memguard enforces by killing a rank. The ceiling moves until it hits that floor. The silicon sits far above it.</p>
+</article>
+
+
+<figure class="chapter-figure">
+<svg class="fig-svg" viewBox="0 0 484 632" width="100%" role="img" aria-label="Equal-share KV pool reservation and fragmentation" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Equal-share KV pool reservation and fragmentation</title><rect x="12" y="12" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="42.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">KV pool: 262,144 positions</text><line x1="242.0" y1="66" x2="242.0" y2="88" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="88" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="118.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">4 stream shares: 65,536 positions each</text><line x1="242.0" y1="142" x2="242.0" y2="164" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="164" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="194.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">reply budget: 32,768</text><line x1="242.0" y1="218" x2="242.0" y2="240" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="240" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="270.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">decode batch margin: 16 rows</text><line x1="242.0" y1="294" x2="242.0" y2="316" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="316" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="346.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">position slack: 2</text><line x1="242.0" y1="370" x2="242.0" y2="392" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="392" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="422.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">per-stream ceiling: 32,750 positions</text><line x1="242.0" y1="446" x2="242.0" y2="468" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="468" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="498.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">internal fragmentation: reserved minus used</text><line x1="242.0" y1="522" x2="242.0" y2="544" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="544" width="460" height="54" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="242.0" y="574.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">external fragmentation: holes between contiguous buffers</text></svg>
+<figcaption><strong>Equal-share KV pool reservation and fragmentation</strong> It shows the pool split into four fixed shares, the constants subtracted to get each stream's ceiling, and where internal and external fragmentation sit in memory.</figcaption>
+</figure>
+
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <table>
+    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <tbody><tr><td class="pv">273 GB/s</td><td class="ps">NVIDIA DGX Spark hardware guide, docs.nvidia.com/dgx/dgx-spark/hardware.html</td><td class="pc">LPDDR5X unified memory bandwidth, shared CPU and GPU.</td></tr><tr><td class="pv">59.1 tok/s</td><td class="ps">measured: 4 sequential requests of 400 tokens each, 27.1s total, 1600 tokens</td><td class="pc">Single-stream aggregate decode on this pair, distinct prompts.</td></tr><tr><td class="pv">106.2 tok/s</td><td class="ps">measured: same 4 prompts fired concurrently, 15.1s wall</td><td class="pc">Aggregate decode at concurrency 4. Ratio to c=1 is 1.80x.</td></tr><tr><td class="pv">39,237 tok/s</td><td class="ps">derived: prompt_tokens_total / request_prefill_seconds_sum from /metrics</td><td class="pc">Prefill throughput over 98 sampled requests.</td></tr><tr><td class="pv">95.9%</td><td class="ps">derived: prefix_cache_hits_total / prefix_cache_queries_total = 12,285,952 / 12,804,579</td><td class="pc">Cached prompt tokens as a share of all prompt tokens.</td></tr><tr><td class="pv">313 seconds</td><td class="ps">derived: 12,285,952 cached tokens / 39,237 tok/s prefill rate</td><td class="pc">Prefill time the cache removed over the sampled window.</td></tr><tr><td class="pv">262,144 positions</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td><td class="pc">Shared KV pool size.</td></tr><tr><td class="pv">32,768 tokens</td><td class="ps">MAX_TOKENS=32768, --max-tokens 32768 in the live serve argv</td><td class="pc">Default reply budget when a request names none.</td></tr><tr><td class="pv">32,750 tokens</td><td class="ps">derived: POOL/PARALLEL - MAX_TOKENS - ROUND_ROWS - 2 = 65536 - 32768 - 16 - 2</td><td class="pc">Equal-split per-stream context ceiling under admission reservation.</td></tr><tr><td class="pv">229,358 tokens</td><td class="ps">derived: 1048576/4 - 32768 - 16 - 2</td><td class="pc">Per-stream ceiling if POOL were raised to 1,048,576.</td></tr><tr><td class="pv">0.68 GiB per rank</td><td class="ps">derived: 0.9 GiB per 1,048,576 positions per scripts/config.sh, scaled</td><td class="pc">Extra KV memory per rank to raise POOL from 262144 to 1048576.</td></tr><tr><td class="pv">2.5 GiB</td><td class="ps">memguard.sh run ... 2.5 ... in the live process list</td><td class="pc">MemAvailable floor below which memguard kills a rank.</td></tr><tr><td class="pv">98 requests</td><td class="ps">tensorfold:request_latency_seconds_count</td><td class="pc">Requests counted in the latency aggregates above.</td></tr><tr><td class="pv">1,048,576 positions</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td><td class="pc">Hypothetical pool if raised to the native window size.</td></tr><tr><td class="pv">12,804,579 tokens</td><td class="ps">tensorfold:prefix_cache_queries_total from /metrics</td><td class="pc">Raw count of prompt tokens looked up.</td></tr><tr><td class="pv">1,600 tokens</td><td class="ps">measured: 4 requests x 400 completion tokens</td><td class="pc">Total tokens generated in the concurrency benchmark.</td></tr><tr><td class="pv">15.1 s</td><td class="ps">measured: wall clock for 4 concurrent 400-token requests</td><td class="pc">Concurrency-4 benchmark wall time.</td></tr><tr><td class="pv">27.1 s</td><td class="ps">measured: total time for the same 4 prompts run sequentially</td><td class="pc">Concurrency-1 benchmark total time.</td></tr><tr><td class="pv">400 tokens</td><td class="ps">measured: max_tokens=400 in the concurrency benchmark requests</td><td class="pc">Completion budget used in the throughput comparison.</td></tr><tr><td class="pv">65,536 positions</td><td class="ps">derived: POOL/PARALLEL = 262144/4</td><td class="pc">The equal share of the pool per stream before admission overhead.</td></tr></tbody>
+  </table>
+</section>
+
+
+<nav class="chapter-nav">
+<a href="11-mqa-gqa-mla.html">&larr; Three generations of sharing the cache</a><a href="13-prefix-caching.html">Why the second request is cheaper &rarr;</a>
+</nav>
+
+</div>
+<script src="../site.js"></script>
+</body>
+</html>

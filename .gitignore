@@ -13,8 +13,8 @@ __pycache__/
 *.bak4
 *.pre-revise
 
-# The generated site is not committed. GitHub Pages builds it in CI from
-# content/chapters + diagrams, so the HTML never goes stale in the tree.
+# The build output. docs/ is the committed copy GitHub Pages serves from main;
+# site/ is the working build directory and is never committed.
 site/
 
 # Live run output — noisy, machine-local, no value to a reader
