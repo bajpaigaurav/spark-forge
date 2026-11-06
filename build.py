@@ -71,13 +71,232 @@ def wikilink(s):
 def esc(s):
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
+
+# ---- math ----
+#
+# The chapters carry LaTeX inline: \( ... \) and $ ... $. Nothing rendered it,
+# so the source markup was published as literal text -- backslashes, braces and
+# all. This is a small LaTeX-to-HTML converter covering the subset the book
+# actually uses (symbols, sub/superscripts, fractions, sums, roots, blackboard
+# bold, operators). It is deliberately not a general TeX engine: anything it
+# does not recognise passes through as text rather than silently vanishing.
+#
+# Math is typeset in the page's own serif at a slightly larger size, with
+# italic variables, so it sits in the prose instead of looking like a screenshot.
+
+MATH_SYMBOLS = {
+    # greek
+    r"\alpha": "α", r"\beta": "β", r"\gamma": "γ", r"\delta": "δ",
+    r"\epsilon": "ε", r"\zeta": "ζ", r"\eta": "η", r"\theta": "θ",
+    r"\iota": "ι", r"\kappa": "κ", r"\lambda": "λ", r"\mu": "μ",
+    r"\nu": "ν", r"\xi": "ξ", r"\pi": "π", r"\rho": "ρ",
+    r"\sigma": "σ", r"\tau": "τ", r"\upsilon": "υ", r"\phi": "φ",
+    r"\chi": "χ", r"\psi": "ψ", r"\omega": "ω",
+    r"\Gamma": "Γ", r"\Delta": "Δ", r"\Theta": "Θ", r"\Lambda": "Λ",
+    r"\Xi": "Ξ", r"\Pi": "Π", r"\Sigma": "Σ", r"\Phi": "Φ",
+    r"\Psi": "Ψ", r"\Omega": "Ω",
+    # operators and relations
+    r"\times": "×", r"\cdot": "·", r"\odot": "⊙", r"\approx": "≈",
+    r"\neq": "≠", r"\leq": "≤", r"\geq": "≥", r"\pm": "±",
+    r"\infty": "∞", r"\partial": "∂", r"\nabla": "∇",
+    r"\sum": "∑", r"\prod": "∏", r"\int": "∫",
+    r"\in": "∈", r"\notin": "∉", r"\subset": "⊂", r"\cup": "∪",
+    r"\cap": "∩", r"\forall": "∀", r"\exists": "∃",
+    r"\to": "→", r"\rightarrow": "→", r"\leftarrow": "←",
+    r"\Rightarrow": "⇒", r"\leftrightarrow": "↔",
+    r"\cdots": "⋯", r"\ldots": "…", r"\dots": "…",
+    r"\mid": "|", r"\vert": "|", r"\|": "‖",
+    r"\top": "ᵀ", r"\perp": "⊥", r"\angle": "∠",
+    r"\circ": "∘", r"\star": "⋆", r"\ast": "∗",
+    r"\sqrt": "√", r"\log": "log", r"\ln": "ln",
+    r"\exp": "exp", r"\tanh": "tanh", r"\max": "max", r"\min": "min",
+    r"\sin": "sin", r"\cos": "cos", r"\lim": "lim", r"\det": "det",
+    r"\overrightarrow": "", r"\overleftarrow": "",
+    r"\%": "%", r"\_": "_", r"\{": "{", r"\}": "}",
+}
+
+MATH_SPACE = {r"\,": "\u2009", r"\;": "\u2005", r"\ ": "\u00a0", r"\quad": "\u2003"}
+
+
+def _read_group(s, i, open_ch, close_ch):
+    """Return (content, next_index) for a balanced group starting at s[i]."""
+    assert s[i] == open_ch
+    depth, j = 0, i
+    while j < len(s):
+        c = s[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == open_ch:
+            depth += 1
+        elif c == close_ch:
+            depth -= 1
+            if depth == 0:
+                return s[i + 1:j], j + 1
+        j += 1
+    return s[i + 1:], len(s)
+
+
+def _atom(s, i):
+    """Read one math atom: a brace group, a command, or a single character."""
+    if i >= len(s):
+        return "", i
+    c = s[i]
+    if c == "{":
+        return _read_group(s, i, "{", "}")
+    if c == "\\":
+        m = re.match(r"\\([A-Za-z]+)", s[i:])
+        if m:
+            return m.group(1), i + m.end()
+        return s[i:i + 2], i + 2
+    return c, i + 1
+
+
+def math_to_html(tex):
+    """Convert one LaTeX fragment to HTML. Best effort, never raises."""
+    out = []
+    i = 0
+    n = len(tex)
+    while i < n:
+        c = tex[i]
+        if c == "\\":
+            # A TeX command is a backslash plus a run of letters. Match the whole
+            # name, never a prefix: sorting by length made \m shadow \mathbb,
+            # \t shadow \text and \f shadow \frac.
+            m = re.match(r"\\([A-Za-z]+)", tex[i:])
+            if m:
+                name = "\\" + m.group(1)
+                end = i + m.end()
+                if name == "\\sqrt":
+                    if end < n and tex[end] == "[":
+                        idx, end = _read_group(tex, end, "[", "]")
+                        body, end = _atom(tex, end)
+                        out.append(f'<span class="m-sqrt"><sup>{math_to_html(idx)}</sup>'
+                                   f'<span class="m-rad">√</span>{math_to_html(body)}</span>')
+                    else:
+                        body, end = _atom(tex, end)
+                        out.append(f'<span class="m-sqrt"><span class="m-rad">√</span>'
+                                   f'{math_to_html(body)}</span>')
+                elif name in ("\\overrightarrow", "\\overleftarrow"):
+                    body, end = _atom(tex, end)
+                    arrow = "→" if name == "\\overrightarrow" else "←"
+                    out.append(f'<span class="m-vec">{math_to_html(body)}'
+                               f'<span class="m-vec-arrow">{arrow}</span></span>')
+                elif name in ("\\text", "\\mathrm", "\\operatorname"):
+                    body, end = _atom(tex, end)
+                    # \text is plain prose, so its escapes are literal characters,
+                    # not TeX commands: \_ must print an underscore, not "_p".
+                    body = re.sub(r"\\([_%{}&$#])", r"\1", body)
+                    out.append(f'<span class="m-text">{esc(body)}</span>')
+                elif name == "\\mathbb":
+                    body, end = _atom(tex, end)
+                    bb = {"R": "ℝ", "N": "ℕ", "Z": "ℤ", "Q": "ℚ", "C": "ℂ"}
+                    out.append(f'<span class="m-bb">{bb.get(body.strip(), esc(body))}</span>')
+                elif name in ("\\frac", "\\dfrac", "\\tfrac"):
+                    num, end = _atom(tex, end)
+                    den, end = _atom(tex, end)
+                    out.append(f'<span class="m-frac"><span class="m-num">'
+                               f'{math_to_html(num)}</span><span class="m-den">'
+                               f'{math_to_html(den)}</span></span>')
+                elif name in ("\\left", "\\right", "\\big", "\\Big", "\\bigl",
+                              "\\bigr"):
+                    pass   # the delimiter follows and is emitted next iteration
+                elif name in MATH_SYMBOLS:
+                    out.append(MATH_SYMBOLS[name])
+                else:
+                    # unknown command: keep the word, drop the backslash
+                    out.append(esc(m.group(1)))
+                i = end
+                continue
+            # non-alphabetic escape: \, \; \  \quad \% \_ \{ \}
+            for cmd, rep in MATH_SPACE.items():
+                if tex.startswith(cmd, i):
+                    out.append(rep)
+                    i += len(cmd)
+                    break
+            else:
+                out.append(esc(tex[i + 1:i + 2]))
+                i += 2
+            continue
+        if c in "^_":
+            body, j = _atom(tex, i + 1)
+            tag = "sub" if c == "_" else "sup"
+            out.append(f"<{tag}>{math_to_html(body)}</{tag}>")
+            i = j
+            continue
+        if c == "{":
+            body, j = _read_group(tex, i, "{", "}")
+            out.append(math_to_html(body))
+            i = j
+            continue
+        if c == "}":
+            i += 1
+            continue
+        if c.isalpha():
+            # A lone letter is a variable, so it is italicised. Words such as
+            # "exp" arrive as commands above and stay upright.
+            out.append(f'<i class="m-var">{esc(c)}</i>')
+            i += 1
+            continue
+        out.append(esc(c))
+        i += 1
+    return "".join(out)
+
+
+MATH_DISPLAY_RE = re.compile(r"^\s*\$\$(.+?)\$\$\s*$", re.S)
+
+
+def math_delims(s):
+    """Find math spans in an already-escaped string.
+
+    Escaping has turned \\( into \\( still (parens are not escaped) and $ into $,
+    so the delimiters survive. Returns spans of (start, end, tex, display).
+    """
+    spans = []
+    for m in re.finditer(r"\\\((.+?)\\\)", s, re.S):
+        spans.append((m.start(), m.end(), m.group(1), False))
+    for m in re.finditer(r"(?<!\\)\$\$(.+?)\$\$", s, re.S):
+        spans.append((m.start(), m.end(), m.group(1), True))
+    for m in re.finditer(r"(?<![\\$])\$(?!\$)([^$]+?)\$(?!\$)", s, re.S):
+        spans.append((m.start(), m.end(), m.group(1), False))
+    spans.sort()
+    # drop overlaps: the earliest, widest span wins
+    kept, last_end = [], -1
+    for st, en, tex, disp in spans:
+        if st >= last_end:
+            kept.append((st, en, tex, disp))
+            last_end = en
+    return kept
+
+
+def render_math_in(s):
+    """Replace math spans in an escaped inline string with typeset HTML."""
+    spans = math_delims(s)
+    if not spans:
+        return s
+    out, pos = [], 0
+    for st, en, tex, disp in spans:
+        out.append(s[pos:st])
+        cls = "math math--display" if disp else "math"
+        out.append(f'<span class="{cls}">{math_to_html(tex)}</span>')
+        pos = en
+    out.append(s[pos:])
+    return "".join(out)
+
+
+def has_math(s):
+    return bool(math_delims(s))
+
 def inline(s):
-    """Minimal inline markdown: bold, italic, code, wiki-links. Escaped first."""
+    """Minimal inline markdown: bold, italic, code, wiki-links, math. Escaped first."""
     s = esc(s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
     s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
     s = wikilink(s)
+    # Math last so the markdown passes above cannot eat an asterisk that is part
+    # of an operator, and so wiki-links inside math are left alone.
+    s = render_math_in(s)
     return s
 
 # A paragraph longer than this is split at a sentence boundary. Two reviewers
@@ -151,6 +370,11 @@ def paragraphs(text):
         joined = joined.replace("<!-- keep -->", "").strip()
         chunks = [joined] if keep else split_paragraph(joined)
         for chunk in chunks:
+            dm = MATH_DISPLAY_RE.match(chunk)
+            if dm:
+                # A whole paragraph of $$...$$ is a display equation.
+                out.append(f'<div class="math-block">{math_to_html(dm.group(1))}</div>')
+                continue
             out.append(f"<p>{inline(chunk)}</p>")
     return "\n".join(out), headings
 
@@ -239,6 +463,8 @@ CSS = r"""
 :root {
   color-scheme: light;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
   --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
   --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
   --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
@@ -256,6 +482,11 @@ CSS = r"""
   --container: 1440px; --gutter: 64px;
   --z-sticky-nav: 300; --z-modal: 400;
   --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
   --measure: var(--read-measure);
 }
 
@@ -295,11 +526,11 @@ button, input, select, textarea { font: inherit; }
 /* ---- masthead ---- */
 /* ---- cover: one screen, then the contents ---- */
 .cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
-.cover-rule { display: block; margin: 0 0 var(--space-lg); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
 .cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
-.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-sm); }
-.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.35; color: var(--color-ink-2); max-width: 44ch; margin: 0 0 var(--space-lg); }
-.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-xs); margin: var(--space-lg) 0 var(--space-xl); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
 .cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
 .cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
 .btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
@@ -307,22 +538,24 @@ button, input, select, textarea { font: inherit; }
 .btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
 .btn-quiet:hover { background: var(--color-wash); }
 .cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
-.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-md); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
 .cover-facts div { margin: 0; }
 .cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
 .cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
 
 /* ---- the contents, set as a printed index ---- */
-.contents { margin: var(--section-gap) 0; }
-.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); border-bottom: var(--rule-hair) solid var(--color-rule); padding-bottom: var(--space-2xs); }
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
 .contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
 .contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .contents ol { list-style: none; margin: 0; padding: 0; }
 .contents li { border-top: 0; }
 .contents li:last-child { border-bottom: 0; }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: 0.5rem var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
 .contents li a:hover { background: var(--color-wash); }
 .contents li a:hover .t { color: var(--color-accent-text); }
 .contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
@@ -331,8 +564,8 @@ button, input, select, textarea { font: inherit; }
 .contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- live numbers: the book's own measurements, set as a strip ---- */
-.figures { margin: var(--section-gap) 0; }
-.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
 .fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
@@ -340,7 +573,7 @@ button, input, select, textarea { font: inherit; }
 .fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
 
 /* ---- colophon block ---- */
-.colophon-block { margin: var(--section-gap) 0 0; padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
 .colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
 .colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
 .gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
@@ -375,11 +608,13 @@ button, input, select, textarea { font: inherit; }
 .toc a.pending .t-title { color: var(--color-muted); }
 
 /* ---- chapter page ---- */
-.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-lg); padding: var(--space-md) 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); display: block; margin-bottom: var(--space-sm); }
-.chapter-head h1 { font-size: var(--text-2xl); color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: 24ch; }
-.chapter-head .thesis { font-size: var(--text-md); color: var(--color-muted); line-height: 1.45; margin: 0; max-width: 60ch; }
-.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: var(--space-xs) 0 0; padding-top: var(--space-xs); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
 .chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
 .chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
 .chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
@@ -398,15 +633,16 @@ button, input, select, textarea { font: inherit; }
 .glossary { max-width: var(--read-measure); }
 .glossary dl { margin: 0; }
 .glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
 .glossary dt a { color: var(--color-ink); text-decoration: none; }
 .glossary dt a:hover { color: var(--color-accent); }
-.glossary dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
 .glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .glossary dd .src a { color: var(--color-accent); text-decoration: none; }
 .glossary dd .src a:hover { text-decoration: underline; }
 
 /* ---- reading paths ---- */
-.paths-strip { margin: var(--section-gap) 0; }
+.paths-strip { margin: var(--section-gap) 0 0; }
 .paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
 .paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
@@ -417,10 +653,10 @@ button, input, select, textarea { font: inherit; }
 .p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
 
 .paths-intro { max-width: var(--read-measure); }
-.path { max-width: var(--read-measure); margin: var(--section-gap) 0 0; }
-.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: none; }
-.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-2xs); }
-.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); margin: 0 0 var(--space-md); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
 .path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
 .path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
 .path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
@@ -429,7 +665,7 @@ button, input, select, textarea { font: inherit; }
 .path-list a:hover .p-title { color: var(--color-ink); }
 .p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
 .p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
-.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0 0 var(--space-xl); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
 
 /* ---- reproduce-this page ---- */
 .rig-artifacts { max-width: var(--read-measure); }
@@ -442,17 +678,50 @@ button, input, select, textarea { font: inherit; }
 .rig-artifacts .r-what { display: block; color: var(--color-muted); font-size: var(--text-sm); margin-top: var(--space-2xs); }
 .rig-limits { max-width: var(--read-measure); }
 .rig-limits dl { margin: 0; }
-.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: var(--space-md) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
 .rig-limits dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
 
 /* ---- prose ---- */
 .prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
-.prose p { margin: 0 0 var(--space-sm); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
 .prose p:last-child { margin-bottom: 0; }
-.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); max-width: none; }
-.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-lg) 0 var(--space-2xs); }
-.prose ul { margin: 0 0 var(--space-md); padding-left: 1.25rem; }
-.prose li { margin: 0 0 var(--space-2xs); }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
 .prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
 .prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
 .prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
@@ -462,15 +731,36 @@ button, input, select, textarea { font: inherit; }
 .prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
 
 /* ---- figures: on the sheet, full measure, centred ---- */
-.chapter-figure { margin: var(--space-xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
-.chapter-figure .fig-svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--color-ink); }
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
 .chapter-figure .fig-svg text { font-family: var(--font-display); }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
 
 /* ---- data figures ---- */
-.figures { margin: var(--space-xl) 0; }
 .figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
@@ -488,7 +778,7 @@ button, input, select, textarea { font: inherit; }
 .chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
 
 /* ---- interactive devices ---- */
-.interactive { margin: var(--space-xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
 .interactive h3 { margin-top: 0; }
 .interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
 .interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
@@ -517,6 +807,7 @@ button, input, select, textarea { font: inherit; }
 
 /* ---- provenance table ---- */
 .provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
 .provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
 .provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
@@ -593,21 +884,6 @@ button, input, select, textarea { font: inherit; }
 .chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
 .chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
 
-/* ---- contents index on the front page ---- */
-.contents { margin: var(--space-xl) 0; }
-.contents > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); }
-.contents .part-head h3 { font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; }
-.contents .part-head .count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
-.contents ol { list-style: none; margin: 0; padding: 0; }
-.contents li { border-top: var(--rule-hair) solid var(--color-rule); }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-sm); align-items: baseline; padding: 6px var(--space-2xs); text-decoration: none; color: var(--color-ink-2); }
-.contents li a:hover { background: var(--color-wash); color: var(--color-ink); }
-.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
-.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
-.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 54ch; }
-.contents li a .m { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- search dialog ---- */
 .search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
@@ -647,6 +923,14 @@ button, input, select, textarea { font: inherit; }
   .prose pre { max-width: 100%; }
   .provenance, .provenance table, .interactive table { max-width: 100%; }
   .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -999,7 +1283,7 @@ def figure_for(cid):
     title = esc(spec.get("title") or "")
     return f'''
 <figure class="chapter-figure">
-{svg}
+<div class="fig-scroll">{svg}</div>
 <figcaption><strong>{title}</strong> {caption}</figcaption>
 </figure>
 '''

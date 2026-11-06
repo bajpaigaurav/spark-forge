@@ -19,6 +19,8 @@ document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 :root {
   color-scheme: light;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
   --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
   --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
   --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
@@ -36,6 +38,11 @@ document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
   --container: 1440px; --gutter: 64px;
   --z-sticky-nav: 300; --z-modal: 400;
   --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
   --measure: var(--read-measure);
 }
 
@@ -75,11 +82,11 @@ button, input, select, textarea { font: inherit; }
 /* ---- masthead ---- */
 /* ---- cover: one screen, then the contents ---- */
 .cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
-.cover-rule { display: block; margin: 0 0 var(--space-lg); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
 .cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
-.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-sm); }
-.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.35; color: var(--color-ink-2); max-width: 44ch; margin: 0 0 var(--space-lg); }
-.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-xs); margin: var(--space-lg) 0 var(--space-xl); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
 .cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
 .cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
 .btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
@@ -87,22 +94,24 @@ button, input, select, textarea { font: inherit; }
 .btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
 .btn-quiet:hover { background: var(--color-wash); }
 .cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
-.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-md); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
 .cover-facts div { margin: 0; }
 .cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
 .cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
 
 /* ---- the contents, set as a printed index ---- */
-.contents { margin: var(--section-gap) 0; }
-.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); border-bottom: var(--rule-hair) solid var(--color-rule); padding-bottom: var(--space-2xs); }
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
 .contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
 .contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .contents ol { list-style: none; margin: 0; padding: 0; }
 .contents li { border-top: 0; }
 .contents li:last-child { border-bottom: 0; }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: 0.5rem var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
 .contents li a:hover { background: var(--color-wash); }
 .contents li a:hover .t { color: var(--color-accent-text); }
 .contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
@@ -111,8 +120,8 @@ button, input, select, textarea { font: inherit; }
 .contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- live numbers: the book's own measurements, set as a strip ---- */
-.figures { margin: var(--section-gap) 0; }
-.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
 .fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
@@ -120,7 +129,7 @@ button, input, select, textarea { font: inherit; }
 .fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
 
 /* ---- colophon block ---- */
-.colophon-block { margin: var(--section-gap) 0 0; padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
 .colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
 .colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
 .gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
@@ -155,11 +164,13 @@ button, input, select, textarea { font: inherit; }
 .toc a.pending .t-title { color: var(--color-muted); }
 
 /* ---- chapter page ---- */
-.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-lg); padding: var(--space-md) 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); display: block; margin-bottom: var(--space-sm); }
-.chapter-head h1 { font-size: var(--text-2xl); color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: 24ch; }
-.chapter-head .thesis { font-size: var(--text-md); color: var(--color-muted); line-height: 1.45; margin: 0; max-width: 60ch; }
-.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: var(--space-xs) 0 0; padding-top: var(--space-xs); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
 .chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
 .chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
 .chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
@@ -178,15 +189,16 @@ button, input, select, textarea { font: inherit; }
 .glossary { max-width: var(--read-measure); }
 .glossary dl { margin: 0; }
 .glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
 .glossary dt a { color: var(--color-ink); text-decoration: none; }
 .glossary dt a:hover { color: var(--color-accent); }
-.glossary dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
 .glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .glossary dd .src a { color: var(--color-accent); text-decoration: none; }
 .glossary dd .src a:hover { text-decoration: underline; }
 
 /* ---- reading paths ---- */
-.paths-strip { margin: var(--section-gap) 0; }
+.paths-strip { margin: var(--section-gap) 0 0; }
 .paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
 .paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
@@ -197,10 +209,10 @@ button, input, select, textarea { font: inherit; }
 .p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
 
 .paths-intro { max-width: var(--read-measure); }
-.path { max-width: var(--read-measure); margin: var(--section-gap) 0 0; }
-.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: none; }
-.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-2xs); }
-.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); margin: 0 0 var(--space-md); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
 .path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
 .path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
 .path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
@@ -209,7 +221,7 @@ button, input, select, textarea { font: inherit; }
 .path-list a:hover .p-title { color: var(--color-ink); }
 .p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
 .p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
-.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0 0 var(--space-xl); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
 
 /* ---- reproduce-this page ---- */
 .rig-artifacts { max-width: var(--read-measure); }
@@ -222,17 +234,50 @@ button, input, select, textarea { font: inherit; }
 .rig-artifacts .r-what { display: block; color: var(--color-muted); font-size: var(--text-sm); margin-top: var(--space-2xs); }
 .rig-limits { max-width: var(--read-measure); }
 .rig-limits dl { margin: 0; }
-.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: var(--space-md) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
 .rig-limits dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
 
 /* ---- prose ---- */
 .prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
-.prose p { margin: 0 0 var(--space-sm); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
 .prose p:last-child { margin-bottom: 0; }
-.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); max-width: none; }
-.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-lg) 0 var(--space-2xs); }
-.prose ul { margin: 0 0 var(--space-md); padding-left: 1.25rem; }
-.prose li { margin: 0 0 var(--space-2xs); }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
 .prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
 .prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
 .prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
@@ -242,15 +287,36 @@ button, input, select, textarea { font: inherit; }
 .prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
 
 /* ---- figures: on the sheet, full measure, centred ---- */
-.chapter-figure { margin: var(--space-xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
-.chapter-figure .fig-svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--color-ink); }
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
 .chapter-figure .fig-svg text { font-family: var(--font-display); }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
 
 /* ---- data figures ---- */
-.figures { margin: var(--space-xl) 0; }
 .figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
@@ -268,7 +334,7 @@ button, input, select, textarea { font: inherit; }
 .chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
 
 /* ---- interactive devices ---- */
-.interactive { margin: var(--space-xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
 .interactive h3 { margin-top: 0; }
 .interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
 .interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
@@ -297,6 +363,7 @@ button, input, select, textarea { font: inherit; }
 
 /* ---- provenance table ---- */
 .provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
 .provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
 .provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
@@ -373,21 +440,6 @@ button, input, select, textarea { font: inherit; }
 .chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
 .chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
 
-/* ---- contents index on the front page ---- */
-.contents { margin: var(--space-xl) 0; }
-.contents > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); }
-.contents .part-head h3 { font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; }
-.contents .part-head .count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
-.contents ol { list-style: none; margin: 0; padding: 0; }
-.contents li { border-top: var(--rule-hair) solid var(--color-rule); }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-sm); align-items: baseline; padding: 6px var(--space-2xs); text-decoration: none; color: var(--color-ink-2); }
-.contents li a:hover { background: var(--color-wash); color: var(--color-ink); }
-.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
-.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
-.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 54ch; }
-.contents li a .m { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- search dialog ---- */
 .search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
@@ -427,6 +479,14 @@ button, input, select, textarea { font: inherit; }
   .prose pre { max-width: 100%; }
   .provenance, .provenance table, .interactive table { max-width: 100%; }
   .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -479,7 +539,7 @@ button, input, select, textarea { font: inherit; }
 <h3 id="the-residual-path-and-the-gradient-product">The residual path and the gradient product</h3>
 <p>The fix was to stop asking a block to compute the whole transformation. Each block computes a correction F(x), and the layer outputs F(x) + x. The original input is added back, unchanged, at every block.</p>
 <figure class="chapter-figure">
-<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Residual block: one shared lane with an identity path" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Residual block: one shared lane with an identity path</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l (input vector)</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">residual branch F_l(x_l)</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">identity skip x_l</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">addition F_l(x_l) + x_l</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="158.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">x_{l+1} (output vector)</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">backward gradient path</text><text x="310.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">through identity I</text><line x1="394" y1="155.0" x2="440" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">backward gradient path</text><text x="524.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">through J_l</text></svg>
+<div class="fig-scroll"><svg class="fig-svg" viewBox="0 0 900 338" width="100%" role="img" aria-label="Residual block: one shared lane with an identity path" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Residual block: one shared lane with an identity path</title><rect x="12" y="16" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="102.0" y="61.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l (input</text><text x="102.0" y="82.96000000000001" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">vector)</text><line x1="192" y1="70.0" x2="244" y2="70.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="244" y="16" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="334.0" y="61.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">residual branch</text><text x="334.0" y="82.96000000000001" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">F_l(x_l)</text><line x1="424" y1="70.0" x2="476" y2="70.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="476" y="16" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="566.0" y="61.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">identity skip</text><text x="566.0" y="82.96000000000001" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">x_l</text><line x1="656" y1="70.0" x2="708" y2="70.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="708" y="16" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="798.0" y="61.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">addition</text><text x="798.0" y="82.96000000000001" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">F_l(x_l) + x_l</text><path d="M798.0,124 L798.0,147 L102.0,147 L102.0,170" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="170" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="102.0" y="215.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">x_{l+1} (output</text><text x="102.0" y="236.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">vector)</text><line x1="192" y1="224.0" x2="244" y2="224.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="244" y="170" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="334.0" y="194.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">backward</text><text x="334.0" y="215.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">gradient path</text><text x="334.0" y="236.96" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">through</text><text x="334.0" y="257.96000000000004" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">identity I</text><line x1="424" y1="224.0" x2="476" y2="224.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="476" y="170" width="180" height="108" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="566.0" y="205.46" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">backward</text><text x="566.0" y="226.46" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">gradient path</text><text x="566.0" y="247.46" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="18.0" font-weight="400" fill="var(--ink)" text-anchor="middle">through J_l</text></svg></div>
 <figcaption><strong>Residual block: one shared lane with an identity path</strong> It shows the forward dataflow and backward gradient path that the prose describes sequentially: x branches into F(x) and an unchanged identity, then rejoins by addition.</figcaption>
 </figure>
 <p>Why that trains is a statement about the backward pass. A Jacobian is the matrix of partial derivatives of a vector output with respect to a vector input. Its spectral norm is its largest singular value, which bounds how much it can stretch a vector. For a plain stack, the gradient reaching the first block is a product of L Jacobians. If each has spectral norm s, the product has norm at most s^L. For two layers with s=0.9, the product norm is at most 0.81; with s=1.1, at most 1.21. At 56 layers, the bound is about 0.003 and 208 The first vanishes, the second explodes.</p>

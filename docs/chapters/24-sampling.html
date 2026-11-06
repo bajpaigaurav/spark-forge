@@ -19,6 +19,8 @@ document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 :root {
   color-scheme: light;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
   --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
   --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
   --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
@@ -36,6 +38,11 @@ document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
   --container: 1440px; --gutter: 64px;
   --z-sticky-nav: 300; --z-modal: 400;
   --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
   --measure: var(--read-measure);
 }
 
@@ -75,11 +82,11 @@ button, input, select, textarea { font: inherit; }
 /* ---- masthead ---- */
 /* ---- cover: one screen, then the contents ---- */
 .cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
-.cover-rule { display: block; margin: 0 0 var(--space-lg); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
 .cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
-.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-sm); }
-.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.35; color: var(--color-ink-2); max-width: 44ch; margin: 0 0 var(--space-lg); }
-.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-xs); margin: var(--space-lg) 0 var(--space-xl); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
 .cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
 .cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
 .btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
@@ -87,22 +94,24 @@ button, input, select, textarea { font: inherit; }
 .btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
 .btn-quiet:hover { background: var(--color-wash); }
 .cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
-.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-md); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
 .cover-facts div { margin: 0; }
 .cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
 .cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
 
 /* ---- the contents, set as a printed index ---- */
-.contents { margin: var(--section-gap) 0; }
-.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); border-bottom: var(--rule-hair) solid var(--color-rule); padding-bottom: var(--space-2xs); }
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
 .contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
 .contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .contents ol { list-style: none; margin: 0; padding: 0; }
 .contents li { border-top: 0; }
 .contents li:last-child { border-bottom: 0; }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: 0.5rem var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
 .contents li a:hover { background: var(--color-wash); }
 .contents li a:hover .t { color: var(--color-accent-text); }
 .contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
@@ -111,8 +120,8 @@ button, input, select, textarea { font: inherit; }
 .contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- live numbers: the book's own measurements, set as a strip ---- */
-.figures { margin: var(--section-gap) 0; }
-.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
 .fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
@@ -120,7 +129,7 @@ button, input, select, textarea { font: inherit; }
 .fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
 
 /* ---- colophon block ---- */
-.colophon-block { margin: var(--section-gap) 0 0; padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
 .colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
 .colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
 .gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
@@ -155,11 +164,13 @@ button, input, select, textarea { font: inherit; }
 .toc a.pending .t-title { color: var(--color-muted); }
 
 /* ---- chapter page ---- */
-.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-lg); padding: var(--space-md) 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); display: block; margin-bottom: var(--space-sm); }
-.chapter-head h1 { font-size: var(--text-2xl); color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: 24ch; }
-.chapter-head .thesis { font-size: var(--text-md); color: var(--color-muted); line-height: 1.45; margin: 0; max-width: 60ch; }
-.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: var(--space-xs) 0 0; padding-top: var(--space-xs); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
 .chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
 .chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
 .chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
@@ -178,15 +189,16 @@ button, input, select, textarea { font: inherit; }
 .glossary { max-width: var(--read-measure); }
 .glossary dl { margin: 0; }
 .glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
 .glossary dt a { color: var(--color-ink); text-decoration: none; }
 .glossary dt a:hover { color: var(--color-accent); }
-.glossary dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
 .glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 .glossary dd .src a { color: var(--color-accent); text-decoration: none; }
 .glossary dd .src a:hover { text-decoration: underline; }
 
 /* ---- reading paths ---- */
-.paths-strip { margin: var(--section-gap) 0; }
+.paths-strip { margin: var(--section-gap) 0 0; }
 .paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
 .paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
@@ -197,10 +209,10 @@ button, input, select, textarea { font: inherit; }
 .p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
 
 .paths-intro { max-width: var(--read-measure); }
-.path { max-width: var(--read-measure); margin: var(--section-gap) 0 0; }
-.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: none; }
-.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-2xs); }
-.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); margin: 0 0 var(--space-md); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
 .path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
 .path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
 .path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
@@ -209,7 +221,7 @@ button, input, select, textarea { font: inherit; }
 .path-list a:hover .p-title { color: var(--color-ink); }
 .p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
 .p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
-.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0 0 var(--space-xl); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
 
 /* ---- reproduce-this page ---- */
 .rig-artifacts { max-width: var(--read-measure); }
@@ -222,17 +234,50 @@ button, input, select, textarea { font: inherit; }
 .rig-artifacts .r-what { display: block; color: var(--color-muted); font-size: var(--text-sm); margin-top: var(--space-2xs); }
 .rig-limits { max-width: var(--read-measure); }
 .rig-limits dl { margin: 0; }
-.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: var(--space-md) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
 .rig-limits dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
 
 /* ---- prose ---- */
 .prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
-.prose p { margin: 0 0 var(--space-sm); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
 .prose p:last-child { margin-bottom: 0; }
-.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); max-width: none; }
-.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-lg) 0 var(--space-2xs); }
-.prose ul { margin: 0 0 var(--space-md); padding-left: 1.25rem; }
-.prose li { margin: 0 0 var(--space-2xs); }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
 .prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
 .prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
 .prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
@@ -242,15 +287,36 @@ button, input, select, textarea { font: inherit; }
 .prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
 
 /* ---- figures: on the sheet, full measure, centred ---- */
-.chapter-figure { margin: var(--space-xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
-.chapter-figure .fig-svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--color-ink); }
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
 .chapter-figure .fig-svg text { font-family: var(--font-display); }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
 
 /* ---- data figures ---- */
-.figures { margin: var(--space-xl) 0; }
 .figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
 .fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
@@ -268,7 +334,7 @@ button, input, select, textarea { font: inherit; }
 .chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
 
 /* ---- interactive devices ---- */
-.interactive { margin: var(--space-xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
 .interactive h3 { margin-top: 0; }
 .interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
 .interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
@@ -297,6 +363,7 @@ button, input, select, textarea { font: inherit; }
 
 /* ---- provenance table ---- */
 .provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
 .provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
 .provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
@@ -373,21 +440,6 @@ button, input, select, textarea { font: inherit; }
 .chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
 .chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
 
-/* ---- contents index on the front page ---- */
-.contents { margin: var(--space-xl) 0; }
-.contents > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
-.contents .part { margin-bottom: var(--space-lg); }
-.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); }
-.contents .part-head h3 { font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; }
-.contents .part-head .count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
-.contents ol { list-style: none; margin: 0; padding: 0; }
-.contents li { border-top: var(--rule-hair) solid var(--color-rule); }
-.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-sm); align-items: baseline; padding: 6px var(--space-2xs); text-decoration: none; color: var(--color-ink-2); }
-.contents li a:hover { background: var(--color-wash); color: var(--color-ink); }
-.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
-.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
-.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 54ch; }
-.contents li a .m { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
 
 /* ---- search dialog ---- */
 .search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
@@ -427,6 +479,14 @@ button, input, select, textarea { font: inherit; }
   .prose pre { max-width: 100%; }
   .provenance, .provenance table, .interactive table { max-width: 100%; }
   .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -479,31 +539,31 @@ button, input, select, textarea { font: inherit; }
 <h3 id="greedy-decoding-and-the-degeneration-loop">Greedy decoding and the degeneration loop</h3>
 <p>The simplest rule is to take the argmax. Greedy decoding picks the highest-scoring token at every step, appends it, and runs the model again. It is deterministic, it is cheap, and it degenerates. Ari Holtzman and colleagues documented the failure in April 2019 in "The Curious Case of Neural Text Degeneration", where maximising likelihood step by step produced text that looped, drifted, and contradicted itself. The mechanism is self-reinforcement. Suppose the context ends with "the the". The model has seen that pattern in training, so the next-token scores put "the" above "cat" and "dog". Greedy takes "the". The context becomes "the the the", an even stronger match for the repeated pattern, so the score for "the" rises again relative to the alternatives. The argmax locks the loop in. Nothing in the objective asks for variety, so nothing supplies it.</p>
 <figure class="chapter-figure">
-<svg class="fig-svg" viewBox="0 0 834 246" width="100%" role="img" aria-label="Greedy decoding self-reinforcement loop" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Greedy decoding self-reinforcement loop</title><rect x="12" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">context ending &#x27;the the&#x27;</text><line x1="180" y1="47.0" x2="226" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">next-token scores</text><line x1="394" y1="47.0" x2="440" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="440" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="524.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">argmax selection</text><line x1="608" y1="47.0" x2="654" y2="47.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="654" y="16" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="738.0" y="50.5" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">append token &#x27;the&#x27;</text><path d="M738.0,78 L738.0,101 L96.0,101 L96.0,124" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="96.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">new context &#x27;the the</text><text x="96.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">the&#x27;</text><line x1="180" y1="155.0" x2="226" y2="155.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="226" y="124" width="168" height="62" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="310.0" y="152.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">scores for &#x27;the&#x27; rise</text><text x="310.0" y="165.0" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="11" font-weight="400" fill="var(--ink)" text-anchor="middle">relative to alternatives</text></svg>
+<div class="fig-scroll"><svg class="fig-svg" viewBox="0 0 848 290" width="100%" role="img" aria-label="Greedy decoding self-reinforcement loop" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted, #666)"/></marker></defs><title>Greedy decoding self-reinforcement loop</title><rect x="12" y="16" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="132.0" y="50.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">context ending &#x27;the</text><text x="132.0" y="70.24000000000001" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">the&#x27;</text><line x1="252" y1="58.0" x2="304" y2="58.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="304" y="16" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="424.0" y="60.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">next-token scores</text><line x1="544" y1="58.0" x2="596" y2="58.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="596" y="16" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="716.0" y="60.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">argmax selection</text><path d="M716.0,100 L716.0,123 L132.0,123 L132.0,146" fill="none" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="12" y="146" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="132.0" y="190.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">append token &#x27;the&#x27;</text><line x1="252" y1="188.0" x2="304" y2="188.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="304" y="146" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="424.0" y="180.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">new context &#x27;the the</text><text x="424.0" y="200.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">the&#x27;</text><line x1="544" y1="188.0" x2="596" y2="188.0" stroke="var(--muted, #666)" stroke-width="1.2" marker-end="url(#arrow)"/><rect x="596" y="146" width="240" height="84" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text x="716.0" y="170.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">scores for &#x27;the&#x27; rise</text><text x="716.0" y="190.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">relative to</text><text x="716.0" y="210.24" font-family='"Nimbus Sans", "Liberation Sans", Helvetica, sans-serif' font-size="17.0" font-weight="400" fill="var(--ink)" text-anchor="middle">alternatives</text></svg></div>
 <figcaption><strong>Greedy decoding self-reinforcement loop</strong> It shows the feedback cycle by which argmax decoding locks in repetition: context feeds scores, argmax picks the top token, the token is appended, and the strengthened context feeds back.</figcaption>
 </figure>
 <h3 id="temperature-rescales-logits-without-reordering">Temperature rescales logits without reordering</h3>
-<p>Temperature is the first fix, and it comes from statistical mechanics. Ackley, Hinton and Sejnowski used it in Boltzmann machines in 1985. The operation is a division applied before the softmax. For logits \(z_i\), the probability of token \(i\) is \(p_i = \exp(z_i/T) / \sum_j \exp(z_j/T)\). Take three logits of 4.0, 2.0 and 1.0. At \(T = 1\) the probabilities are 0.844, 0.114 and 0.042. At \(T = 0.5\) the logits become 8, 4 and 2, and the probabilities become 0.980, 0.018 and 0.002. At \(T = 2\) the logits become 2, 1 and 0.5, and the probabilities flatten to 0.628, 0.231 and 0.140. As \(T\) goes to zero the distribution collapses onto the argmax, so greedy decoding is the limit of temperature zero. As \(T\) goes to infinity it approaches the uniform distribution over the whole vocabulary. Temperature never reorders the candidates.</p>
-<p>The logits 4.0, 2.0 and 1.0 stay in that order at every positive \(T\), because division by a positive scalar and exponentiation both preserve order. What changes is the mass assigned to the tail, the lower-probability entries below the top few. High temperature gives the tail more mass; low temperature gives it less. Mathematically, no entry is removed at any positive T, so temperature has no explicit cutoff. In finite precision, however, a very small positive T can underflow tail exponentials to zero, effectively dropping those tokens; this is a numerical artifact rather than an explicit top-k cut At \(T=0\) the division is undefined. Implementations special-case it as argmax, or clamp \(T\) to a small positive value; the limit is greedy, but the arithmetic needs the special case.</p>
+<p>Temperature is the first fix, and it comes from statistical mechanics. Ackley, Hinton and Sejnowski used it in Boltzmann machines in 1985. The operation is a division applied before the softmax. For logits <span class="math"><i class="m-var">z</i><sub><i class="m-var">i</i></sub></span>, the probability of token <span class="math"><i class="m-var">i</i></span> is <span class="math"><i class="m-var">p</i><sub><i class="m-var">i</i></sub> = exp(<i class="m-var">z</i><sub><i class="m-var">i</i></sub>/<i class="m-var">T</i>) / ∑<sub><i class="m-var">j</i></sub> exp(<i class="m-var">z</i><sub><i class="m-var">j</i></sub>/<i class="m-var">T</i>)</span>. Take three logits of 4.0, 2.0 and 1.0. At <span class="math"><i class="m-var">T</i> = 1</span> the probabilities are 0.844, 0.114 and 0.042. At <span class="math"><i class="m-var">T</i> = 0.5</span> the logits become 8, 4 and 2, and the probabilities become 0.980, 0.018 and 0.002. At <span class="math"><i class="m-var">T</i> = 2</span> the logits become 2, 1 and 0.5, and the probabilities flatten to 0.628, 0.231 and 0.140. As <span class="math"><i class="m-var">T</i></span> goes to zero the distribution collapses onto the argmax, so greedy decoding is the limit of temperature zero. As <span class="math"><i class="m-var">T</i></span> goes to infinity it approaches the uniform distribution over the whole vocabulary. Temperature never reorders the candidates.</p>
+<p>The logits 4.0, 2.0 and 1.0 stay in that order at every positive <span class="math"><i class="m-var">T</i></span>, because division by a positive scalar and exponentiation both preserve order. What changes is the mass assigned to the tail, the lower-probability entries below the top few. High temperature gives the tail more mass; low temperature gives it less. Mathematically, no entry is removed at any positive T, so temperature has no explicit cutoff. In finite precision, however, a very small positive T can underflow tail exponentials to zero, effectively dropping those tokens; this is a numerical artifact rather than an explicit top-k cut At <span class="math"><i class="m-var">T</i>=0</span> the division is undefined. Implementations special-case it as argmax, or clamp <span class="math"><i class="m-var">T</i></span> to a small positive value; the limit is greedy, but the arithmetic needs the special case.</p>
 <h3 id="count-based-and-mass-based-truncation">Count-based and mass-based truncation</h3>
-<p>Top-k sampling, introduced by Angela Fan, Mike Lewis and Yann Dauphin in their 2018 paper on hierarchical story generation, attacks that directly. Sort the distribution, keep the \(k\) highest entries, discard the rest, and renormalise what remains so it sums to one. With our three logits and \(k = 2\), the kept mass is \(0.844 + 0.114 = 0.958\), and renormalisation gives 0.881 and 0.119. The third token is gone entirely. The weakness is that \(k\) is a count, and the right count depends on the shape of the distribution, which changes at every step. When the model is confident, one token holds almost all the mass, and \(k = 10\) still admits nine tokens that are essentially impossible.</p>
-<p>When the model is uncertain, fifty continuations might be plausible, and \(k = 10\) throws away most of the probability mass and forces a choice among a fifth of the real options.</p>
-<p>Holtzman's nucleus sampling, from the same 2019 paper, replaced the count with a cumulative target. Sort descending, add probabilities until the running total first reaches or exceeds \(p\), keep that set, renormalise. With \(p = 0.9\) and our three logits, the first token gives 0.844, which is short of 0.9, so the second is admitted and the total reaches 0.958. Two tokens survive, and the result is identical to top-k with \(k = 2\). The difference shows up elsewhere. Ten equally likely tokens at 0.1 each: top-p at 0.9 keeps nine of them, while top-k at 5 keeps five and discards half the mass. One token at 0.95 with the rest spread thin: top-p keeps exactly one, while top-k at 50 keeps fifty entries, forty-nine of which are noise.</p>
-<p>The truncation width now adapts to the shape of the distribution rather than a fixed count; it is not determined by \(p_{\max}\) alone—two distributions with the same top-token probability can yield different nucleus sizes The cost is a sort over the vocabulary, which is why implementations use partial selection or a threshold scan rather than a full ordering.</p>
+<p>Top-k sampling, introduced by Angela Fan, Mike Lewis and Yann Dauphin in their 2018 paper on hierarchical story generation, attacks that directly. Sort the distribution, keep the <span class="math"><i class="m-var">k</i></span> highest entries, discard the rest, and renormalise what remains so it sums to one. With our three logits and <span class="math"><i class="m-var">k</i> = 2</span>, the kept mass is <span class="math">0.844 + 0.114 = 0.958</span>, and renormalisation gives 0.881 and 0.119. The third token is gone entirely. The weakness is that <span class="math"><i class="m-var">k</i></span> is a count, and the right count depends on the shape of the distribution, which changes at every step. When the model is confident, one token holds almost all the mass, and <span class="math"><i class="m-var">k</i> = 10</span> still admits nine tokens that are essentially impossible.</p>
+<p>When the model is uncertain, fifty continuations might be plausible, and <span class="math"><i class="m-var">k</i> = 10</span> throws away most of the probability mass and forces a choice among a fifth of the real options.</p>
+<p>Holtzman's nucleus sampling, from the same 2019 paper, replaced the count with a cumulative target. Sort descending, add probabilities until the running total first reaches or exceeds <span class="math"><i class="m-var">p</i></span>, keep that set, renormalise. With <span class="math"><i class="m-var">p</i> = 0.9</span> and our three logits, the first token gives 0.844, which is short of 0.9, so the second is admitted and the total reaches 0.958. Two tokens survive, and the result is identical to top-k with <span class="math"><i class="m-var">k</i> = 2</span>. The difference shows up elsewhere. Ten equally likely tokens at 0.1 each: top-p at 0.9 keeps nine of them, while top-k at 5 keeps five and discards half the mass. One token at 0.95 with the rest spread thin: top-p keeps exactly one, while top-k at 50 keeps fifty entries, forty-nine of which are noise.</p>
+<p>The truncation width now adapts to the shape of the distribution rather than a fixed count; it is not determined by <span class="math"><i class="m-var">p</i><sub>max</sub></span> alone—two distributions with the same top-token probability can yield different nucleus sizes The cost is a sort over the vocabulary, which is why implementations use partial selection or a threshold scan rather than a full ordering.</p>
 <h3 id="min-p-sets-a-floor-relative-to-the-top-token">Min-p sets a floor relative to the top token</h3>
-<p>Min-p, described by Minh Nguyen and colleagues in their 2024 preprint "Min-p sampling", takes a third approach. Instead of a cumulative target, it sets a floor relative to the top token: keep everything whose probability is at least \(\text{min\_p}\) times the maximum. With \(p_{\max} = 0.844\) and \(\text{min\_p} = 0.1\), the threshold is 0.0844, so the 0.844 and the 0.114 survive and the 0.042 does not. After thresholding, divide the surviving probabilities by their sum. Here the sum is 0.958, so the renormalised probabilities are 0.881 and 0.119. When the model is confident and \(p_{\max} = 0.99\), the threshold becomes 0.099 and only the top token survives. When the model is genuinely uncertain and \(p_{\max} = 0.12\), the threshold drops to 0.012 and many more tokens survive than in the confident case, though at production vocabulary sizes the 1.2% floor still discards most of the long tail.</p>
-<p>The cutoff scales with confidence automatically, without a fixed count and without a cumulative target that can slice through a flat distribution at an arbitrary point. It does have a subtlety. Temperature rescales the logits before softmax, so \(p_{\max}\) changes nonlinearly and the effective floor moves when you change \(T\) At \(T=1\) with our three logits, \(p_{\max}=0.844\) and \(\text{min\_p}=0.1\) gives a threshold of 0.0844, keeping two tokens. At \(T=0.5\), \(p_{\max}=0.980\) and the threshold becomes 0.098, so only the top token survives. At \(T=2\), \(p_{\max}=0.628\) and the threshold becomes 0.0628, so all three tokens survive. People who tune the two independently often end up with a sampler that behaves differently from what they intended.</p>
+<p>Min-p, described by Minh Nguyen and colleagues in their 2024 preprint "Min-p sampling", takes a third approach. Instead of a cumulative target, it sets a floor relative to the top token: keep everything whose probability is at least <span class="math"><span class="m-text">min_p</span></span> times the maximum. With <span class="math"><i class="m-var">p</i><sub>max</sub> = 0.844</span> and <span class="math"><span class="m-text">min_p</span> = 0.1</span>, the threshold is 0.0844, so the 0.844 and the 0.114 survive and the 0.042 does not. After thresholding, divide the surviving probabilities by their sum. Here the sum is 0.958, so the renormalised probabilities are 0.881 and 0.119. When the model is confident and <span class="math"><i class="m-var">p</i><sub>max</sub> = 0.99</span>, the threshold becomes 0.099 and only the top token survives. When the model is genuinely uncertain and <span class="math"><i class="m-var">p</i><sub>max</sub> = 0.12</span>, the threshold drops to 0.012 and many more tokens survive than in the confident case, though at production vocabulary sizes the 1.2% floor still discards most of the long tail.</p>
+<p>The cutoff scales with confidence automatically, without a fixed count and without a cumulative target that can slice through a flat distribution at an arbitrary point. It does have a subtlety. Temperature rescales the logits before softmax, so <span class="math"><i class="m-var">p</i><sub>max</sub></span> changes nonlinearly and the effective floor moves when you change <span class="math"><i class="m-var">T</i></span> At <span class="math"><i class="m-var">T</i>=1</span> with our three logits, <span class="math"><i class="m-var">p</i><sub>max</sub>=0.844</span> and <span class="math"><span class="m-text">min_p</span>=0.1</span> gives a threshold of 0.0844, keeping two tokens. At <span class="math"><i class="m-var">T</i>=0.5</span>, <span class="math"><i class="m-var">p</i><sub>max</sub>=0.980</span> and the threshold becomes 0.098, so only the top token survives. At <span class="math"><i class="m-var">T</i>=2</span>, <span class="math"><i class="m-var">p</i><sub>max</sub>=0.628</span> and the threshold becomes 0.0628, so all three tokens survive. People who tune the two independently often end up with a sampler that behaves differently from what they intended.</p>
 <h3 id="penalties-and-the-order-of-operations">Penalties and the order of operations</h3>
-<p>Penalties work on a different surface. The repetition penalty from Keskar and colleagues' CTRL paper in September 2019 walks the logits for tokens already present in the context and divides the positive ones by a factor \(r\) while multiplying the negative ones by \(r\). For a token with positive logit, dividing by \(r&gt;1\) lowers it; for a negative logit, multiplying by \(r&gt;1\) makes it more negative. The map is monotone on each side of zero, so two repeated tokens keep their relative order. A repeated token can fall below a non-repeated token, which is the point. The factor \(r\) is a scalar greater than 1; values below 1 would reward repetition. Frequency penalties subtract an amount \(\alpha\) proportional to how many times a token has already appeared; presence penalties subtract a flat amount \(\beta\) the first time. The scope matters.</p>
-<p>Repetition penalty applies to tokens already in the context, and implementations differ on whether the prompt counts. Many apply penalties only to generated tokens so that prompt words are not suppressed. All of these act on logits, before the softmax, so they reshape the entire distribution rather than trimming its tail. A worked example with logits 4.0, 2.0 and 1.0 and a repetition penalty \(r=1.2\) on the first token gives logits 3.333, 2.0 and 1.0. The probabilities become 0.735, 0.194 and 0.071: the first falls from 0.844, while the other two rise from 0.114 and 0.042 as the distribution renormalizes A frequency penalty with \(\alpha=0.5\) and count 2 on the first token gives logits 3.0, 2.0 and 1.0, and probabilities 0.665, 0.245 and 0.090. A presence penalty with \(\beta=0.5\) gives logits 3.5, 2.0 and 1.0, and probabilities 0.766, 0.171 and 0.063.</p>
-<p>Order matters when you stack them. Penalties first, then temperature, then truncation. The reason is that mass-based truncation such as top-p/min-p is a function of the final probabilities; top-k is rank-based and temperature-invariant, so its selected set is unchanged by temperature Take logits 4.0, 2.0 and 1.0 and a repetition penalty \(r=2\) on the first token. Penalties first give logits 2.0, 2.0 and 1.0 and probabilities 0.422, 0.422 and 0.155. Top-p at 0.9 now keeps all three, because the cumulative reaches 0.999. Truncate first on the unpenalised distribution and top-p at 0.9 keeps only the first two, excluding the third token that the penalty made competitive. Temperature belongs between penalties and truncation because it changes the probabilities that the cumulative target or the min-p floor reads. If you truncate before temperature, you choose a set using the wrong mass.</p>
-<p>After truncation and renormalisation, the token is drawn from the remaining categorical distribution. The draw is random; argmax is a different decoder. A sampler with \(T=1\) and no truncation samples the full softmax.</p>
+<p>Penalties work on a different surface. The repetition penalty from Keskar and colleagues' CTRL paper in September 2019 walks the logits for tokens already present in the context and divides the positive ones by a factor <span class="math"><i class="m-var">r</i></span> while multiplying the negative ones by <span class="math"><i class="m-var">r</i></span>. For a token with positive logit, dividing by <span class="math"><i class="m-var">r</i>&amp;<i class="m-var">g</i><i class="m-var">t</i>;1</span> lowers it; for a negative logit, multiplying by <span class="math"><i class="m-var">r</i>&amp;<i class="m-var">g</i><i class="m-var">t</i>;1</span> makes it more negative. The map is monotone on each side of zero, so two repeated tokens keep their relative order. A repeated token can fall below a non-repeated token, which is the point. The factor <span class="math"><i class="m-var">r</i></span> is a scalar greater than 1; values below 1 would reward repetition. Frequency penalties subtract an amount <span class="math">α</span> proportional to how many times a token has already appeared; presence penalties subtract a flat amount <span class="math">β</span> the first time. The scope matters.</p>
+<p>Repetition penalty applies to tokens already in the context, and implementations differ on whether the prompt counts. Many apply penalties only to generated tokens so that prompt words are not suppressed. All of these act on logits, before the softmax, so they reshape the entire distribution rather than trimming its tail. A worked example with logits 4.0, 2.0 and 1.0 and a repetition penalty <span class="math"><i class="m-var">r</i>=1.2</span> on the first token gives logits 3.333, 2.0 and 1.0. The probabilities become 0.735, 0.194 and 0.071: the first falls from 0.844, while the other two rise from 0.114 and 0.042 as the distribution renormalizes A frequency penalty with <span class="math">α=0.5</span> and count 2 on the first token gives logits 3.0, 2.0 and 1.0, and probabilities 0.665, 0.245 and 0.090. A presence penalty with <span class="math">β=0.5</span> gives logits 3.5, 2.0 and 1.0, and probabilities 0.766, 0.171 and 0.063.</p>
+<p>Order matters when you stack them. Penalties first, then temperature, then truncation. The reason is that mass-based truncation such as top-p/min-p is a function of the final probabilities; top-k is rank-based and temperature-invariant, so its selected set is unchanged by temperature Take logits 4.0, 2.0 and 1.0 and a repetition penalty <span class="math"><i class="m-var">r</i>=2</span> on the first token. Penalties first give logits 2.0, 2.0 and 1.0 and probabilities 0.422, 0.422 and 0.155. Top-p at 0.9 now keeps all three, because the cumulative reaches 0.999. Truncate first on the unpenalised distribution and top-p at 0.9 keeps only the first two, excluding the third token that the penalty made competitive. Temperature belongs between penalties and truncation because it changes the probabilities that the cumulative target or the min-p floor reads. If you truncate before temperature, you choose a set using the wrong mass.</p>
+<p>After truncation and renormalisation, the token is drawn from the remaining categorical distribution. The draw is random; argmax is a different decoder. A sampler with <span class="math"><i class="m-var">T</i>=1</span> and no truncation samples the full softmax.</p>
 <h3 id="beam-search-and-length-normalisation">Beam search and length normalisation</h3>
-<p>Beam search keeps \(B\) hypotheses alive at once, expands each, and retains the \(B\) highest-scoring partial sequences by cumulative log-probability. The raw score of a hypothesis \(Y\) is \(\sum_t \log p(y_t \mid y_{&lt;t})\). Length normalisation, introduced for neural machine translation by Wu and colleagues in 2016, divides that score by a length penalty. In the GNMT formulation, \(\text{lp}(Y) = ((5+|Y|)^\alpha)/(6^\alpha)\), with \(\alpha=0.6\), and the beam score is the log-probability divided by \(\text{lp}(Y)\). Take two hypotheses. \(H_1\) has length 2 and log-probability -1.2. \(H_2\) has length 4 and log-probability -1.3. Raw scores favour \(H_1\), because -1.2 is greater than -1.3. With length normalisation, \(\text{lp}(H_1)=7^{0.6}/6^{0.6}=1.097\), so \(H_1\) scores -1.094. \(\text{lp}(H_2)=9^{0.6}/6^{0.6}=1.275\), so \(H_2\) scores -1.020. The longer hypothesis wins. When a beam emits an end-of-sequence token, that hypothesis is completed and removed from the active set; its score is stored.</p>
-<p>The search stops when \(B\) hypotheses are complete or the length cap is reached, and length normalisation is applied at completion. Beam search remained the default in statistical machine translation through Koehn's Moses in 2007 and in neural machine translation systems such as Wu et al.'s 2016 system.</p>
-<p>It is rarely used for open-ended generation, and the reasons are mechanical as well as qualitative. Maximising likelihood selects the mode of the sequence distribution, and Holtzman et al. showed that mode-seeking decoding tends to loop and drift, so beam search inherits the failure that greedy decoding has. The cost is also real. Continuous batching lets the scheduler add and remove requests at each decode step. Each request carries its own KV cache, and the batch is assembled from whatever requests are active. A beam search request is one request with several hypotheses, each needing its own KV cache and its own next-token computation. With \(B=4\) and the live pool of 262,144 positions split across four streams, the equal share is 65,536 positions. A single request's admission ceiling is 32,750 tokens after reserving the 32,768-token reply budget and overhead.</p>
+<p>Beam search keeps <span class="math"><i class="m-var">B</i></span> hypotheses alive at once, expands each, and retains the <span class="math"><i class="m-var">B</i></span> highest-scoring partial sequences by cumulative log-probability. The raw score of a hypothesis <span class="math"><i class="m-var">Y</i></span> is <span class="math">∑<sub><i class="m-var">t</i></sub> log <i class="m-var">p</i>(<i class="m-var">y</i><sub><i class="m-var">t</i></sub> | <i class="m-var">y</i><sub>&amp;<i class="m-var">l</i><i class="m-var">t</i>;<i class="m-var">t</i></sub>)</span>. Length normalisation, introduced for neural machine translation by Wu and colleagues in 2016, divides that score by a length penalty. In the GNMT formulation, <span class="math"><span class="m-text">lp</span>(<i class="m-var">Y</i>) = ((5+|<i class="m-var">Y</i>|)<sup><i class="m-var">a</i><i class="m-var">l</i><i class="m-var">p</i><i class="m-var">h</i><i class="m-var">a</i></sup>)/(6<sup><i class="m-var">a</i><i class="m-var">l</i><i class="m-var">p</i><i class="m-var">h</i><i class="m-var">a</i></sup>)</span>, with <span class="math">α=0.6</span>, and the beam score is the log-probability divided by <span class="math"><span class="m-text">lp</span>(<i class="m-var">Y</i>)</span>. Take two hypotheses. <span class="math"><i class="m-var">H</i><sub>1</sub></span> has length 2 and log-probability -1.2. <span class="math"><i class="m-var">H</i><sub>2</sub></span> has length 4 and log-probability -1.3. Raw scores favour <span class="math"><i class="m-var">H</i><sub>1</sub></span>, because -1.2 is greater than -1.3. With length normalisation, <span class="math"><span class="m-text">lp</span>(<i class="m-var">H</i><sub>1</sub>)=7<sup>0.6</sup>/6<sup>0.6</sup>=1.097</span>, so <span class="math"><i class="m-var">H</i><sub>1</sub></span> scores -1.094. <span class="math"><span class="m-text">lp</span>(<i class="m-var">H</i><sub>2</sub>)=9<sup>0.6</sup>/6<sup>0.6</sup>=1.275</span>, so <span class="math"><i class="m-var">H</i><sub>2</sub></span> scores -1.020. The longer hypothesis wins. When a beam emits an end-of-sequence token, that hypothesis is completed and removed from the active set; its score is stored.</p>
+<p>The search stops when <span class="math"><i class="m-var">B</i></span> hypotheses are complete or the length cap is reached, and length normalisation is applied at completion. Beam search remained the default in statistical machine translation through Koehn's Moses in 2007 and in neural machine translation systems such as Wu et al.'s 2016 system.</p>
+<p>It is rarely used for open-ended generation, and the reasons are mechanical as well as qualitative. Maximising likelihood selects the mode of the sequence distribution, and Holtzman et al. showed that mode-seeking decoding tends to loop and drift, so beam search inherits the failure that greedy decoding has. The cost is also real. Continuous batching lets the scheduler add and remove requests at each decode step. Each request carries its own KV cache, and the batch is assembled from whatever requests are active. A beam search request is one request with several hypotheses, each needing its own KV cache and its own next-token computation. With <span class="math"><i class="m-var">B</i>=4</span> and the live pool of 262,144 positions split across four streams, the equal share is 65,536 positions. A single request's admission ceiling is 32,750 tokens after reserving the 32,768-token reply budget and overhead.</p>
 <p>Each beam also needs its own reply budget, so four beams at that ceiling would need about 262,000 positions—the whole pool—not 131,000 So beam search either shrinks the context per beam or blocks admission. Beams also finish at different times. A beam that emits end-of-sequence is complete, but the other beams continue; the request cannot be retired until the search finishes, so the scheduler holds its KV cache and its slot while other requests wait or share the batch.</p>
-<p>The sampler cannot add information to the distribution it is given. It can only decide how much of the model's uncertainty reaches the categorical draw, and each parameter above makes that decision at a different point in the arithmetic. When you tune, change one parameter at a time and re-run the same prompt. A change in \(T\) can move the min-p floor, and a change in penalties can move the truncation set.</p>
+<p>The sampler cannot add information to the distribution it is given. It can only decide how much of the model's uncertainty reaches the categorical draw, and each parameter above makes that decision at a different point in the arithmetic. When you tune, change one parameter at a time and re-run the same prompt. A change in <span class="math"><i class="m-var">T</i></span> can move the min-p floor, and a change in penalties can move the truncation set.</p>
 </article>
 
 
