@@ -1,18 +1,18 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Feed-forward network: d \u2192 m \u2192 d with a nonlinear bend",
-  "why": "It shows the two-matrix pipeline and where the activation sits, including the residual add and the collapse without a bend.",
+  "kind": "panels",
+  "title": "d to m to d, with a bend in the middle",
+  "why": "It shows the shape of the feed-forward block and why the middle matters: without the nonlinearity W2 W1 composes into one d-to-d matrix and the extra width buys nothing.",
   "nodes": [
-    "residual vector x, width d",
-    "W\u2081 up-projection",
-    "intermediate vector, width m",
-    "activation bend",
-    "W\u2082 down-projection",
-    "output, width d",
-    "add back to residual stream"
+    "x, width d",
+    "W1: d by m",
+    "width m",
+    "activation",
+    "W2: m by d",
+    "width d",
+    "add to the stream"
   ],
-  "notes": "Left-to-right dataflow: a d-dimensional residual vector enters W\u2081, widens to the intermediate width m, passes through the coordinatewise nonlinearity, and W\u2082 projects back to d; the result is added to the residual stream. The only labelled quantities are the structural widths d and m from the prose. Without the activation, W\u2082W\u2081 composes into a single d\u2192d matrix, so the intermediate width buys no expressive power. | x-axis is input x; y-axis is activation value and derivative value. Plot GELU(x) and its derivative, marking the chapter's points: x=0 gives GELU=0 and derivative 0.5; x=1 gives GELU=0.8413 and derivative 1.0833; x=-1 gives GELU=-0.1587 and derivative -0.0833; x=-2 gives GELU=-0.0455 and derivative -0.0852; x=-3 gives GELU=-0.0040 and derivative -0.0119; x=-4 derivative about -0.0005. A ReLU reference can show zero output and zero derivative for negative x, contrasting with GELU's small nonzero negative-side derivative. | Left-to-right flow: x feeds both W_g and W_v. W_g output passes through sigmoid to become a soft switch between 0 and 1; W_v output passes through unchanged. The two d\u00d7m branches are multiplied elementwise; the product is what W_d sees. The up-projection W\u2081 is d\u00d72m and is split into W_g and W_v, each d\u00d7m. No numerical values beyond the chapter's d, m, and 2m are labelled. | Dataflow: x feeds two separate projections; gate branch applies Swish or sigmoid; value branch stays linear; branches multiply elementwise; result projects down. Label model width d and intermediate width m. Compare plain FFN: two d\u00d74d matrices, 8d\u00b2 parameters and multiply-adds per token. Gated FFN: three d\u00d7m matrices; holding 8d\u00b2 requires 3dm=8d\u00b2, so m=8d/3\u22482.67d; leaving m=4d gives 12d\u00b2, a 50% FFN parameter increase. All quantities come from the chapter. | Left side compares bias counts: plain FFN at 5d versus gated FFN at 19d/3 \u2248 6.33d, showing the gated layer has slightly more parameters when biases are present. Right side shows the intermediate-width rounding for d=4096: exact 10922.67, kernel-friendly 11008, a 0.78% increase. All quantities are from the chapter; no axes require invented values.",
+  "notes": "Left-to-right dataflow: a d-dimensional residual vector enters W₁, widens to the intermediate width m, passes through the coordinatewise nonlinearity, and W₂ projects back to d; the result is added to the residual stream. The only labelled quantities are the structural widths d and m from the prose. Without the activation, W₂W₁ composes into a single d→d matrix, so the intermediate width buys no expressive power. | x-axis is input x; y-axis is activation value and derivative value. Plot GELU(x) and its derivative, marking the chapter's points: x=0 gives GELU=0 and derivative 0.5; x=1 gives GELU=0.8413 and derivative 1.0833; x=-1 gives GELU=-0.1587 and derivative -0.0833; x=-2 gives GELU=-0.0455 and derivative -0.0852; x=-3 gives GELU=-0.0040 and derivative -0.0119; x=-4 derivative about -0.0005. A ReLU reference can show zero output and zero derivative for negative x, contrasting with GELU's small nonzero negative-side derivative. | Left-to-right flow: x feeds both W_g and W_v. W_g output passes through sigmoid to become a soft switch between 0 and 1; W_v output passes through unchanged. The two d×m branches are multiplied elementwise; the product is what W_d sees. The up-projection W₁ is d×2m and is split into W_g and W_v, each d×m. No numerical values beyond the chapter's d, m, and 2m are labelled. | Dataflow: x feeds two separate projections; gate branch applies Swish or sigmoid; value branch stays linear; branches multiply elementwise; result projects down. Label model width d and intermediate width m. Compare plain FFN: two d×4d matrices, 8d² parameters and multiply-adds per token. Gated FFN: three d×m matrices; holding 8d² requires 3dm=8d², so m=8d/3≈2.67d; leaving m=4d gives 12d², a 50% FFN parameter increase. All quantities come from the chapter. | Left side compares bias counts: plain FFN at 5d versus gated FFN at 19d/3 ≈ 6.33d, showing the gated layer has slightly more parameters when biases are present. Right side shows the intermediate-width rounding for d=4096: exact 10922.67, kernel-friendly 11008, a 0.78% increase. All quantities are from the chapter; no axes require invented values.",
   "section": 1,
   "sections": [
     1,
@@ -20,5 +20,27 @@
     3,
     4,
     5
+  ],
+  "panels": [
+    {
+      "title": "the block",
+      "items": [
+        "x, width d",
+        "W1: d by m, widen",
+        "activation, coordinatewise",
+        "W2: m by d, narrow",
+        "add back to the stream"
+      ],
+      "note": "ReLU, GELU, or a gated turn."
+    },
+    {
+      "title": "remove the bend",
+      "items": [
+        "W2 W1 composes",
+        "one d-by-d matrix",
+        "the width m disappears"
+      ],
+      "note": "The intermediate width buys no expressive power without the nonlinearity."
+    }
   ]
 }

@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Byte-pair encoding as a compression loop feeding token IDs into the model",
-  "why": "It shows the sequential dataflow from UTF-8 bytes through repeated pair-counting and merging to token IDs, and the tradeoff between shorter sequences and a larger vocabulary.",
+  "kind": "panels",
+  "title": "Bytes to pieces: BPE trades sequence length for vocabulary size",
+  "why": "It shows the actual compression, which the prose describes in sequence: a byte stream becomes fewer, longer pieces, and the same text costs different numbers of tokens depending on the merge table.",
   "nodes": [
     "UTF-8 byte stream",
     "count adjacent pairs",
@@ -22,5 +22,35 @@
     4,
     5,
     6
+  ],
+  "panels": [
+    {
+      "title": "the byte stream",
+      "items": [
+        "t",
+        "h",
+        "e",
+        " ",
+        "t",
+        "h",
+        "e",
+        " ",
+        "e",
+        "n",
+        "d"
+      ],
+      "note": "11 bytes. ASCII takes 1 byte; accented and Cyrillic characters take 2; an emoji can take 4."
+    },
+    {
+      "title": "after merges",
+      "items": [
+        "the",
+        " ",
+        "the",
+        " ",
+        "end"
+      ],
+      "note": "5 tokens. Every round removes one symbol from the stream and adds one entry to the vocabulary."
+    }
   ]
 }

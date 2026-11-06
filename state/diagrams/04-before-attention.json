@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Encoder\u2013decoder bottleneck: many source tokens compressed into one final hidden state",
-  "why": "It shows the dataflow the prose describes in sequence: source tokens enter an encoder RNN, all intermediate states collapse into a single final hidden-state vector, and only that vector feeds the decoder RNN.",
+  "kind": "panels",
+  "title": "The bottleneck: every source token compressed into one vector",
+  "why": "It shows what the recurrence forces, which the prose describes in sequence: intermediate encoder states exist but are never passed on, and the decoder starts from one vector of a few hundred numbers.",
   "nodes": [
     "source tokens",
     "encoder RNN steps",
@@ -11,7 +11,7 @@
     "decoder RNN steps",
     "output tokens"
   ],
-  "notes": "No axes; this is a left-to-right dataflow. Source tokens are consumed one at a time by the encoder RNN. The encoder produces intermediate hidden states at each step, but the diagram should show them as not passed forward. Only the final hidden state vector\u2014described in the chapter as a vector of a few hundred numbers\u2014crosses into the decoder. The decoder starts from that vector and emits output tokens one per step, feeding each emitted token back in. Label the single final vector as the bottleneck and mark that earlier encoder states are inaccessible to the decoder. | Left-to-right flow: source tokens enter encoder steps; each step updates h_t via h_t = tanh(w h_{t-1} + x_t); the final hidden state becomes the fixed summary passed to the decoder. A backward arrow runs from h_T to h_1 through all T steps, labelled with the product of w\u00b7tanh'(a_t) factors. Example labels from the chapter: w=0.5, tanh'=0.8 gives factor 0.4; over twenty steps the product is 0.4^19 \u2248 2.7\u00d710^-8. A capacity inset compares a 256-float summary against 5 source tokens carrying 1,280 embedding floats and 50 tokens carrying 12,800 floats; the summary has 256 slots in both cases. | Left-to-right flow: source tokens feed forward and backward RNNs; their states concatenate into annotations h_j of width 2d. At each decoder step, s_{i-1} of width d' and every h_j feed the scoring network, producing one scalar e_{ij} per encoder position. Softmax converts scores over j into weights \u03b1_{ij}; the context vector is their weighted sum of annotations and is handed to the decoder. The chapter's example scores 2.0, 1.0, 0.0 give weights 0.665, 0.245, 0.090; after raising the first score to 4.0 they become 0.936, 0.047, 0.017. Axes are not numeric; the diagram labels tensor widths d, 2d, d', and k. | Horizontal axis is source position; a window centered at predicted p_i with half-width D=2 covers 5 of 50 positions, so cost per decoder step is O((2D+1)d) instead of O(m d). The scoring comparison labels dot as requiring shared width, general as inserting learned W, and additive as Bahdanau's tanh network; no other quantities are labelled. | No axes; boxes are tensors and operations. Arrows flow from S and H into either the additive branch (two GEMM projections, then an elementwise k-vector sum for every (i,j), tanh, v-dot) or the dot-product branch (one GEMM). Label shapes n=20, m=50, k=128, d=512 where given; label the additive k\u00d7n\u00d7m intermediate as the structural bottleneck and the dot-product n\u00d7m output as contiguous GEMM output. The arithmetic counts in the prose (\u22487.86M projections, 128k v-dot, \u22488M total additive vs 512k dot-product) can annotate the branches but are not axis quantities. | Rows are source positions (n), columns are target positions (m); each cell is a query-key comparison costing O(d). The example labels n=50, m=20, d=512, giving 1,000 entries and 50*20*512=512,000 multiply-adds for scores, with similar cost for the weighted sum. A second panel shows self-attention where source and target length are both L, giving an L-by-L matrix and O(L^2 d) cost. No other quantities are labelled.",
+  "notes": "No axes; this is a left-to-right dataflow. Source tokens are consumed one at a time by the encoder RNN. The encoder produces intermediate hidden states at each step, but the diagram should show them as not passed forward. Only the final hidden state vector—described in the chapter as a vector of a few hundred numbers—crosses into the decoder. The decoder starts from that vector and emits output tokens one per step, feeding each emitted token back in. Label the single final vector as the bottleneck and mark that earlier encoder states are inaccessible to the decoder. | Left-to-right flow: source tokens enter encoder steps; each step updates h_t via h_t = tanh(w h_{t-1} + x_t); the final hidden state becomes the fixed summary passed to the decoder. A backward arrow runs from h_T to h_1 through all T steps, labelled with the product of w·tanh'(a_t) factors. Example labels from the chapter: w=0.5, tanh'=0.8 gives factor 0.4; over twenty steps the product is 0.4^19 ≈ 2.7×10^-8. A capacity inset compares a 256-float summary against 5 source tokens carrying 1,280 embedding floats and 50 tokens carrying 12,800 floats; the summary has 256 slots in both cases. | Left-to-right flow: source tokens feed forward and backward RNNs; their states concatenate into annotations h_j of width 2d. At each decoder step, s_{i-1} of width d' and every h_j feed the scoring network, producing one scalar e_{ij} per encoder position. Softmax converts scores over j into weights α_{ij}; the context vector is their weighted sum of annotations and is handed to the decoder. The chapter's example scores 2.0, 1.0, 0.0 give weights 0.665, 0.245, 0.090; after raising the first score to 4.0 they become 0.936, 0.047, 0.017. Axes are not numeric; the diagram labels tensor widths d, 2d, d', and k. | Horizontal axis is source position; a window centered at predicted p_i with half-width D=2 covers 5 of 50 positions, so cost per decoder step is O((2D+1)d) instead of O(m d). The scoring comparison labels dot as requiring shared width, general as inserting learned W, and additive as Bahdanau's tanh network; no other quantities are labelled. | No axes; boxes are tensors and operations. Arrows flow from S and H into either the additive branch (two GEMM projections, then an elementwise k-vector sum for every (i,j), tanh, v-dot) or the dot-product branch (one GEMM). Label shapes n=20, m=50, k=128, d=512 where given; label the additive k×n×m intermediate as the structural bottleneck and the dot-product n×m output as contiguous GEMM output. The arithmetic counts in the prose (≈7.86M projections, 128k v-dot, ≈8M total additive vs 512k dot-product) can annotate the branches but are not axis quantities. | Rows are source positions (n), columns are target positions (m); each cell is a query-key comparison costing O(d). The example labels n=50, m=20, d=512, giving 1,000 entries and 50*20*512=512,000 multiply-adds for scores, with similar cost for the weighted sum. A second panel shows self-attention where source and target length are both L, giving an L-by-L matrix and O(L^2 d) cost. No other quantities are labelled.",
   "section": 1,
   "sections": [
     1,
@@ -20,5 +20,29 @@
     4,
     5,
     6
+  ],
+  "panels": [
+    {
+      "title": "encoder: states that go nowhere",
+      "items": [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "final h"
+      ],
+      "note": "Only the final hidden state crosses into the decoder."
+    },
+    {
+      "title": "decoder: one vector in, tokens out",
+      "items": [
+        "final h",
+        "step 1",
+        "step 2",
+        "step 3"
+      ],
+      "note": "Everything the decoder knows about the source is in that one vector."
+    }
   ]
 }

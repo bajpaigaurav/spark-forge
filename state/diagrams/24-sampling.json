@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Greedy decoding self-reinforcement loop",
-  "why": "It shows the feedback cycle by which argmax decoding locks in repetition: context feeds scores, argmax picks the top token, the token is appended, and the strengthened context feeds back.",
+  "kind": "matrix",
+  "title": "Temperature moves the mass, never the order",
+  "why": "It shows the chapter worked example as a table of shares: the same three logits at T=1, T=0.5 and T=2, with top-k k=2 renormalising the first two. The order never changes; the tail mass does.",
   "nodes": [
     "context ending 'the the'",
     "next-token scores",
@@ -20,5 +20,36 @@
     4,
     5,
     6
-  ]
+  ],
+  "rows": [
+    [
+      0.844,
+      0.114,
+      0.042
+    ],
+    [
+      0.98,
+      0.018,
+      0.002
+    ],
+    [
+      0.628,
+      0.231,
+      0.14
+    ],
+    [
+      0.881,
+      0.119,
+      0
+    ]
+  ],
+  "cols": [
+    "T=1",
+    "T=0.5",
+    "T=2",
+    "top-k k=2"
+  ],
+  "row_head": "logits 4.0, 2.0, 1.0",
+  "note": "At T=0.5 the tail nearly vanishes; at T=2 it rises. Top-k k=2 drops the third token and renormalises 0.844 + 0.114 = 0.958 into 0.881 and 0.119.",
+  "scale": 1.0
 }

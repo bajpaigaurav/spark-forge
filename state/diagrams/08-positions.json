@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "comparison",
-  "title": "Sinusoidal vs learned positional encoding",
-  "why": "Shows the structural difference between a continuous sinusoidal scheme with offset rotation and a fixed-length learned lookup table.",
+  "kind": "panels",
+  "title": "Two ways to say where a token is",
+  "why": "It shows the two encodings side by side, which the prose describes in sequence: a fixed geometric ladder where the pair at p+k is a rotation of the pair at p, and a learned table with no row past its built length.",
   "nodes": [
     "Sinusoidal encoding (Vaswani et al., 2017)",
     "Learned lookup table (BERT, GPT-2)",
@@ -11,7 +11,7 @@
     "Fixed rows for positions 1..1024",
     "No row at position 1025"
   ],
-  "notes": "Left: dimension pairs i have wavelengths from 2\u03c0 to 10000\u00b72\u03c0; the pair at position p+k is the pair at p multiplied by [[cos k, sin k],[-sin k, cos k]]; example k=1, p=1 maps (0.841,0.540) to (0.908,-0.415). Right: one learned vector per position added to the token embedding; table built for 1024 positions has no row at 1025; the same word at position 5 and position 500 arrives with different vectors. | Left path: q_i and k_j plus the clipped-offset vector a enter the score; the same cached k_j needs a different added term for every query position i, so a new query needs O(n) additions over cached keys. Right: a 2D plane for one dimension pair m; axes are the two paired components; q is rotated by i\u03b8_m and k by j\u03b8_m, so the angle between them is (i\u2212j)\u03b8_m; for the (1,0) example the dot is cos((i\u2212j)\u03b8_m), and generally a linear combination of cos and sin of (i\u2212j)\u03b8_m. Labels: positions i and j, offset i\u2212j, clip bound k, pair index m, dimension d, frequency \u03b8_m=10000^(\u22122m/d). | Panel A: x-axis token distance |i-j|, y-axis attention-score penalty m_h|i-j|; eight curves for n=8 heads with slopes 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256; label at distance 100 the penalties 50 for m=1/2 and 0.39 for m=1/256. Panel B: x-axis position p, y-axis RoPE angle for \u03b8=0.01; show p=2048 angle 20.48, scaled by s=2 to interpolated position 1024 angle 10.24; adjacent p=2049 becomes 1024.5, giving angle gap 0.005 instead of 0.01. All quantities are from the chapter. | Left panel: x-axis is dimension index m or ratio r_m; y-axis is \u03b3_m from 0 to 1, with \u03b1=1 and \u03b2=32 marked. Annotate m=0 stays at \u03b8=1 and m=64 goes from 1/10000 to 1/20220 for d=128, s=2, b=10000, b'=20220. Right panel: x-axis is positions, y-axis is GiB per rank; mark 262,144 and 1,048,576 positions using the chapter's 0.9 GiB per 1,048,576 positions per rank and the extra 0.675/0.68 GiB calculation. | Block diagram: pool size divided by stream count gives equal share; subtract reply budget, batch width, and reserved rows to get ceiling. Two configurations side by side. Also show gap to native window and cost per rank. No axes; quantities labeled as in text.",
+  "notes": "Left: dimension pairs i have wavelengths from 2π to 10000·2π; the pair at position p+k is the pair at p multiplied by [[cos k, sin k],[-sin k, cos k]]; example k=1, p=1 maps (0.841,0.540) to (0.908,-0.415). Right: one learned vector per position added to the token embedding; table built for 1024 positions has no row at 1025; the same word at position 5 and position 500 arrives with different vectors. | Left path: q_i and k_j plus the clipped-offset vector a enter the score; the same cached k_j needs a different added term for every query position i, so a new query needs O(n) additions over cached keys. Right: a 2D plane for one dimension pair m; axes are the two paired components; q is rotated by iθ_m and k by jθ_m, so the angle between them is (i−j)θ_m; for the (1,0) example the dot is cos((i−j)θ_m), and generally a linear combination of cos and sin of (i−j)θ_m. Labels: positions i and j, offset i−j, clip bound k, pair index m, dimension d, frequency θ_m=10000^(−2m/d). | Panel A: x-axis token distance |i-j|, y-axis attention-score penalty m_h|i-j|; eight curves for n=8 heads with slopes 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256; label at distance 100 the penalties 50 for m=1/2 and 0.39 for m=1/256. Panel B: x-axis position p, y-axis RoPE angle for θ=0.01; show p=2048 angle 20.48, scaled by s=2 to interpolated position 1024 angle 10.24; adjacent p=2049 becomes 1024.5, giving angle gap 0.005 instead of 0.01. All quantities are from the chapter. | Left panel: x-axis is dimension index m or ratio r_m; y-axis is γ_m from 0 to 1, with α=1 and β=32 marked. Annotate m=0 stays at θ=1 and m=64 goes from 1/10000 to 1/20220 for d=128, s=2, b=10000, b'=20220. Right panel: x-axis is positions, y-axis is GiB per rank; mark 262,144 and 1,048,576 positions using the chapter's 0.9 GiB per 1,048,576 positions per rank and the extra 0.675/0.68 GiB calculation. | Block diagram: pool size divided by stream count gives equal share; subtract reply budget, batch width, and reserved rows to get ceiling. Two configurations side by side. Also show gap to native window and cost per rank. No axes; quantities labeled as in text.",
   "section": 2,
   "sections": [
     2,
@@ -19,5 +19,29 @@
     4,
     5,
     6
+  ],
+  "panels": [
+    {
+      "title": "sinusoidal, fixed",
+      "items": [
+        "component 2i: sin(pos / 10000^(2i/d))",
+        "component 2i+1: cos(pos / 10000^(2i/d))",
+        "pair at p+k = pair at p rotated by k",
+        "(0.841, 0.540) at p=1",
+        "(0.908, -0.415) at p+k"
+      ],
+      "note": "Relative offsets are readable from the dot products."
+    },
+    {
+      "title": "learned, a table",
+      "items": [
+        "one vector per position",
+        "added to the token embedding",
+        "table built for 1024 positions",
+        "no row at 1025",
+        "same word at 5 and 500 differs"
+      ],
+      "note": "Past the built length there is nothing to look up."
+    }
   ]
 }

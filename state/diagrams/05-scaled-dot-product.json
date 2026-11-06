@@ -1,18 +1,30 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "One transformer layer: residual stream, Q/K/V projections, norm, and feed-forward",
-  "why": "It shows the layer's dataflow and tensor shapes that the prose introduces in sequence: x, the three projection matrices, q/k/v, residual addition, layer norm, and the feed-forward block.",
-  "nodes": [
-    "x: residual stream vector, length d_model",
-    "W_Q, W_K, W_V: each d_model by d_k",
-    "q = x W_Q, k = x W_K, v = x W_V: each length d_k",
-    "attention sublayer",
-    "residual addition: x + Sublayer(x)",
-    "LayerNorm across d_model components",
-    "feed-forward: two linear layers with inner width typically 4 times d_model"
+  "kind": "lane",
+  "title": "One transformer layer: Q/K/V projections, attention, and the residual lane",
+  "why": "It shows the layer's dataflow and the one thing a box sequence hides: the residual stream bypasses every sublayer and is added back, so information from earlier layers survives.",
+  "stages": [
+    "x, the residual stream",
+    "W_Q, W_K, W_V",
+    "q, k, v",
+    "attention",
+    "W_O",
+    "norm",
+    "feed-forward",
+    "+ x, the add back"
   ],
-  "notes": "Flow runs left to right along the residual stream. Label x as d_model; label each weight matrix as d_model x d_k; label q, k, v as d_k. Show that the same W matrices apply to every token, so n tokens yield n queries, n keys, and n values. Show the residual addition as a bypass path around the sublayer. Note that the original 2017 paper placed LayerNorm after the residual addition, while most later models moved it before the sublayer. The feed-forward block is applied per position independently, with inner width typically 4 times d_model. | Flow left to right. Rows of S and A are queries i; columns are keys j. Label n tokens, d_model, h heads, and d_k = d_model/h. The scaling factor sqrt(d_k) sits between S and softmax. The multi-head branch splits the projected Q/K/V width d_model into h parallel d_k-wide attention computations, then concatenates back to d_model before W_O. A small inset can show the chapter's softmax example: scores 2, 1, 0 give exponentials 7.389, 2.718, 1.000, sum 11.107, shares 0.665, 0.245, 0.090, and with values (1,0), (0,1), (1,1) the output is (0.755, 0.335). | Two-panel comparison. Left panel: dependency depth vs total work; recurrence is a chain of n steps, attention is a short chain over a wide n^2 score matrix. Right panel: memory footprint per head (34 GB), all heads (>1 TB), and available unified memory (111.5 GB), with tiling as the flow that avoids materializing the full matrix. All quantities are from the chapter: n=130,659, d_model=4096, h=32, d_k=128, 1.71\u00d710^10 pairs, 2.8\u00d710^14 FLOPs / 1.4\u00d710^14 MACs, 2.2\u00d710^12 MACs, ratio \u224864, 34 GB, 111.5 GB. | No axes; the flow is q_t into scores against the t cached keys, mask before softmax so exp(-inf)=0 and each row sums only over the past, then the weighted sum reads the t cached values. At step t only q_t is computed; K and V for earlier positions are reused from the KV cache. The cache grows with t and is what limits concurrency: the engine runs four streams against a shared pool of 262,144 positions with a 32,768-token reply budget. Measured on this pair, one stream decodes at 59.1 tok/s and four concurrent streams aggregate 106.2 tok/s, a 1.80 multiplier, against a shared 273 GB/s LPDDR5X memory ceiling. Prefill is compute-bound at 39,237 tok/s, with 95.9% of prompt tokens served from the prefix cache, removing 313 seconds of prefill over the sampled window.",
+  "sizes": [
+    "d_model",
+    "d_model by d_k",
+    "d_k each",
+    "n by n scores",
+    "d_model",
+    "d_model",
+    "inner width 4 x d_model",
+    "d_model"
+  ],
+  "bypass": "residual lane: x is added back, never replaced",
+  "note": "Every token runs this lane. Attention mixes positions; the feed-forward layer transforms each one alone.",
   "section": 1,
   "sections": [
     1,

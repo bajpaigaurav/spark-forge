@@ -1,19 +1,19 @@
 {
   "needed": true,
-  "kind": "layout",
-  "title": "Memory hierarchy and the materialized L\u00d7L attention matrix",
-  "why": "It shows the GPU memory stack and the standard attention dataflow that writes S to HBM, carrying the section's structural argument rather than restating one sentence.",
+  "kind": "panels",
+  "title": "The matrix that never has to exist",
+  "why": "It shows the contrast the prose builds in sequence: the naive path materialises the whole L x L matrix in memory and reads it back, while tiling keeps one block of it in shared memory at a time.",
   "nodes": [
     "Registers (per thread)",
     "Shared memory (per SM; 128 bytes/clk; 281 GB/s at 2,197 MHz)",
     "L2",
     "HBM/LPDDR5X (273 GB/s shared CPU+GPU)",
-    "Q, K, V: each L\u00d7d with L=130,659, d=128",
-    "S = QK\u1d40: L\u00d7L = 1.707\u00d710\u00b9\u2070 entries; 34.1 GB at 2 bytes",
+    "Q, K, V: each L×d with L=130,659, d=128",
+    "S = QKᵀ: L×L = 1.707×10¹⁰ entries; 34.1 GB at 2 bytes",
     "softmax(S)",
     "O"
   ],
-  "notes": "Left-to-right memory hierarchy from registers to shared memory to L2 to HBM, labelled with the chapter's bandwidth and latency quantities. Below it, the attention dataflow: Q and K flow into S = QK\u1d40, S is written to HBM as an L\u00d7L matrix, then read back for softmax and multiplied by V to produce O. The figure labels L=130,659, d=128, L\u00b2=1.707\u00d710\u00b9\u2070, 34.1 GB, 273 GB/s, and 281 GB/s exactly as given in the chapter. | Flow is: load one Q block (Br\u00d7d) and one K block (Bc\u00d7d) into shared memory; compute the Br\u00d7Bc score tile; apply softmax pieces; multiply by the matching V block (Bc\u00d7d); accumulate into a Br\u00d7d output block kept on chip; advance to the next K block. The L\u00d7L matrix never exists. Label L = 130,659 and d = 128 from the chapter; Br and Bc are the block sizes named in the prose. The contrast quantities are the materialized S size 4.37 TB, one pass at 273 GB/s taking 16 seconds, arithmetic intensity 42.6 FLOPs/byte, and the 11.6 TFLOP/s threshold for compute-bound behavior. No axis is a measured curve; the figure is a loop over K blocks with shapes on each edge. | Left side: shared-memory layout with tile dimensions and byte sizes; bank period is 128 bytes, a score row is 256 bytes, padding to 136 elements shifts each row start by 16 bytes. Right side: online-softmax update flow\u2014new tile scores update m, rescale O and l by \u03b1, then accumulate the tile contribution. Budget comparison labels 80 KB total against 228 KB Hopper and 164 KB Ampere. | No axes; this is a loop dataflow. Q_tile feeds the score tile s with K_j; s feeds rowmax and the exponential; the previous running state m, l, and O feeds the rescale by alpha; V_j feeds the output accumulator update. Shapes labelled where given: s is Br x Bc, alpha is Br x 1. The loop carries m, l, and O across tiles and divides O by l only after the last tile. | No axes; arrows show forward storage and backward reuse/recomputation. Ordinary attention persists the L\u00d7L score matrix from forward and reads it back for gradients. Flash Attention persists only the row normalization and recomputes score tiles from Q, K, V during backward, then applies the chain rule through softmax. Label the trade at the recompute arrow: one extra QK\u1d40 per head-layer = 4.37 \u00d7 10\u00b9\u00b2 FLOPs against 34.1 GB storage saved; total unified memory 111.5 GB, so 111.5/34.1 = 3.3 head-layers would fill the machine. Label the footprint comparison: per head quadratic term 2L\u00b2 bytes vs linear K/V term 4Ld bytes, ratio L/2d = 510\u00d7 at L = 130,659 and d = 128; one head-layer score matrix 4.37 TB vs its K/V 66.9 MB. Optionally mark the Flash Attention 2 scheduling detail: keep the Br\u00d7d accumulator unnormalized, defer division to the end, rescale only when the running maximum changes, and keep the Q tile resident while K and V stream. | Axes: position (0 to 262,144) by head dimension (128). Each position stores K and V contiguously along d, so a decode step reads a long run rather than chasing strides. Labels: fp16 = 2 bytes; one KV head at one layer over the full pool is 67.1 MB for K and 67.1 MB for V, 134.2 MB together. Prefix-shared blocks are stored once and reused; the 95.9% hit rate is from the sampled deployment. Flash-Decoding splits the position axis into blocks and merges partial attention outputs with online rescaling.",
+  "notes": "Left-to-right memory hierarchy from registers to shared memory to L2 to HBM, labelled with the chapter's bandwidth and latency quantities. Below it, the attention dataflow: Q and K flow into S = QKᵀ, S is written to HBM as an L×L matrix, then read back for softmax and multiplied by V to produce O. The figure labels L=130,659, d=128, L²=1.707×10¹⁰, 34.1 GB, 273 GB/s, and 281 GB/s exactly as given in the chapter. | Flow is: load one Q block (Br×d) and one K block (Bc×d) into shared memory; compute the Br×Bc score tile; apply softmax pieces; multiply by the matching V block (Bc×d); accumulate into a Br×d output block kept on chip; advance to the next K block. The L×L matrix never exists. Label L = 130,659 and d = 128 from the chapter; Br and Bc are the block sizes named in the prose. The contrast quantities are the materialized S size 4.37 TB, one pass at 273 GB/s taking 16 seconds, arithmetic intensity 42.6 FLOPs/byte, and the 11.6 TFLOP/s threshold for compute-bound behavior. No axis is a measured curve; the figure is a loop over K blocks with shapes on each edge. | Left side: shared-memory layout with tile dimensions and byte sizes; bank period is 128 bytes, a score row is 256 bytes, padding to 136 elements shifts each row start by 16 bytes. Right side: online-softmax update flow—new tile scores update m, rescale O and l by α, then accumulate the tile contribution. Budget comparison labels 80 KB total against 228 KB Hopper and 164 KB Ampere. | No axes; this is a loop dataflow. Q_tile feeds the score tile s with K_j; s feeds rowmax and the exponential; the previous running state m, l, and O feeds the rescale by alpha; V_j feeds the output accumulator update. Shapes labelled where given: s is Br x Bc, alpha is Br x 1. The loop carries m, l, and O across tiles and divides O by l only after the last tile. | No axes; arrows show forward storage and backward reuse/recomputation. Ordinary attention persists the L×L score matrix from forward and reads it back for gradients. Flash Attention persists only the row normalization and recomputes score tiles from Q, K, V during backward, then applies the chain rule through softmax. Label the trade at the recompute arrow: one extra QKᵀ per head-layer = 4.37 × 10¹² FLOPs against 34.1 GB storage saved; total unified memory 111.5 GB, so 111.5/34.1 = 3.3 head-layers would fill the machine. Label the footprint comparison: per head quadratic term 2L² bytes vs linear K/V term 4Ld bytes, ratio L/2d = 510× at L = 130,659 and d = 128; one head-layer score matrix 4.37 TB vs its K/V 66.9 MB. Optionally mark the Flash Attention 2 scheduling detail: keep the Br×d accumulator unnormalized, defer division to the end, rescale only when the running maximum changes, and keep the Q tile resident while K and V stream. | Axes: position (0 to 262,144) by head dimension (128). Each position stores K and V contiguously along d, so a decode step reads a long run rather than chasing strides. Labels: fp16 = 2 bytes; one KV head at one layer over the full pool is 67.1 MB for K and 67.1 MB for V, 134.2 MB together. Prefix-shared blocks are stored once and reused; the 95.9% hit rate is from the sampled deployment. Flash-Decoding splits the position axis into blocks and merges partial attention outputs with online rescaling.",
   "section": 1,
   "sections": [
     1,
@@ -22,5 +22,30 @@
     4,
     5,
     6
+  ],
+  "panels": [
+    {
+      "title": "materialise the whole matrix",
+      "items": [
+        "S = Q K^T",
+        "L x L = 1.707e10 entries",
+        "34.1 GB at 2 bytes",
+        "write to HBM",
+        "read back for softmax",
+        "multiply by V"
+      ],
+      "note": "The matrix is written and read again before it is used."
+    },
+    {
+      "title": "tile it",
+      "items": [
+        "Q, K, V: L x d, d=128",
+        "one tile of S in shared memory",
+        "online max m, normaliser l",
+        "rescale by exp(m_old - m_new)",
+        "never holds all of S"
+      ],
+      "note": "Shared memory runs at 281 GB/s at 2,197 MHz; HBM at 273 GB/s shared."
+    }
   ]
 }

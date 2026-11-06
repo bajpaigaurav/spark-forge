@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "comparison",
-  "title": "Full causal attention vs sliding-window attention at n=130,659 and W=4,096",
-  "why": "It shows the structural difference between the full causal mask and the banded window mask, and carries the pair-count comparison the prose computes.",
+  "kind": "grid",
+  "title": "The mask: full causal versus a sliding window of W",
+  "why": "It shows the two masks as masks, which the prose describes in sequence: the full lower triangle keeps every past key, the band keeps only the W positions ending at the query. At n = 130,659 the full triangle is 8.5 billion pairs; the band is 535 million.",
   "nodes": [
     "full causal attention",
     "sliding-window attention",
@@ -12,7 +12,7 @@
     "window pairs 535,179,264",
     "ratio about 16"
   ],
-  "notes": "Two side-by-side query-key masks: axes are query position and key position. Left: full causal lower triangle, every query attends to all previous keys. Right: sliding-window band of width W along the diagonal, each query attends only to the W positions ending at itself. Label n on both axes, W as the band width, and the pair counts and ratio exactly as given in the chapter. | Horizontal axis: token positions from 1 to n=130,659. Vertical axis: layers 1 through L=32. A local window of W=4,096 including the current token reaches back W-1 per layer; after L layers the earliest visible position is i-L(W-1), giving receptive field L(W-1)+1=131,041. Show the chain from position 1 to the final token through 32 attention operations. Compare a dense 4,096-score window covering 4,096 positions with a dilated d=2 window covering 8,192 positions at the same score count. Show g=4 global tokens attending to all positions and attended by all positions, giving a one-hop but lossy path; label the extra dense component as about 2*g*n=1,045,272 pairs, about 0.012 percent of causal full attention. Do not label any other invented quantities. | Left side: circular buffer with W=4096 slots; token i maps to slot i mod W; position IDs remain absolute so rotary relative distance i-j is preserved after wrap; mask/gather selects valid slots in order. Right side: comparison bars for pair counts per stream and across four streams: full causal over 65,536 positions = 2,147,516,416 pairs per stream and 8,590,065,664 across four; 4,096-window over 65,536 positions = 268,435,456 pairs per stream and 1,073,741,824 across four; window cuts pairs by about 8x. Also label pool 262,144 positions, four streams, equal share 65,536, admission formula yielding 32,750 positions per stream, and 3.8 MB KV cache per 4,096-position stream from 922 bytes per position. | Left panel: layer sequence alternates local sliding-window layers and full-attention layers; label local cost 16\u00d74,096=65,536, full cost 16\u00d7130,659=2,090,544, hybrid total 2,156,080 versus all-full 4,181,088, or 51.6 percent. Right panel: axes are query blocks and key/value blocks; live tiles are loaded from HBM into shared memory, scored, softmaxed, and multiplied by value blocks; masked tiles are not loaded, not scored, and excluded from the softmax denominator. A contiguous sliding window maps to a block mask; irregular masks may still load full blocks or use a gather. Full attention reads every key-value block; FlashAttention tiles but still reads all keys and values. | Left side: clause token at position 1 and question token at position 130,659. Middle: pure sliding-window path with W=4,096 and L=32, where the edge is indirect through 32 layers of averaging and hidden-state summaries. Right: hybrid path with one full layer, where the question token's query reads the clause token's key directly. Label the two outcomes: exact string copy when a direct edge exists, gist-only summary when no layer provides that edge. No axis quantities beyond the given token positions, W=4,096, L=32, and one full layer.",
+  "notes": "Two side-by-side query-key masks: axes are query position and key position. Left: full causal lower triangle, every query attends to all previous keys. Right: sliding-window band of width W along the diagonal, each query attends only to the W positions ending at itself. Label n on both axes, W as the band width, and the pair counts and ratio exactly as given in the chapter. | Horizontal axis: token positions from 1 to n=130,659. Vertical axis: layers 1 through L=32. A local window of W=4,096 including the current token reaches back W-1 per layer; after L layers the earliest visible position is i-L(W-1), giving receptive field L(W-1)+1=131,041. Show the chain from position 1 to the final token through 32 attention operations. Compare a dense 4,096-score window covering 4,096 positions with a dilated d=2 window covering 8,192 positions at the same score count. Show g=4 global tokens attending to all positions and attended by all positions, giving a one-hop but lossy path; label the extra dense component as about 2*g*n=1,045,272 pairs, about 0.012 percent of causal full attention. Do not label any other invented quantities. | Left side: circular buffer with W=4096 slots; token i maps to slot i mod W; position IDs remain absolute so rotary relative distance i-j is preserved after wrap; mask/gather selects valid slots in order. Right side: comparison bars for pair counts per stream and across four streams: full causal over 65,536 positions = 2,147,516,416 pairs per stream and 8,590,065,664 across four; 4,096-window over 65,536 positions = 268,435,456 pairs per stream and 1,073,741,824 across four; window cuts pairs by about 8x. Also label pool 262,144 positions, four streams, equal share 65,536, admission formula yielding 32,750 positions per stream, and 3.8 MB KV cache per 4,096-position stream from 922 bytes per position. | Left panel: layer sequence alternates local sliding-window layers and full-attention layers; label local cost 16×4,096=65,536, full cost 16×130,659=2,090,544, hybrid total 2,156,080 versus all-full 4,181,088, or 51.6 percent. Right panel: axes are query blocks and key/value blocks; live tiles are loaded from HBM into shared memory, scored, softmaxed, and multiplied by value blocks; masked tiles are not loaded, not scored, and excluded from the softmax denominator. A contiguous sliding window maps to a block mask; irregular masks may still load full blocks or use a gather. Full attention reads every key-value block; FlashAttention tiles but still reads all keys and values. | Left side: clause token at position 1 and question token at position 130,659. Middle: pure sliding-window path with W=4,096 and L=32, where the edge is indirect through 32 layers of averaging and hidden-state summaries. Right: hybrid path with one full layer, where the question token's query reads the clause token's key directly. Label the two outcomes: exact string copy when a direct edge exists, gist-only summary when no layer provides that edge. No axis quantities beyond the given token positions, W=4,096, L=32, and one full layer.",
   "section": 1,
   "sections": [
     1,
@@ -20,5 +20,28 @@
     4,
     5,
     6
-  ]
+  ],
+  "panels": [
+    {
+      "title": "full causal",
+      "items": [
+        "n = 130,659",
+        "every query sees all past keys",
+        "8,535,952,470 pairs"
+      ],
+      "note": "The whole lower triangle is live."
+    },
+    {
+      "title": "sliding window, W = 4,096",
+      "items": [
+        "W = 4,096",
+        "only the W keys ending at the query",
+        "535,179,264 pairs"
+      ],
+      "note": "About 16 times fewer pairs."
+    }
+  ],
+  "n": 10,
+  "highlight_row": 8,
+  "note": "W = 4,096: each query attends only to the W keys ending at itself. The band is about 16 times fewer pairs than the full triangle."
 }

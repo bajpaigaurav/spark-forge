@@ -1,19 +1,19 @@
 {
   "needed": true,
-  "kind": "layout",
-  "title": "Row-major weight layout and affine 4-bit quantization",
-  "why": "It shows the matrix shape and contiguous 128-entry grouping that every quantization choice depends on, plus the min/max-to-0..15 mapping.",
+  "kind": "panels",
+  "title": "One group of weights onto sixteen levels",
+  "why": "It shows the mapping the prose describes in sequence: a contiguous run of 128 entries gets one min and one max, a scale of (max-min)/15, and a zero point, so each weight lands on an integer from 0 to 15 and decodes as (q - z) times s.",
   "nodes": [
-    "W: d_out \u00d7 d_in",
+    "W: d_out × d_in",
     "row-major rows",
     "contiguous 128 entries = 128 input features of one output channel",
     "min, max per group",
-    "scale s = (max \u2212 min)/15",
-    "zero point z = round(\u2212min/s)",
+    "scale s = (max − min)/15",
+    "zero point z = round(−min/s)",
     "q = clamp(round(w/s)+z, 0, 15)",
-    "decode \u0175 = (q \u2212 z)\u00b7s"
+    "decode ŵ = (q − z)·s"
   ],
-  "notes": "Grid axes: rows are output features d_out, columns are input features d_in. Highlight one row and a contiguous run of 128 entries along it. Beside it, show a number line from min to max mapped onto integer levels 0 through 15, labelled with s and z. All quantities come from the chapter: d_out, d_in, 128, 0..15, s, z. | Left: W as a d_out-by-d_in grid, with a highlighted 128-entry contiguous run along the input dimension in one row. Middle: byte strip showing 3 metadata bytes beside 64 payload bytes, with two 4-bit codes per byte and low nibble first. Right: kernel stages from 32-bit load through shifts/masks, zero-point subtraction, scale multiply, fp16 conversion, to tensor-core multiply. Bottom: comparison across group sizes 64, 128, 256 with payload bytes, metadata bytes, overhead percentages, bits per weight where given, and outlier reach; all quantities are those stated in the section. | Flow runs left to right: X feeds H; w and H\u207b\u00b9 feed the column loop. H is estimated once per layer from 128 C4 sequences of 2048 tokens, with damping on the diagonal. Labels: d_in input dimension, n calibration examples, indices k and j. The loop holds \u0175_j at its rounded value while adjusting only columns not yet quantized; no axes, arrows show X\u2192H and w,H\u207b\u00b9\u2192column loop. | No axes; left-to-right dataflow. Quantities labelled where they appear in the chapter: d_in columns, block size 128, about 1% higher-precision channels, per-channel scale s_j. The worked example's error 0.2 and objective 0.16\u21920.12 can be shown as a small inset on the column-update stage, but the main figure carries the pipeline structure. | No axes; this is a memory layout. The super-block contains 8 sub-blocks; each sub-block has its own 6-bit scale s_k and 6-bit minimum m_k. Dequantization is w = d\u00b7s_k\u00b7q \u2212 m\u00b7m_k, where q is the 4-bit code for the weight and s_k, m_k belong to its 32-weight sub-block. Byte counts: d and m are 2 bytes each (4 bytes total); the 16 six-bit sub-block values pack into 12 bytes; the 256 four-bit codes are 128 bytes; total 144 bytes, giving 4.5 bits per weight. | Horizontal axis: feature dimension index. Vertical axis: activation magnitude, with one outlier bar at 1000 and a cluster near 1. Overlay the symmetric 8-bit grid with spacing \u22487.8, showing the cluster collapsing onto 0 or 7.8. Annotate the scale as set by the 1000 maximum and the output-error example as 0.01 \u00d7 1000 = 10; all quantities come from the chapter. | Two side-by-side panels. Left panel: prefill stage, labelled with 130,659 prompt tokens and mean 3.33 s; arrow from prompt tokens into a batched matmul block. Right panel: decode stage, labelled with 607 tokens and mean 8.38 s; sequence of single-token steps, with the limiting quantity 4.19 bits per weight pulled from memory. No invented numbers; all labelled quantities come from the section.",
+  "notes": "Grid axes: rows are output features d_out, columns are input features d_in. Highlight one row and a contiguous run of 128 entries along it. Beside it, show a number line from min to max mapped onto integer levels 0 through 15, labelled with s and z. All quantities come from the chapter: d_out, d_in, 128, 0..15, s, z. | Left: W as a d_out-by-d_in grid, with a highlighted 128-entry contiguous run along the input dimension in one row. Middle: byte strip showing 3 metadata bytes beside 64 payload bytes, with two 4-bit codes per byte and low nibble first. Right: kernel stages from 32-bit load through shifts/masks, zero-point subtraction, scale multiply, fp16 conversion, to tensor-core multiply. Bottom: comparison across group sizes 64, 128, 256 with payload bytes, metadata bytes, overhead percentages, bits per weight where given, and outlier reach; all quantities are those stated in the section. | Flow runs left to right: X feeds H; w and H⁻¹ feed the column loop. H is estimated once per layer from 128 C4 sequences of 2048 tokens, with damping on the diagonal. Labels: d_in input dimension, n calibration examples, indices k and j. The loop holds ŵ_j at its rounded value while adjusting only columns not yet quantized; no axes, arrows show X→H and w,H⁻¹→column loop. | No axes; left-to-right dataflow. Quantities labelled where they appear in the chapter: d_in columns, block size 128, about 1% higher-precision channels, per-channel scale s_j. The worked example's error 0.2 and objective 0.16→0.12 can be shown as a small inset on the column-update stage, but the main figure carries the pipeline structure. | No axes; this is a memory layout. The super-block contains 8 sub-blocks; each sub-block has its own 6-bit scale s_k and 6-bit minimum m_k. Dequantization is w = d·s_k·q − m·m_k, where q is the 4-bit code for the weight and s_k, m_k belong to its 32-weight sub-block. Byte counts: d and m are 2 bytes each (4 bytes total); the 16 six-bit sub-block values pack into 12 bytes; the 256 four-bit codes are 128 bytes; total 144 bytes, giving 4.5 bits per weight. | Horizontal axis: feature dimension index. Vertical axis: activation magnitude, with one outlier bar at 1000 and a cluster near 1. Overlay the symmetric 8-bit grid with spacing ≈7.8, showing the cluster collapsing onto 0 or 7.8. Annotate the scale as set by the 1000 maximum and the output-error example as 0.01 × 1000 = 10; all quantities come from the chapter. | Two side-by-side panels. Left panel: prefill stage, labelled with 130,659 prompt tokens and mean 3.33 s; arrow from prompt tokens into a batched matmul block. Right panel: decode stage, labelled with 607 tokens and mean 8.38 s; sequence of single-token steps, with the limiting quantity 4.19 bits per weight pulled from memory. No invented numbers; all labelled quantities come from the section.",
   "section": 1,
   "sections": [
     1,
@@ -23,5 +23,41 @@
     5,
     6,
     7
+  ],
+  "bars": [
+    {
+      "label": "fp16 weight",
+      "value": 16,
+      "display": "16 bits"
+    },
+    {
+      "label": "4-bit weight",
+      "value": 4,
+      "display": "4 bits, levels 0 to 15",
+      "accent": true
+    }
+  ],
+  "note": "Per group of 128 input features: s = (max - min)/15, z = round(-min/s), q = clamp(round(w/s)+z, 0, 15), and the decode is (q - z) * s.",
+  "panels": [
+    {
+      "title": "what is stored per group",
+      "items": [
+        "128 input features",
+        "one min, one max",
+        "scale s = (max - min)/15",
+        "zero point z = round(-min/s)",
+        "4-bit codes, 0 to 15"
+      ],
+      "note": "Per-group scales are what make 4-bit weights usable."
+    },
+    {
+      "title": "what each weight costs",
+      "items": [
+        "fp16: 16 bits per weight",
+        "4-bit: 4 bits plus a share of s and z",
+        "decode: w_hat = (q - z) * s"
+      ],
+      "note": "The decode is one multiply-add per weight."
+    }
   ]
 }

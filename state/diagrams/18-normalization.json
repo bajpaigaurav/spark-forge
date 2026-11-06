@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Pre-norm vs post-norm transformer block and the residual identity path",
-  "why": "It shows the two-sublayer dataflow, where normalization sits relative to residual additions, and how the identity Jacobian term arises across blocks.",
+  "kind": "panels",
+  "title": "Pre-norm and post-norm: where the normalisation sits",
+  "why": "It shows the placement the prose describes in sequence, and what it changes: in pre-norm the residual path is untouched, so the Jacobian keeps its identity term I; in post-norm the normalisation sits on the path.",
   "nodes": [
     "x_l",
     "LN(x_l)",
@@ -13,11 +13,11 @@
     "x_{l+1} = a_l + MLP(LN(a_l))",
     "post-norm: a_l = LN(x_l + Attn(x_l))",
     "post-norm: x_{l+1} = LN(a_l + MLP(a_l))",
-    "Jacobian: \u2202y/\u2202x = I + J_f(LN(x)) J_LN(x)",
+    "Jacobian: ∂y/∂x = I + J_f(LN(x)) J_LN(x)",
     "scalar product: (1 + b s)(1 + a s)",
-    "norm recurrence: ||x_{l+1}||^2 = ||x_l||^2 + 2 x_l\u00b7f_l(x_l) + ||f_l(x_l)||^2"
+    "norm recurrence: ||x_{l+1}||^2 = ||x_l||^2 + 2 x_l·f_l(x_l) + ||f_l(x_l)||^2"
   ],
-  "notes": "Flow diagram, not axes. Left-to-right: residual stream x_l enters attention sublayer and MLP sublayer; each sublayer reads LN(x) in pre-norm and adds its output back to the stream. A parallel post-norm branch places LN after each residual addition. Label residual additions as the shared stream path. Below, show the Jacobian identity term I plus sublayer Jacobian factors, and the scalar derivative product with symbols s, a, b only, no invented values. The norm recurrence labels the three terms of the squared norm update. | Residual path: x_l plus f_l gives x_{l+1}; norm grows if f_l aligns with x_l or is orthogonal, can shrink if opposed; constant additive f_l=a gives x_N=x_0+N a. Normalization branch: LayerNorm computes per-token mean \u03bc and variance \u03c3 over d features, then \u03b3_i(x_i-\u03bc)/\u03c3+\u03b2_i; RMSNorm computes r=sqrt((1/d)\u03a3x_i^2+\u03b5) and outputs \u03b3_i x_i/r, dropping mean subtraction. No axes; arrows flow from x_l/f_l to residual sum and from token vector x to either normalization pipeline. | Two parallel flows: pre-norm sends x through LN, then f, then adds the unnormalized residual x; post-norm adds x + f(x) first, then applies LN, so the residual path passes through J_LN. Label the post-norm derivative \u2202y/\u2202x = J_LN(x + f(x))(I + J_f(x)); label the LayerNorm Jacobian entries with \u03b3_i/\u03c3, \u03b4_ij, 1/d, and z_i z_j/d from the chapter. No axes; arrows show dataflow. Quantities are structural: d components, \u03b3, \u03c3, \u03bc, z_i; no numeric values beyond those already in the prose. | Left-to-right residual path: embedding -> blocks -> final LN -> unembedding. Mark that no normalization occurs inside pre-norm blocks, so stream norm can drift; final LN controls only the unembedding input. Attention branch branches from x: W_Q/W_K -> reshape heads -> QK-norm over d_head -> dot product / sqrt(d_head) -> softmax. Label QK-norm site after projections and reshape, before dot product; gamma length d_head. Inset comparison from chapter: d_head=2, q=[10,0], k1=[10,0], k2=[0,10] gives scaled logits 100/sqrt(2)\u224870.7 and 0, softmax \u22481 and \u22480, Jacobian max \u22486.14e-6; q=[1,0], k1=[1,0], k2=[0,1] gives scaled logits 0.707 and 0, softmax 0.669 and 0.331, Jacobian entries \u22480.197. Also note two-logit softmax example: logits 0 and 12 give probabilities \u22486.14e-6 and 0.99999386; logits 0 and 1 give 0.269 and 0.731. | Axes: horizontal = exponent range, vertical = mantissa precision. Plot bf16 and fp16 as two configurations; label exponent/fraction bit counts and fp16 max finite 65504. Mark the 640,000 dot-product value beyond fp16 range. A side annotation shows the pipeline q,k -> normalize -> dot product -> softmax, with overflow at the dot product and vanishing Jacobian at softmax saturation. All quantities come from the chapter.",
+  "notes": "Flow diagram, not axes. Left-to-right: residual stream x_l enters attention sublayer and MLP sublayer; each sublayer reads LN(x) in pre-norm and adds its output back to the stream. A parallel post-norm branch places LN after each residual addition. Label residual additions as the shared stream path. Below, show the Jacobian identity term I plus sublayer Jacobian factors, and the scalar derivative product with symbols s, a, b only, no invented values. The norm recurrence labels the three terms of the squared norm update. | Residual path: x_l plus f_l gives x_{l+1}; norm grows if f_l aligns with x_l or is orthogonal, can shrink if opposed; constant additive f_l=a gives x_N=x_0+N a. Normalization branch: LayerNorm computes per-token mean μ and variance σ over d features, then γ_i(x_i-μ)/σ+β_i; RMSNorm computes r=sqrt((1/d)Σx_i^2+ε) and outputs γ_i x_i/r, dropping mean subtraction. No axes; arrows flow from x_l/f_l to residual sum and from token vector x to either normalization pipeline. | Two parallel flows: pre-norm sends x through LN, then f, then adds the unnormalized residual x; post-norm adds x + f(x) first, then applies LN, so the residual path passes through J_LN. Label the post-norm derivative ∂y/∂x = J_LN(x + f(x))(I + J_f(x)); label the LayerNorm Jacobian entries with γ_i/σ, δ_ij, 1/d, and z_i z_j/d from the chapter. No axes; arrows show dataflow. Quantities are structural: d components, γ, σ, μ, z_i; no numeric values beyond those already in the prose. | Left-to-right residual path: embedding -> blocks -> final LN -> unembedding. Mark that no normalization occurs inside pre-norm blocks, so stream norm can drift; final LN controls only the unembedding input. Attention branch branches from x: W_Q/W_K -> reshape heads -> QK-norm over d_head -> dot product / sqrt(d_head) -> softmax. Label QK-norm site after projections and reshape, before dot product; gamma length d_head. Inset comparison from chapter: d_head=2, q=[10,0], k1=[10,0], k2=[0,10] gives scaled logits 100/sqrt(2)≈70.7 and 0, softmax ≈1 and ≈0, Jacobian max ≈6.14e-6; q=[1,0], k1=[1,0], k2=[0,1] gives scaled logits 0.707 and 0, softmax 0.669 and 0.331, Jacobian entries ≈0.197. Also note two-logit softmax example: logits 0 and 12 give probabilities ≈6.14e-6 and 0.99999386; logits 0 and 1 give 0.269 and 0.731. | Axes: horizontal = exponent range, vertical = mantissa precision. Plot bf16 and fp16 as two configurations; label exponent/fraction bit counts and fp16 max finite 65504. Mark the 640,000 dot-product value beyond fp16 range. A side annotation shows the pipeline q,k -> normalize -> dot product -> softmax, with overflow at the dot product and vanishing Jacobian at softmax saturation. All quantities come from the chapter.",
   "section": 1,
   "sections": [
     1,
@@ -25,5 +25,29 @@
     3,
     4,
     5
+  ],
+  "panels": [
+    {
+      "title": "pre-norm",
+      "items": [
+        "x_l",
+        "LN(x_l)",
+        "Attn(LN(x_l))",
+        "x_l + Attn(LN(x_l))",
+        "LN, then MLP, then add"
+      ],
+      "note": "The residual path never passes through a norm."
+    },
+    {
+      "title": "post-norm",
+      "items": [
+        "x_l",
+        "Attn(x_l)",
+        "LN(x_l + Attn(x_l))",
+        "MLP",
+        "LN(a_l + MLP(a_l))"
+      ],
+      "note": "The original 2017 placement. Most later models moved it before the sublayer."
+    }
   ]
 }

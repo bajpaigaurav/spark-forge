@@ -1,21 +1,55 @@
 {
   "needed": true,
-  "kind": "comparison",
-  "title": "Quantization error in a dot product: aligned vs independent",
-  "why": "It shows the structural difference between worst-case aligned error accumulation and independent zero-mean error accumulation over N terms.",
+  "kind": "panels",
+  "title": "Aligned errors add up; independent errors cancel",
+  "why": "It shows the two regimes the prose contrasts in sequence: if every term errs the same way, 4,096 terms each bounded by 0.0335 reach 137.2; if the errors are independent, they add in quadrature to 2.14, a ratio of sqrt(N).",
   "nodes": [
     "N = 4,096 terms",
-    "per-term bound = 0.067 \u00d7 0.5 = 0.0335",
-    "aligned total = 4,096 \u00d7 0.0335 = 137.2",
-    "independent std = sqrt(4,096) \u00d7 0.0335 = 2.14",
+    "per-term bound = 0.067 × 0.5 = 0.0335",
+    "aligned total = 4,096 × 0.0335 = 137.2",
+    "independent std = sqrt(4,096) × 0.0335 = 2.14",
     "ratio = 64 = sqrt(N)"
   ],
-  "notes": "Two bars or columns compare the aligned worst case and the independent-error standard deviation. The horizontal axis is accumulation regime; the vertical axis is output error magnitude. Labels come directly from the chapter: half-step 0.067, input RMS 0.5, per-term bound 0.0335, N=4,096, totals 137.2 and 2.14, ratio 64. No other quantities are labelled. | Left-to-right flow: embedding enters residual stream; each block reads the stream through layer norm, computes an output, and adds it back. At layer norm, perturbation \u03b4 is decomposed: first term removes mean \u03b4; second term removes the component along z; remaining perturbation is orthogonal to the constant vector and z, with norm at most ||\u03b4||/\u03c3. Labels \u03bc, \u03c3, \u03b4, \u0394z, and ||\u03b4||/\u03c3 come from the chapter. The figure does not label quantization error magnitudes or GPTQ/AWQ parameters. | Two side-by-side block layouts. Left: one group containing the outlier 4.0 sets m=4.0 and step 2*4/15=0.533, so 0.1, 0.2, 0.3 all collapse to 0.2667. Right: the outlier is its own block; the other three weights get m=0.3 and step 0.04, giving finer resolution. Labels are the weights, group scale m, and step from the chapter; no axis is needed. | Left panel is a flow: activation channel j and weight column j are rescaled by s=0.1 and 1/s=10, becoming \u22481 and \u22481 while the product stays 1; per-token scaling gives each token its own activation scale. Right panel is a comparison: keys are quantized per-channel, values per-token, because the axis you can average over decides the format. All labelled quantities (10, 0.1, s=0.1, 1/s=10, product 1) appear in the chapter.",
+  "notes": "Two bars or columns compare the aligned worst case and the independent-error standard deviation. The horizontal axis is accumulation regime; the vertical axis is output error magnitude. Labels come directly from the chapter: half-step 0.067, input RMS 0.5, per-term bound 0.0335, N=4,096, totals 137.2 and 2.14, ratio 64. No other quantities are labelled. | Left-to-right flow: embedding enters residual stream; each block reads the stream through layer norm, computes an output, and adds it back. At layer norm, perturbation δ is decomposed: first term removes mean δ; second term removes the component along z; remaining perturbation is orthogonal to the constant vector and z, with norm at most ||δ||/σ. Labels μ, σ, δ, Δz, and ||δ||/σ come from the chapter. The figure does not label quantization error magnitudes or GPTQ/AWQ parameters. | Two side-by-side block layouts. Left: one group containing the outlier 4.0 sets m=4.0 and step 2*4/15=0.533, so 0.1, 0.2, 0.3 all collapse to 0.2667. Right: the outlier is its own block; the other three weights get m=0.3 and step 0.04, giving finer resolution. Labels are the weights, group scale m, and step from the chapter; no axis is needed. | Left panel is a flow: activation channel j and weight column j are rescaled by s=0.1 and 1/s=10, becoming ≈1 and ≈1 while the product stays 1; per-token scaling gives each token its own activation scale. Right panel is a comparison: keys are quantized per-channel, values per-token, because the axis you can average over decides the format. All labelled quantities (10, 0.1, s=0.1, 1/s=10, product 1) appear in the chapter.",
   "section": 2,
   "sections": [
     2,
     3,
     4,
     5
+  ],
+  "bars": [
+    {
+      "label": "aligned worst case",
+      "value": 137.2,
+      "display": "137.2"
+    },
+    {
+      "label": "independent, std",
+      "value": 2.14,
+      "display": "2.14",
+      "accent": true
+    }
+  ],
+  "note": "Half-step 0.067 times input RMS 0.5 gives 0.0335 per term. Over N = 4,096 the aligned total is 137.2 and the independent standard deviation is sqrt(4096) x 0.0335 = 2.14.",
+  "panels": [
+    {
+      "title": "aligned: the worst case",
+      "items": [
+        "per-term bound 0.067 x 0.5 = 0.0335",
+        "N = 4,096 terms",
+        "total 4,096 x 0.0335 = 137.2"
+      ],
+      "note": "Every term errs in the same direction."
+    },
+    {
+      "title": "independent: what actually happens",
+      "items": [
+        "per-term bound 0.0335",
+        "errors add in quadrature",
+        "sqrt(4,096) x 0.0335 = 2.14"
+      ],
+      "note": "The ratio is 64, which is sqrt(N)."
+    }
   ]
 }

@@ -1,11 +1,11 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "One request, two hardware regimes: prefill then decode",
-  "why": "It shows the request pipeline as two sequential phases with different tensor shapes, durations, and bottlenecks, which the prose describes in order.",
+  "kind": "timeline",
+  "title": "One request, two regimes, and where the 3.46 s goes",
+  "why": "It shows the split the prose describes in sequence: prefill processes 130,659 rows at once and is compute-bound, decode emits 607 tokens one at a time and is bandwidth-bound, and time to first token covers both.",
   "nodes": [
     "Request: 130,659 prompt tokens",
-    "Prefill: X [130,659, d_model] \u00d7 W [d_model, d_model] + b; compute-bound; 3.33 s mean; 39,237 tokens/s",
+    "Prefill: X [130,659, d_model] × W [d_model, d_model] + b; compute-bound; 3.33 s mean; 39,237 tokens/s",
     "Decode: emits 607 tokens; 8.38 s mean",
     "End-to-end latency combines both phases; TTFT 3.46 s"
   ],
@@ -18,5 +18,65 @@
     4,
     5,
     6
-  ]
+  ],
+  "steps": [
+    "admission",
+    "prefill",
+    "decode 1",
+    "decode 2",
+    "...",
+    "decode 607"
+  ],
+  "lanes": [
+    {
+      "name": "rows per step",
+      "cells": [
+        {
+          "kind": "done",
+          "label": "-"
+        },
+        {
+          "kind": "solid",
+          "label": "130,659"
+        },
+        {
+          "kind": "solid",
+          "label": "1"
+        },
+        {
+          "kind": "solid",
+          "label": "1"
+        },
+        {
+          "kind": "solid",
+          "label": "1"
+        },
+        {
+          "kind": "solid",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "name": "time",
+      "cells": [
+        {
+          "kind": "done",
+          "label": "0.13 s"
+        },
+        {
+          "kind": "done",
+          "label": "3.33 s"
+        },
+        null,
+        null,
+        null,
+        {
+          "kind": "done",
+          "label": "8.38 s total"
+        }
+      ]
+    }
+  ],
+  "note": "TTFT is 3.46 s: admission, tokenization, prefill, and the first decode step. Prefill ran at 39,237 tokens/s; decode at 59.1."
 }

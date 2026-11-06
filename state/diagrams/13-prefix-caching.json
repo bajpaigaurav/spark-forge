@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "layout",
-  "title": "Shared prefix KV blocks and the cache key that validates them",
-  "why": "It shows the memory structure behind prefix reuse: two requests' token sequences, the per-layer K/V tensors for the shared prefix, and the metadata that must match before those blocks can be shared.",
+  "kind": "timeline",
+  "title": "Two requests, one prefix: the same blocks are read twice",
+  "why": "It shows the reuse the prose describes in sequence: request B starts at position 0 and finds the prefix already in the pool, so only its new tokens need a prefill pass. The hash chain is what decides whether the match is real.",
   "nodes": [
     "Request A token sequence",
     "Request B token sequence",
@@ -21,5 +21,47 @@
     3,
     4,
     6
-  ]
+  ],
+  "steps": [
+    "positions 0 to k",
+    "new tokens",
+    "decode"
+  ],
+  "lanes": [
+    {
+      "name": "request A",
+      "cells": [
+        {
+          "kind": "solid",
+          "label": "prefill"
+        },
+        {
+          "kind": "done",
+          "label": "-"
+        },
+        {
+          "kind": "cache",
+          "label": "attends to cache"
+        }
+      ]
+    },
+    {
+      "name": "request B",
+      "cells": [
+        {
+          "kind": "cache",
+          "label": "hash hit"
+        },
+        {
+          "kind": "solid",
+          "label": "prefill"
+        },
+        {
+          "kind": "cache",
+          "label": "attends to cache"
+        }
+      ]
+    }
+  ],
+  "note": "Each block hash is chained to the hash of the block before it, so a hit requires the whole prefix to match. Only full blocks are cached."
 }

@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Residual block: one shared lane with an identity path",
-  "why": "It shows the forward dataflow and backward gradient path that the prose describes sequentially: x branches into F(x) and an unchanged identity, then rejoins by addition.",
+  "kind": "lane",
+  "title": "One lane, every layer writes into it",
+  "why": "It shows the architecture the chapter argues for: attention and the feed-forward block are readers and writers on one shared vector, not a stack of stages. The lane is the same width at every depth.",
   "nodes": [
     "x_l (input vector)",
     "residual branch F_l(x_l)",
@@ -12,7 +12,7 @@
     "backward gradient path through identity I",
     "backward gradient path through J_l"
   ],
-  "notes": "Forward flow: x_l splits to F_l and to the identity skip; both meet at the addition; output is x_{l+1}=x_l+F_l(x_l). Backward flow: gradient reaches earlier layers through the identity term I and through residual Jacobians J_l; the layer Jacobian is I+J_l and the product over L layers is \u220f(I+J_l). Label the identity derivative as exactly I. The chapter's spectral-norm quantities s, s^L, 0.9^56\u22480.003, and 1.1^56\u2248208 belong to the plain-stack comparison, not to this residual-block diagram unless shown as a separate small annotation. | No axes; arrows show dataflow. The central lane is the residual stream, width d_model, unchanged across depth. Attention is the only arrow crossing positions; FFN and all other block operations are per-token. Each sublayer has a read arrow from the stream and an add arrow back into it. The figure labels d_model as the fixed stream width and notes two writes per layer; the wider FFN hidden width is shown structurally but left unnumbered because the chapter gives no value. A side annotation can show that deleting a block removes its sublayer computation and write while the identity path still carries the stream forward. | Two panels: pre-norm computes y = x + F(N(x)); post-norm computes y = N(x + F(x)). Arrows show x flowing through the identity path and the sublayer branch into the residual add. Label the pre-norm identity term I as separate from J_F J_N; label the post-norm identity path as multiplied by J_N, with Jacobian J_N + J_N J_F. A side note shows stream norm growth with depth: independent writes of variance v give standard deviation sqrt(Lv); with v=0.01 and L=40 this is about 0.63, and a final norm before unembedding must undo that growth. No axis is needed; the figure is a block/dataflow comparison. | Left side: a single fixed-width vector receives writes from every attention head and feed-forward neuron; no separate channels. Right side: a 2D plane whose axes are the two stream dimensions, with three unit feature directions spaced 120\u00b0 apart. Projecting a u1 + b u2 + c u3 onto u1 gives a - 0.5b - 0.5c; label cos 120\u00b0 = -0.5. No other quantities are labelled. | Horizontal axis is depth: early, middle, late layers. At each depth, the stream vector flows either through the raw logit-lens path (final layer norm then unembedding) or through the tuned-lens path (a small per-layer affine map then unembedding). The output is a next-token distribution; label early distributions as broad/high-entropy, middle as plausible continuations, late as sharpened. The tuned-lens branch is annotated as reporting lower KL divergence from the final distribution in the cited paper, without isolating basis drift from added capacity. No numeric quantities are labelled beyond the structural layer ordering. | Two memory regions: left is the transient per-token stream, existing only for tokens in flight and read/written twice by each layer; right is the persistent KV pool holding keys and values for every reserved position. Label the stream cost as 130,659 \u00d7 d \u00d7 2 bytes with d=4,096 giving about 1.07 GB; label the KV pool as 262,144 positions costing about 0.225 GiB per rank; show the 111.5 GB total for scale. Annotate scaling: stream scales with tokens in flight, KV pool scales with positions reserved.",
+  "notes": "Forward flow: x_l splits to F_l and to the identity skip; both meet at the addition; output is x_{l+1}=x_l+F_l(x_l). Backward flow: gradient reaches earlier layers through the identity term I and through residual Jacobians J_l; the layer Jacobian is I+J_l and the product over L layers is ∏(I+J_l). Label the identity derivative as exactly I. The chapter's spectral-norm quantities s, s^L, 0.9^56≈0.003, and 1.1^56≈208 belong to the plain-stack comparison, not to this residual-block diagram unless shown as a separate small annotation. | No axes; arrows show dataflow. The central lane is the residual stream, width d_model, unchanged across depth. Attention is the only arrow crossing positions; FFN and all other block operations are per-token. Each sublayer has a read arrow from the stream and an add arrow back into it. The figure labels d_model as the fixed stream width and notes two writes per layer; the wider FFN hidden width is shown structurally but left unnumbered because the chapter gives no value. A side annotation can show that deleting a block removes its sublayer computation and write while the identity path still carries the stream forward. | Two panels: pre-norm computes y = x + F(N(x)); post-norm computes y = N(x + F(x)). Arrows show x flowing through the identity path and the sublayer branch into the residual add. Label the pre-norm identity term I as separate from J_F J_N; label the post-norm identity path as multiplied by J_N, with Jacobian J_N + J_N J_F. A side note shows stream norm growth with depth: independent writes of variance v give standard deviation sqrt(Lv); with v=0.01 and L=40 this is about 0.63, and a final norm before unembedding must undo that growth. No axis is needed; the figure is a block/dataflow comparison. | Left side: a single fixed-width vector receives writes from every attention head and feed-forward neuron; no separate channels. Right side: a 2D plane whose axes are the two stream dimensions, with three unit feature directions spaced 120° apart. Projecting a u1 + b u2 + c u3 onto u1 gives a - 0.5b - 0.5c; label cos 120° = -0.5. No other quantities are labelled. | Horizontal axis is depth: early, middle, late layers. At each depth, the stream vector flows either through the raw logit-lens path (final layer norm then unembedding) or through the tuned-lens path (a small per-layer affine map then unembedding). The output is a next-token distribution; label early distributions as broad/high-entropy, middle as plausible continuations, late as sharpened. The tuned-lens branch is annotated as reporting lower KL divergence from the final distribution in the cited paper, without isolating basis drift from added capacity. No numeric quantities are labelled beyond the structural layer ordering. | Two memory regions: left is the transient per-token stream, existing only for tokens in flight and read/written twice by each layer; right is the persistent KV pool holding keys and values for every reserved position. Label the stream cost as 130,659 × d × 2 bytes with d=4,096 giving about 1.07 GB; label the KV pool as 262,144 positions costing about 0.225 GiB per rank; show the 111.5 GB total for scale. Annotate scaling: stream scales with tokens in flight, KV pool scales with positions reserved.",
   "section": 1,
   "sections": [
     1,
@@ -21,5 +21,21 @@
     4,
     5,
     6
-  ]
+  ],
+  "stages": [
+    "x_l",
+    "attention",
+    "add",
+    "feed-forward",
+    "add"
+  ],
+  "sizes": [
+    "width d_model",
+    "reads and writes",
+    "x + Attn(x)",
+    "reads and writes",
+    "x + FFN(x)"
+  ],
+  "bypass": "identity: x_l is added back, so the gradient has a path of exactly I",
+  "note": "Read the lane as one bus. Each sublayer reads it and adds its output back; nothing replaces it."
 }

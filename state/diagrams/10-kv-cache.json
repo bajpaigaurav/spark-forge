@@ -1,18 +1,112 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Decode loop with KV cache versus recomputing the whole sequence",
-  "why": "It shows the sequential token-by-token dataflow and where the remembered keys and values sit, which the prose describes in sequence.",
-  "nodes": [
-    "prompt: 130,659 tokens",
-    "prefill pass: 39,237 tokens/s, 3.33 s",
-    "KV cache: keys and values for every position and layer",
-    "decode step: reads cache, appends one position's K/V",
-    "sample token",
-    "append token to sequence",
-    "repeat for 607 tokens: 8.38 s decode"
+  "kind": "timeline",
+  "title": "The decode loop: prefill fills the cache, every later step reads it",
+  "why": "It shows what the prose describes in sequence but a box diagram loses: the same 130,659 positions are computed once in prefill, and each of the 607 decode steps reads that stored cache instead of recomputing it.",
+  "steps": [
+    "prefill",
+    "decode 1",
+    "decode 2",
+    "...",
+    "decode 607"
   ],
-  "notes": "Left-to-right flow: prompt enters prefill, which fills the KV cache; each decode step reads the existing cache, computes and appends one new K/V entry, samples one token, and loops. A side comparison shows the naive path re-feeding 130,659 then 130,660 ... up to 131,265 tokens and discarding recomputed K/V each pass. Label only quantities from the chapter: 130,659 prompt tokens, 607 reply tokens, 3.33 s prefill, 8.38 s decode, 39,237 tokens/s prefill, 59.1 tokens/s single-stream decode, 664x prefill/decode ratio. No axis; it is a dataflow diagram. | Diagram flows left to right: hidden state projects to Q, K, V; Q goes only to the current attention step; K and V go into the cache and are read by later queries. Label h query heads, g KV heads, head dimension d, b bytes per element. Show grouped-query attention when g < h: several query heads share one KV head. Label the per-position-per-layer size 2 \u00d7 g \u00d7 d \u00d7 b. The chapter's config numbers can be annotated: 0.9 GiB per rank for 1,048,576 positions; adding 786,432 positions costs 0.675 GiB, rounded to 0.68 GiB; about 928 bytes per position per rank. No axes; it is a memory-layout/dataflow diagram. | No axes; a memory-layout diagram. Logical positions flow through the block table to scattered physical blocks, mirroring virtual pages to physical frames. A reservation bar per stream starts at 65,536 and subtracts 32,768 for MAX_TOKENS, 16 for ROUND_ROWS=16, and 2 for alignment, leaving 32,750. Separately label the concurrency-1 ceiling: 262,144 \u2212 32,768 \u2212 16 \u2212 2 = 229,358 positions, with a 131,266-position request (130,659 prompt + 607) leaving 98,092 spare. All quantities come from the chapter. | x-axis: arithmetic intensity in FLOPs per byte, log scale; y-axis: achieved throughput. A diagonal memory roof is set by 273 GB/s unified LPDDR5X bandwidth; a horizontal compute roof is set by peak FLOPs at the observed clock. Decode sits near 1 FLOP/byte because each half-precision weight is read once (2 bytes) for one multiply-add (2 FLOPs), plus KV bytes; prefill amortizes each weight read over p=130,659 tokens. Label 4.62 GB/token traffic at 59.1 tokens/s on the decode point. Do not label a numeric balance point, since peak FLOPs is not given in the chapter. | No axes. Flow: a new request's prefix is split into blocks; each block is hashed with the prior block's hash, so a hit requires the entire prefix to match. On a hit the allocator increments the existing physical block's reference count and points the new request's block table at that block. Eviction is least-recently-used among blocks whose reference count has fallen to zero. Label the pool capacity 262,144 positions and the measured hit rate 95.9% (12,285,952 of 12,804,579 prompt tokens), which removed 313 seconds of prefill at 39,237 tokens/s. Do not label a block size; the chapter does not give one.",
+  "lanes": [
+    {
+      "name": "tokens read",
+      "cells": [
+        {
+          "kind": "solid",
+          "label": "130,659"
+        },
+        {
+          "kind": "solid",
+          "label": "1 new"
+        },
+        {
+          "kind": "solid",
+          "label": "1 new"
+        },
+        {
+          "kind": "solid",
+          "label": "1 new"
+        },
+        {
+          "kind": "solid",
+          "label": "1 new"
+        }
+      ]
+    },
+    {
+      "name": "K/V computed",
+      "cells": [
+        {
+          "kind": "solid",
+          "label": "130,659"
+        },
+        {
+          "kind": "new",
+          "label": "1"
+        },
+        {
+          "kind": "new",
+          "label": "1"
+        },
+        {
+          "kind": "new",
+          "label": "1"
+        },
+        {
+          "kind": "new",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "name": "KV cache",
+      "cells": [
+        {
+          "kind": "cache",
+          "label": "fills"
+        },
+        {
+          "kind": "cache",
+          "label": "read"
+        },
+        {
+          "kind": "cache",
+          "label": "read"
+        },
+        {
+          "kind": "cache",
+          "label": "read"
+        },
+        {
+          "kind": "cache",
+          "label": "read"
+        }
+      ]
+    },
+    {
+      "name": "time",
+      "cells": [
+        {
+          "kind": "done",
+          "label": "3.33 s"
+        },
+        {
+          "kind": "done",
+          "label": "59.1 tok/s"
+        },
+        null,
+        null,
+        {
+          "kind": "done",
+          "label": "8.38 s total"
+        }
+      ]
+    }
+  ],
+  "note": "Without the cache each step re-feeds 130,659 then 130,660 ... up to 131,265 tokens and throws the recomputed keys and values away.",
   "section": 1,
   "sections": [
     1,

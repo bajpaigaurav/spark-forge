@@ -1,20 +1,20 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Single-head bottleneck versus eight-head split",
-  "why": "It shows the attention dataflow and tensor shapes from one shared softmax distribution to eight parallel 64-dimensional heads concatenated back into 512 dimensions.",
+  "kind": "panels",
+  "title": "One attention pattern versus eight",
+  "why": "It shows the split the prose describes: one head produces one softmax over the keys and averages two relations into a single vector; eight heads each produce their own 64-wide vector before concatenation back to 512.",
   "nodes": [
     "x_i: 512-vector input",
     "single head: scores -> softmax weights summing to 1 -> weighted sum -> 512-vector output",
     "two-relation case: weights 0.458, 0.458, 0.062, 0.023 added into one vector",
     "head h: Q_h=XW_Q^h, K_h=XW_K^h, V_h=XW_V^h with W 512x64",
-    "per-head score (q_i^h \u00b7 k_j^h)/\u221a64, \u221a64=8",
+    "per-head score (q_i^h · k_j^h)/√64, √64=8",
     "per-head softmax over j inside head h",
     "o_i^h: 64-vector",
     "concat eight 64-vectors -> 512-vector",
     "W_O: 512x512 -> residual stream"
   ],
-  "notes": "Flow diagram, no axes. Left branch: one attention operation produces one softmax distribution and one weighted average; label the four example weights 0.644, 0.237, 0.087, 0.032 and the competing-relation weights 0.458, 0.458, 0.062, 0.023, showing they are summed before crossing the layer boundary. Right branch: eight parallel heads each read the same x_i, project through 512x64 matrices into 64-dimensional subspaces, softmax independently, output 64-vectors, concatenate to 512, then W_O 512x512 writes to the residual stream. Label shapes 512, 64, 8, and \u221a64=8; all quantities come from the chapter. | No axes; it is a two-column configuration comparison. Left column: single 512-dimensional head with one softmax and rank \u2264512. Right column: eight 64-dimensional heads, each with its own softmax and rank \u226464. Label the shared parameter total 1,048,576 and the per-projection 262,144 from the chapter. Show the two-relation scores 5.0, 0.0, 0.0, \u22121.0 producing exponentials 148.4, 1.000, 1.000, 0.368 and sum 150.8, giving 0.984 mass per specialized head versus 0.458 in the mixed case. Indicate that each head's 64-vector output is mapped by its own 512\u00d764 block of W_O into the 512-dimensional residual stream, with possible overlap across heads. | Positions i and j are sequence positions; i\u22121 and j\u22121 are their predecessors. The figure should label the residual stream at i, the layer-1 copy c_i, the layer-2 query composition, the shifted key side, and the one-position offset between the matched earlier occurrence and the retrieved next token. Shapes: the composition produces a 64-vector via a 64\u00d764 matrix; no other quantities are labelled. | Draw a 2D plane with three unit vectors spaced 120\u00b0 apart; label each pair's interference as |cos \u03b8| = 0.5. Beside it, note the 512-dimensional case where two features can be exactly orthogonal and interfere not at all. No axis quantities beyond the chapter's 2, 3, 512, 120\u00b0, and 0.5; the figure carries the geometry of superposition, not the pruning dataflow. | Comparison table, not a curve. Columns: key/value projections per head vs shared, number of independent key spaces, KV cache per token per layer. MHA: one key and one value vector per head; H independent key spaces; cache is 2 \u00d7 512 \u00d7 2 = 2,048 bytes per token per layer, independent of head count. MQA: one shared key projection and one shared value projection across all heads; one key space; cache cut by factor 8 in the eight-head case. GQA: sharing within groups; H/G key spaces; cache factor H/G. All quantities come from the chapter. The pool arithmetic (262,144 positions, four streams, 65,536 per stream, 32,750 after reply budget and overhead, native 1,048,576 positions, 0.68 GiB per rank, about 928 bytes per position per rank) is separate and not plotted here.",
+  "notes": "Flow diagram, no axes. Left branch: one attention operation produces one softmax distribution and one weighted average; label the four example weights 0.644, 0.237, 0.087, 0.032 and the competing-relation weights 0.458, 0.458, 0.062, 0.023, showing they are summed before crossing the layer boundary. Right branch: eight parallel heads each read the same x_i, project through 512x64 matrices into 64-dimensional subspaces, softmax independently, output 64-vectors, concatenate to 512, then W_O 512x512 writes to the residual stream. Label shapes 512, 64, 8, and √64=8; all quantities come from the chapter. | No axes; it is a two-column configuration comparison. Left column: single 512-dimensional head with one softmax and rank ≤512. Right column: eight 64-dimensional heads, each with its own softmax and rank ≤64. Label the shared parameter total 1,048,576 and the per-projection 262,144 from the chapter. Show the two-relation scores 5.0, 0.0, 0.0, −1.0 producing exponentials 148.4, 1.000, 1.000, 0.368 and sum 150.8, giving 0.984 mass per specialized head versus 0.458 in the mixed case. Indicate that each head's 64-vector output is mapped by its own 512×64 block of W_O into the 512-dimensional residual stream, with possible overlap across heads. | Positions i and j are sequence positions; i−1 and j−1 are their predecessors. The figure should label the residual stream at i, the layer-1 copy c_i, the layer-2 query composition, the shifted key side, and the one-position offset between the matched earlier occurrence and the retrieved next token. Shapes: the composition produces a 64-vector via a 64×64 matrix; no other quantities are labelled. | Draw a 2D plane with three unit vectors spaced 120° apart; label each pair's interference as |cos θ| = 0.5. Beside it, note the 512-dimensional case where two features can be exactly orthogonal and interfere not at all. No axis quantities beyond the chapter's 2, 3, 512, 120°, and 0.5; the figure carries the geometry of superposition, not the pruning dataflow. | Comparison table, not a curve. Columns: key/value projections per head vs shared, number of independent key spaces, KV cache per token per layer. MHA: one key and one value vector per head; H independent key spaces; cache is 2 × 512 × 2 = 2,048 bytes per token per layer, independent of head count. MQA: one shared key projection and one shared value projection across all heads; one key space; cache cut by factor 8 in the eight-head case. GQA: sharing within groups; H/G key spaces; cache factor H/G. All quantities come from the chapter. The pool arithmetic (262,144 positions, four streams, 65,536 per stream, 32,750 after reply budget and overhead, native 1,048,576 positions, 0.68 GiB per rank, about 928 bytes per position per rank) is separate and not plotted here.",
   "section": 1,
   "sections": [
     1,
@@ -22,5 +22,28 @@
     3,
     4,
     5
+  ],
+  "panels": [
+    {
+      "title": "one head, 512 wide",
+      "items": [
+        "scores over keys",
+        "one softmax",
+        "one weighted average",
+        "0.458 and 0.458 summed"
+      ],
+      "note": "Two relations compete for one distribution."
+    },
+    {
+      "title": "eight heads, 64 each",
+      "items": [
+        "Q_h, K_h, V_h: 512 x 64",
+        "score / sqrt(64) = 8",
+        "softmax inside head h",
+        "o_i^h: 64 wide",
+        "concat to 512, then W_O"
+      ],
+      "note": "Each head gets its own pattern; W_O mixes them back."
+    }
   ]
 }

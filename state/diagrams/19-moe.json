@@ -1,20 +1,20 @@
 {
   "needed": true,
-  "kind": "flow",
-  "title": "Router to top-2 expert output in a sparsely-gated MoE layer",
-  "why": "It shows the sequence from hidden vector through router scores, softmax, top-k selection, renormalization, and weighted expert sum, with the chapter's worked numbers and tensor shapes.",
+  "kind": "matrix",
+  "title": "The router: four scores, one softmax, two experts kept",
+  "why": "It shows the chapter worked example as the numbers it is: the scores, the exponentials, the shares, and the two that survive the top-2 cut and are renormalised.",
   "nodes": [
     "x = [1, 2, 0, 0], d_model = 4",
-    "Router W: d_model \u00d7 E, E = 4 rows w\u2081\u2026w\u2084",
-    "scores s = x\u00b7W = [1, 2, 3, -1]",
+    "Router W: d_model × E, E = 4 rows w₁…w₄",
+    "scores s = x·W = [1, 2, 3, -1]",
     "exponentiate: [2.718, 7.389, 20.086, 0.368]",
     "sum = 30.561",
     "softmax probabilities: [0.089, 0.242, 0.657, 0.012]",
     "top-2 selects experts 3 and 2",
     "renormalize selected pair: 0.657/0.899 = 0.731, 0.242/0.899 = 0.269",
-    "output = 0.731\u00b7E\u2083(x) + 0.269\u00b7E\u2082(x)"
+    "output = 0.731·E₃(x) + 0.269·E₂(x)"
   ],
-  "notes": "No axes; it is a left-to-right dataflow. The input vector width is d_model = 4; the router has E = 4 expert rows; each token visits k = 2 experts. Labels are the chapter's worked scores, exponentials, sum 30.561, probabilities, selected experts, renormalized weights 0.731 and 0.269, and final weighted sum. The figure should also indicate that setting unselected scores to negative infinity before softmax gives the same two weights. | Flow: token x enters router, produces scores s; top-k selects k=2 experts; selected experts compute E_a(x), E_b(x); gates combine them into y. Label router cost d_model\u00d7E = 262,144 multiply-adds and expert cost k\u00d72\u00d7d_model\u00d7d_ff = 235 million for d_model=4096, d_ff=14336, E=64, k=2, about 0.1% router share. Show doubling E to 128 doubles router term and parameter count 64\u00d72\u00d74096\u00d714336 to twice that, while expert arithmetic per token is unchanged. All-to-all is separate and grows with token count, hidden width, bytes per element, not E. Gradient path: backprop treats top-k as fixed mask; for selected pair, \u2202g_a/\u2202s_a = g_a(1\u2212g_a), \u2202g_a/\u2202s_b = \u2212g_a\u00b7g_b; unselected experts get no router-row update from that token. No axes; quantities are labelled on the flow edges/blocks and come from the chapter's accounting. | Horizontal axis: eight experts E=8. Vertical axis: rows per expert buffer, capacity 640. Each bar shows actual router count, kept rows up to 640, dropped rows above 640, and padded zero rows below 640. Labelled quantities from the chapter: T=4096, cf=1.25, capacity 640, counts 900/700/500/500/400/400/400/296, drops 260+60=320 (7.8%), padding 140+140+240+240+240+344=1344 of 5120 (26%). Arrows show router counts flowing into capacity buffers, kept rows into dense expert blocks, dropped rows into residual bypass with zero gate. | Two parallel branches: top-1 dispatch moves 4096 \u00d7 4096 \u00d7 2 = 33.6 MB per layer and combine moves the same; top-2 doubles each direction to 67.1 MB. Metadata adds 32 KB, described as noise. The figure labels the dispatch and combine volumes per layer and notes that multiplying by layer count makes the top-1/top-2 difference gigabytes per forward pass. Router precision contrast can be a side note: router in fp32, experts in bf16, because bf16 logit steps near 1.0 are about 0.0078 while fp32 resolves about 1e-7. | No axes; arrows show token flow across devices. Label the dispatch and return all-to-all each with volume T\u00b7k\u00b7d_model\u00b7bytes per direction. Mark the remote fraction as 1 \u2212 1/D, with the chapter's examples D=2 \u2192 50%, D=8 \u2192 87.5%, D=64 \u2192 98.4%. Show chunked dispatch pipelined against expert compute so network and SMs overlap. Optionally note E=8 and gate probability \u22480.125 as the residual multiplier, but the main structure is the two collectives and the overlap. | Left side: a 16-row batch, each row pointing to k experts; the union is drawn as a set whose size ranges from k (full sharing) to 16k (disjoint), giving the 16/k variation in bytes per round. Right side: two configurations side by side, labelled with measured tokens/s and GB/token; the 1.80\u00d7 multiplier sits between them. Structural constants labelled: 16 rows, k experts, 16/k factor. Measured quantities labelled where they come from: 111.5 GB resident set (upper bound, includes KV pool and live streams), 273 GB/s LPDDR5X bus, 59.1 tok/s single stream, 106.2 aggregate at four streams, 4.62 and 2.57 GB/token, 1.80\u00d7, SM clock 2,197 MHz against 3,003 MHz ceiling held steady. No axes; it is a memory/dataflow layout plus a two-configuration comparison. | Flow is token -> router -> two parallel branches: the shared expert computes the token-agnostic part unconditionally, while the router selects routed experts that model only the residual token-specific part. Each routed expert is split into m smaller experts with d_ff/m, so any single routed contribution is smaller by m. The figure labels m as the segmentation factor and marks the shared branch as always active. Routing error can be annotated as roughly misroute probability times missed contribution magnitude: segmentation reduces the magnitude factor by m, and the shared expert reduces the probability factor because the common component no longer depends on the routing choice. No memory-budget numbers are placed in the figure; those are arithmetic in the prose.",
+  "notes": "No axes; it is a left-to-right dataflow. The input vector width is d_model = 4; the router has E = 4 expert rows; each token visits k = 2 experts. Labels are the chapter's worked scores, exponentials, sum 30.561, probabilities, selected experts, renormalized weights 0.731 and 0.269, and final weighted sum. The figure should also indicate that setting unselected scores to negative infinity before softmax gives the same two weights. | Flow: token x enters router, produces scores s; top-k selects k=2 experts; selected experts compute E_a(x), E_b(x); gates combine them into y. Label router cost d_model×E = 262,144 multiply-adds and expert cost k×2×d_model×d_ff = 235 million for d_model=4096, d_ff=14336, E=64, k=2, about 0.1% router share. Show doubling E to 128 doubles router term and parameter count 64×2×4096×14336 to twice that, while expert arithmetic per token is unchanged. All-to-all is separate and grows with token count, hidden width, bytes per element, not E. Gradient path: backprop treats top-k as fixed mask; for selected pair, ∂g_a/∂s_a = g_a(1−g_a), ∂g_a/∂s_b = −g_a·g_b; unselected experts get no router-row update from that token. No axes; quantities are labelled on the flow edges/blocks and come from the chapter's accounting. | Horizontal axis: eight experts E=8. Vertical axis: rows per expert buffer, capacity 640. Each bar shows actual router count, kept rows up to 640, dropped rows above 640, and padded zero rows below 640. Labelled quantities from the chapter: T=4096, cf=1.25, capacity 640, counts 900/700/500/500/400/400/400/296, drops 260+60=320 (7.8%), padding 140+140+240+240+240+344=1344 of 5120 (26%). Arrows show router counts flowing into capacity buffers, kept rows into dense expert blocks, dropped rows into residual bypass with zero gate. | Two parallel branches: top-1 dispatch moves 4096 × 4096 × 2 = 33.6 MB per layer and combine moves the same; top-2 doubles each direction to 67.1 MB. Metadata adds 32 KB, described as noise. The figure labels the dispatch and combine volumes per layer and notes that multiplying by layer count makes the top-1/top-2 difference gigabytes per forward pass. Router precision contrast can be a side note: router in fp32, experts in bf16, because bf16 logit steps near 1.0 are about 0.0078 while fp32 resolves about 1e-7. | No axes; arrows show token flow across devices. Label the dispatch and return all-to-all each with volume T·k·d_model·bytes per direction. Mark the remote fraction as 1 − 1/D, with the chapter's examples D=2 → 50%, D=8 → 87.5%, D=64 → 98.4%. Show chunked dispatch pipelined against expert compute so network and SMs overlap. Optionally note E=8 and gate probability ≈0.125 as the residual multiplier, but the main structure is the two collectives and the overlap. | Left side: a 16-row batch, each row pointing to k experts; the union is drawn as a set whose size ranges from k (full sharing) to 16k (disjoint), giving the 16/k variation in bytes per round. Right side: two configurations side by side, labelled with measured tokens/s and GB/token; the 1.80× multiplier sits between them. Structural constants labelled: 16 rows, k experts, 16/k factor. Measured quantities labelled where they come from: 111.5 GB resident set (upper bound, includes KV pool and live streams), 273 GB/s LPDDR5X bus, 59.1 tok/s single stream, 106.2 aggregate at four streams, 4.62 and 2.57 GB/token, 1.80×, SM clock 2,197 MHz against 3,003 MHz ceiling held steady. No axes; it is a memory/dataflow layout plus a two-configuration comparison. | Flow is token -> router -> two parallel branches: the shared expert computes the token-agnostic part unconditionally, while the router selects routed experts that model only the residual token-specific part. Each routed expert is split into m smaller experts with d_ff/m, so any single routed contribution is smaller by m. The figure labels m as the segmentation factor and marks the shared branch as always active. Routing error can be annotated as roughly misroute probability times missed contribution magnitude: segmentation reduces the magnitude factor by m, and the shared expert reduces the probability factor because the common component no longer depends on the routing choice. No memory-budget numbers are placed in the figure; those are arithmetic in the prose.",
   "section": 1,
   "sections": [
     1,
@@ -24,5 +24,28 @@
     5,
     6,
     7
-  ]
+  ],
+  "rows": [
+    [
+      1,
+      2,
+      3,
+      -1
+    ],
+    [
+      0.089,
+      0.242,
+      0.657,
+      0.012
+    ]
+  ],
+  "cols": [
+    "w_1",
+    "w_2",
+    "w_3",
+    "w_4"
+  ],
+  "highlight_row": 0,
+  "note": "sum = 30.561. Top-2 keeps experts 3 and 2; renormalised to 0.731 and 0.269. Setting the others to -inf before softmax gives the same pair.",
+  "scale": 0.25
 }

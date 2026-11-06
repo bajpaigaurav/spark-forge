@@ -1,8 +1,8 @@
 {
   "needed": true,
-  "kind": "layout",
-  "title": "MHA vs MQA: private versus shared key-value cache",
-  "why": "It shows the structural change from per-head KV storage to one shared KV head and the resulting cache-byte and arithmetic-intensity comparison.",
+  "kind": "panels",
+  "title": "Private key-value heads versus shared ones",
+  "why": "It shows the layout the prose describes in sequence: in MHA each query head reads its own key and value head, so the cache scales with H; in MQA every query head reads one shared pair, so it scales with 1.",
   "nodes": [
     "MHA: each of H query heads has its own key head and value head",
     "MQA: all H query heads read from one shared key head and one shared value head",
@@ -10,11 +10,48 @@
     "Attention arithmetic intensity: 1 FLOP/byte for MHA, 32 FLOP/byte for MQA",
     "Ridge point = peak FLOPs / memory bandwidth; both intensities remain below it"
   ],
-  "notes": "Left side: MHA layout with H private key/value subspaces feeding H query heads. Right side: MQA layout with H query heads all reading the same key/value subspace. Label cache bytes per token per layer on the KV blocks and arithmetic intensity beside each configuration. Mark the ridge point qualitatively above both intensities, since the chapter gives no numeric ridge value. No axes needed; the figure is a memory-layout comparison with labelled quantities from the prose. | Bar chart with attention variant on the x-axis and cache size per token across 32 layers on the y-axis. Label MHA at 512 KiB/token, GQA at 128 KiB/token, and MLA at 160 KiB/token, all from the chapter. Annotate the 4,096-token totals: MHA 2 GiB, GQA 512 MiB, MLA 640 MiB. Add a note that MLA is 3.2x smaller than MHA. Do not plot MQA numerically because the chapter gives no cache value for it; it appears only as the G=1 endpoint of the GQA dial. | Flow: q is multiplied by W_UK\u1d40 at load time to form the absorbed query; at decode the kernel multiplies that against the cached latent c and concatenates the separate per-head rotary key before scoring. On the output side, the weighted sum over latents is multiplied by W_UV, which folds into the output projection. The cache stores the latent plus the small rotary key, not full per-head key and value matrices. No numeric dimensions are labelled because the chapter gives none; only the structural quantities q, c, W_UK, W_UV, and the rotary key appear.",
+  "notes": "Left side: MHA layout with H private key/value subspaces feeding H query heads. Right side: MQA layout with H query heads all reading the same key/value subspace. Label cache bytes per token per layer on the KV blocks and arithmetic intensity beside each configuration. Mark the ridge point qualitatively above both intensities, since the chapter gives no numeric ridge value. No axes needed; the figure is a memory-layout comparison with labelled quantities from the prose. | Bar chart with attention variant on the x-axis and cache size per token across 32 layers on the y-axis. Label MHA at 512 KiB/token, GQA at 128 KiB/token, and MLA at 160 KiB/token, all from the chapter. Annotate the 4,096-token totals: MHA 2 GiB, GQA 512 MiB, MLA 640 MiB. Add a note that MLA is 3.2x smaller than MHA. Do not plot MQA numerically because the chapter gives no cache value for it; it appears only as the G=1 endpoint of the GQA dial. | Flow: q is multiplied by W_UKᵀ at load time to form the absorbed query; at decode the kernel multiplies that against the cached latent c and concatenates the separate per-head rotary key before scoring. On the output side, the weighted sum over latents is multiplied by W_UV, which folds into the output projection. The cache stores the latent plus the small rotary key, not full per-head key and value matrices. No numeric dimensions are labelled because the chapter gives none; only the structural quantities q, c, W_UK, W_UV, and the rotary key appear.",
   "section": 2,
   "sections": [
     2,
     3,
     4
+  ],
+  "bars": [
+    {
+      "label": "MHA: H private KV heads",
+      "value": 16384,
+      "display": "16,384 B per token per layer"
+    },
+    {
+      "label": "MQA: one shared KV head",
+      "value": 512,
+      "display": "512 B per token per layer"
+    }
+  ],
+  "note": "The cache scales with g, the number of KV heads, not with h, the number of query heads. Fewer KV heads means a lower arithmetic intensity, so the decode step is more bandwidth-bound.",
+  "panels": [
+    {
+      "title": "MHA: H private KV heads",
+      "items": [
+        "H query heads",
+        "H key heads",
+        "H value heads",
+        "cache: 16,384 B per token per layer",
+        "1 FLOP per byte"
+      ],
+      "note": "The cache scales with the head count."
+    },
+    {
+      "title": "MQA: one shared KV head",
+      "items": [
+        "H query heads",
+        "1 key head",
+        "1 value head",
+        "cache: 512 B per token per layer",
+        "32 FLOPs per byte"
+      ],
+      "note": "32 times less cache, at 32 times the arithmetic intensity."
+    }
   ]
 }
