@@ -165,7 +165,8 @@ def mini_toc(headings):
     items = "".join(
         f'<li><a href="#{sid}">{esc(t)}</a></li>' for t, sid in headings
     )
-    return f'<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul>{items}</ul></nav>'
+    return (f'<nav class="mini-toc" aria-label="In this chapter">'
+            f'<h2>In this chapter</h2><ul>{items}</ul></nav>')
 
 def read_chapter(ch):
     p = os.path.join(CHAPTERS, ch["id"] + ".md")
@@ -234,696 +235,574 @@ def term_strip(cid, entries):
     return f'<p class="terms">Terms in this chapter: {chips}</p>'
 
 CSS = r"""
+/* ---- tokens: Almanac, the reference-book register ---- */
 :root {
-  --paper: #f6f3ec;
-  --ink: #1c1a16;
-  --ink-soft: #55504a;
-  --rule: #d8d2c6;
-  --accent: #8a3324;
-  --code-bg: #ebe6da;
-  --measure: 34rem;
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --color-paper: oklch(84% 0.012 245); --color-paper-2: oklch(81% 0.012 245); --color-paper-3: oklch(77% 0.012 245);
+  --color-ink: oklch(16% 0.020 245); --color-ink-2: oklch(24% 0.018 245); --color-muted: oklch(38% 0.016 245);
+  --color-rule: oklch(73% 0.013 240); --color-rule-2: oklch(32% 0.018 240);
+  --color-accent: oklch(45% 0.180 350); --color-accent-2: oklch(37% 0.160 350); --color-accent-ink: oklch(97% 0.006 245); --color-focus: oklch(46% 0.190 350);
+  --color-sheet: oklch(93.5% 0.008 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 7%, var(--color-sheet));
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader", ui-serif, Georgia, serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 0; --radius-pill: 2px; --rule-hair: 1px; --rule-bar: 2px; --rule-heavy: 4px; --shadow-card: none;
+  --tracking-display: -0.02em; --display-weight: 600;
+  --container: 1440px; --gutter: 64px;
+  --z-sticky-nav: 300; --z-modal: 400;
+  --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  --measure: var(--read-measure);
 }
 
-* { box-sizing: border-box; }
-
-html { font-size: 19px; }
-
-body {
-  margin: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
-  line-height: 1.62;
-  -webkit-font-smoothing: antialiased;
+/* ---- dark: the same stock read by lamplight; magenta lifts one step ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(24% 0.016 245); --color-paper-2: oklch(21% 0.016 245); --color-paper-3: oklch(18% 0.016 245);
+  --color-ink: oklch(95% 0.008 245); --color-ink-2: oklch(88% 0.010 245); --color-muted: oklch(74% 0.014 245);
+  --color-rule: oklch(36% 0.016 240); --color-rule-2: oklch(62% 0.018 240);
+  --color-accent: oklch(70% 0.165 350); --color-accent-2: oklch(78% 0.150 350); --color-accent-ink: oklch(17% 0.016 245); --color-accent-text: oklch(82% 0.130 350); --color-focus: oklch(76% 0.175 350);
+  --color-sheet: oklch(30% 0.014 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 14%, var(--color-sheet));
 }
 
-.wrap {
-  max-width: calc(var(--measure) * 1.6);
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-muted) var(--color-paper); scroll-padding-top: calc(var(--topbar-h) + var(--space-md)); }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-synthesis: none; letter-spacing: var(--tracking-display); line-height: 1.05; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+img, video, svg { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+.num, td.num { font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 
 /* ---- frontispiece ---- */
-.frontis {
-  margin: 0 0 3.5rem;
-  padding: 2.5rem 0 0;
-}
-.frontis p {
-  max-width: var(--measure);
-  font-size: 1.05rem;
-  line-height: 1.65;
-  margin: 0 0 1.3rem;
-}
-.frontis p.lead {
-  font-size: 1.22rem;
-  line-height: 1.55;
-}
-.frontis .drop::first-letter {
-  float: left;
-  font-size: 4.2rem;
-  line-height: 0.8;
-  padding: 0.1em 0.12em 0 0;
-  color: var(--accent);
-}
-.rule-short {
-  width: 4rem;
-  border: 0;
-  border-top: 2px solid var(--accent);
-  margin: 2.5rem 0;
-}
+.frontis { margin: 0 0 var(--space-2xl); }
+.frontis p { max-width: 66ch; margin: 0 0 var(--space-md); }
+.frontis p.lead { font-size: var(--text-lead); line-height: 1.4; color: var(--color-ink); max-width: 52ch; }
+.frontis .drop::first-letter { font-size: 1em; float: none; color: inherit; }
+.rule-short { width: 4rem; border: 0; border-top: var(--rule-bar) solid var(--color-accent); margin: var(--space-xl) 0; }
 
 /* ---- masthead ---- */
-.masthead {
-  border-bottom: 3px double var(--rule);
-  padding: 3.5rem 0 1.75rem;
-  margin-bottom: 3rem;
-}
-.masthead .kicker {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 1rem;
-}
-.masthead h1 {
-  font-size: 2.5rem;
-  line-height: 1.08;
-  font-weight: 400;
-  margin: 0 0 0.6rem;
-  letter-spacing: -0.015em;
-}
-.masthead .standfirst {
-  font-size: 1.05rem;
-  color: var(--ink-soft);
-  margin: 0;
-  max-width: 32rem;
-  font-style: italic;
-}
+/* ---- cover: one screen, then the contents ---- */
+.cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
+.cover-rule { display: block; margin: 0 0 var(--space-lg); }
+.cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-sm); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.35; color: var(--color-ink-2); max-width: 44ch; margin: 0 0 var(--space-lg); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-xs); margin: var(--space-lg) 0 var(--space-xl); }
+.cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
+.cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
+.btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
+.btn-primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
+.btn-quiet:hover { background: var(--color-wash); }
+.cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-md); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts div { margin: 0; }
+.cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
+.cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
+
+/* ---- the contents, set as a printed index ---- */
+.contents { margin: var(--section-gap) 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-lg); }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); border-bottom: var(--rule-hair) solid var(--color-rule); padding-bottom: var(--space-2xs); }
+.contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
+.contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.contents ol { list-style: none; margin: 0; padding: 0; }
+.contents li { border-top: 0; }
+.contents li:last-child { border-bottom: 0; }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: 0.5rem var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a:hover { background: var(--color-wash); }
+.contents li a:hover .t { color: var(--color-accent-text); }
+.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 62ch; }
+.contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+
+/* ---- live numbers: the book's own measurements, set as a strip ---- */
+.figures { margin: var(--section-gap) 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
+.fig .u { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); margin-top: 2px; }
+.fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
+
+/* ---- colophon block ---- */
+.colophon-block { margin: var(--section-gap) 0 0; padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
+.colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
+.gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
+.gate-row > div { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.gate-row .gate-v { display: block; font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-accent); }
+.gate-row .gate-l { display: block; font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+.colophon-links { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-lg); font-family: var(--font-display); font-size: var(--text-sm); }
+.colophon-links a { color: var(--color-ink); text-decoration: none; border-bottom: var(--rule-hair) solid var(--color-accent); padding-bottom: 1px; }
+.colophon-links a:hover { color: var(--color-accent); }
+
+.masthead { padding: var(--space-xl) 0 var(--space-lg); border-bottom: var(--rule-bar) solid var(--color-rule-2); margin-bottom: var(--space-xl); }
+.masthead .kicker { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.masthead h1 { font-size: var(--text-3xl); color: var(--color-ink); margin: 0 0 var(--space-xs); }
+.masthead .standfirst { font-size: var(--text-lg); color: var(--color-muted); line-height: 1.4; margin: 0; max-width: 52ch; }
+.masthead .facts { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-md); font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.masthead .facts strong { color: var(--color-ink); font-weight: 500; }
 
 /* ---- parts ---- */
-.part { margin: 0 0 3rem; }
-.part-title {
-  font-size: 0.72rem;
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  font-weight: 400;
-  color: var(--accent);
-  margin: 0 0 0.25rem;
-}
-.part-count {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  color: var(--ink-soft);
-  margin: 0 0 1rem;
-}
+.part { margin: 0 0 var(--space-xl); }
+.part-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); }
+.part-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-md); }
 
 /* ---- chapter list ---- */
 .toc { list-style: none; padding: 0; margin: 0; }
-.toc li { border-top: 1px solid var(--rule); }
-.toc li:last-child { border-bottom: 1px solid var(--rule); }
-.toc a {
-  display: grid;
-  grid-template-columns: 2.5rem 1fr;
-  gap: 1rem;
-  padding: 1.1rem 0;
-  text-decoration: none;
-  color: var(--ink);
-  align-items: baseline;
-}
-.toc a:hover .t-title { color: var(--accent); }
-.t-num {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  color: var(--ink-soft);
-}
-.t-title { font-size: 1.12rem; }
-.t-status {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.62rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  display: block;
-  margin-top: 0.3rem;
-}
-.toc a.pending .t-title { color: var(--ink-soft); font-style: italic; }
+.toc li { border-top: var(--rule-hair) solid var(--color-rule); }
+.toc li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.toc a { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: var(--space-md); padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.toc a:hover { background: var(--color-wash); }
+.toc a:hover .t-title { color: var(--color-ink); }
+.t-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.t-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.toc a.pending .t-title { color: var(--color-muted); }
 
 /* ---- chapter page ---- */
-.chapter-head { margin-bottom: 2.5rem; }
-.chapter-head .num {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.chapter-head h1 {
-  font-size: 2rem;
-  line-height: 1.15;
-  font-weight: 400;
-  margin: 0.5rem 0 1rem;
-}
-.chapter-head .thesis {
-  font-style: italic;
-  color: var(--ink-soft);
-  border-left: 2px solid var(--accent);
-  padding-left: 1rem;
-  margin: 0;
-}
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-lg); padding: var(--space-md) 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); display: block; margin-bottom: var(--space-sm); }
+.chapter-head h1 { font-size: var(--text-2xl); color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: 24ch; }
+.chapter-head .thesis { font-size: var(--text-md); color: var(--color-muted); line-height: 1.45; margin: 0; max-width: 60ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: var(--space-xs) 0 0; padding-top: var(--space-xs); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
+.chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
+.chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
+.chapter-head .xref { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
 
-/* In-chapter contents. Only rendered for chapters with 3+ subheads. */
-.mini-toc {
-  max-width: var(--measure);
-  margin: 2.2rem 0 2.6rem;
-  padding: 1rem 0 1rem 1.1rem;
-  border-left: 2px solid var(--rule);
-}
-.mini-toc h2 {
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 0.6rem;
-}
-.mini-toc ul { list-style: none; margin: 0; padding: 0; }
-.mini-toc li { margin: 0.28rem 0; }
-.mini-toc a {
-  color: var(--ink);
-  text-decoration: none;
-  font-size: 0.95rem;
-  border-bottom: 1px solid transparent;
-}
-.mini-toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
-/* Anchored headings should not hide under the top of the viewport. */
-.prose h3 { scroll-margin-top: 1.5rem; }
-
-/* Prerequisite strip: quiet, so it orients without competing with the thesis. */
-.prereq {
-  font-size: 0.82rem;
-  color: var(--ink-soft);
-  margin: 0.9rem 0 0;
-  letter-spacing: 0.02em;
-}
-.prereq a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--accent);
-}
-.prereq a:hover { border-bottom-style: solid; }
+.mini-toc { display: none; margin: var(--space-lg) 0 0; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); border-bottom: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-sm); grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc h2 { font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-2xs); grid-column: 1 / -1; }
+.mini-toc ul { list-style: none; margin: 0; padding: 0; grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc li { margin: 0; }
+.mini-toc li:first-child a { border-top: 0; }
+.mini-toc a { color: var(--color-ink-2); text-decoration: none; display: block; padding: 4px 0; line-height: 1.3; overflow-wrap: break-word; border-top: var(--rule-hair) solid var(--color-rule); }
+.mini-toc a:hover { color: var(--color-accent); }
+.prose h3 { scroll-margin-top: calc(var(--topbar-h) + var(--space-md)); }
 
 /* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
-.terms {
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-  margin: 0.5rem 0 0;
-  letter-spacing: 0.02em;
-}
-.terms a {
-  color: var(--ink-soft);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--rule);
-}
-.terms a:hover { color: var(--accent); border-bottom-color: var(--accent); }
-
-/* Glossary page: a definition list, not cards. */
-.glossary { max-width: var(--measure); }
-.glossary dt {
-  font-weight: 400;
-  margin: 0;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--rule);
-}
-.glossary dt a {
-  color: var(--ink);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-}
-.glossary dt a:hover { color: var(--accent); border-bottom-color: var(--accent); }
-.glossary dd {
-  margin: 0.2rem 0 0;
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-}
-.glossary dd .src {
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.glossary dd .src a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--accent);
-}
-.glossary dd .src a:hover { border-bottom-style: solid; }
+.glossary { max-width: var(--read-measure); }
 .glossary dl { margin: 0; }
+.glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dt a { color: var(--color-ink); text-decoration: none; }
+.glossary dt a:hover { color: var(--color-accent); }
+.glossary dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+.glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.glossary dd .src a { color: var(--color-accent); text-decoration: none; }
+.glossary dd .src a:hover { text-decoration: underline; }
 
 /* ---- reading paths ---- */
-/* The strip on the front page. Quiet: same voice as .part-count, one row per
-   path, time on the left so the reader can skip on time alone. */
-.paths-strip {
-  margin: 0 0 3rem;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  padding: 1.1rem 0 1.2rem;
-}
-.paths-kicker {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 0.7rem;
-}
-.paths-kicker a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--accent);
-}
-.paths-strip ul { list-style: none; margin: 0; padding: 0; }
-.paths-strip li { margin: 0.3rem 0; }
-.paths-strip a {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: 1rem;
-  text-decoration: none;
-  color: var(--ink);
-  align-items: baseline;
-}
-.paths-strip a:hover .p-what { color: var(--accent); }
-.p-when {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-.p-what { font-size: 0.95rem; }
+.paths-strip { margin: var(--section-gap) 0; }
+.paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
+.paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
+.paths-strip a { display: block; text-decoration: none; }
+.paths-strip a:hover .p-what { color: var(--color-accent); }
+.paths-kicker { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.p-when { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-accent); }
+.p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
 
-/* The paths page. Each path is a brief with its own list, not a card. */
-.paths-intro { max-width: var(--measure); }
-.path { max-width: var(--measure); margin: 3rem 0 0; }
-.path-title {
-  font-size: 1.35rem;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.3rem;
-}
-.path-who {
-  font-style: italic;
-  color: var(--ink-soft);
-  margin: 0 0 0.25rem;
-}
-.path-when {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 1.1rem;
-}
-.path-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1.2rem;
-  counter-reset: pathstep;
-}
-.path-list li {
-  counter-increment: pathstep;
-  border-top: 1px solid var(--rule);
-}
-.path-list li:last-child { border-bottom: 1px solid var(--rule); }
-.path-list a {
-  display: grid;
-  grid-template-columns: 2.2rem 1fr;
-  gap: 0.8rem;
-  padding: 0.5rem 0;
-  text-decoration: none;
-  color: var(--ink);
-  align-items: baseline;
-}
-.path-list a:hover .p-title { color: var(--accent); }
-.p-num {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  color: var(--ink-soft);
-}
-.p-title { font-size: 1rem; }
-.path-why {
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: var(--ink-soft);
-  border-left: 2px solid var(--rule);
-  padding-left: 1rem;
-  margin: 0 0 3rem;
-}
-
-@media (max-width: 640px) {
-  .paths-strip a { grid-template-columns: 1fr; gap: 0.1rem; }
-  .path-title { font-size: 1.15rem; }
-}
+.paths-intro { max-width: var(--read-measure); }
+.path { max-width: var(--read-measure); margin: var(--section-gap) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); max-width: none; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-2xs); }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); margin: 0 0 var(--space-md); }
+.path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
+.path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
+.path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.path-list a { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.path-list a:hover { background: var(--color-wash); }
+.path-list a:hover .p-title { color: var(--color-ink); }
+.p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0 0 var(--space-xl); }
 
 /* ---- reproduce-this page ---- */
-/* Same voice as the paths and glossary pages: a list of artifacts, then the
-   measured values in the provenance table style, then the honest limits. */
-.rig-artifacts { max-width: var(--measure); }
+.rig-artifacts { max-width: var(--read-measure); }
 .rig-artifacts ul { list-style: none; margin: 0; padding: 0; }
-.rig-artifacts li {
-  padding: 0.9rem 0;
-  border-top: 1px solid var(--rule);
-}
-.rig-artifacts li:last-child { border-bottom: 1px solid var(--rule); }
-.rig-artifacts .r-name {
-  font-family: "DejaVu Sans Mono", monospace;
-  font-size: 0.82rem;
-  display: block;
-}
-.rig-artifacts .r-name a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--accent);
-}
-.rig-artifacts .r-name a:hover { border-bottom-style: solid; }
-.rig-artifacts .r-what {
-  display: block;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-  margin-top: 0.25rem;
-}
-.rig-limits { max-width: var(--measure); }
+.rig-artifacts li { padding: var(--space-sm) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-artifacts li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.rig-artifacts .r-name { font-family: var(--font-outlier); font-size: var(--text-sm); display: block; }
+.rig-artifacts .r-name a { color: var(--color-accent); text-decoration: none; }
+.rig-artifacts .r-name a:hover { text-decoration: underline; }
+.rig-artifacts .r-what { display: block; color: var(--color-muted); font-size: var(--text-sm); margin-top: var(--space-2xs); }
+.rig-limits { max-width: var(--read-measure); }
 .rig-limits dl { margin: 0; }
-.rig-limits dt {
-  margin: 0;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--rule);
-}
-.rig-limits dd {
-  margin: 0.2rem 0 0;
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-}
-.rig-table td .ru {
-  font-family: "DejaVu Sans Mono", monospace;
-  font-size: 0.72rem;
-  color: var(--ink-soft);
-}
+.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-limits dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
 
-/* Cross-references inside prose: a quiet underline, not a shout. */
-.prose a.xref, .prose a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(138, 51, 36, 0.3);
-}
-.prose a:hover { border-bottom-color: var(--accent); }
+/* ---- prose ---- */
+.prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-sm); max-width: 68ch; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); max-width: none; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-lg) 0 var(--space-2xs); }
+.prose ul { margin: 0 0 var(--space-md); padding-left: 1.25rem; }
+.prose li { margin: 0 0 var(--space-2xs); }
+.prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.prose a { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 0.15em; }
+.prose a:hover { text-decoration-thickness: 2px; }
+.prose strong { color: var(--color-ink); font-weight: 600; }
+.prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
 
-.prose { max-width: var(--measure); }
-.prose h2 {
-  font-size: 1.3rem;
-  font-weight: 400;
-  margin: 2.8rem 0 1rem;
-  letter-spacing: -0.01em;
-}
-.prose p { margin: 0 0 1.3rem; }
-.prose p + p { text-indent: 0; }
-.prose code {
-  font-family: "DejaVu Sans Mono", monospace;
-  font-size: 0.82em;
-  background: var(--code-bg);
-  padding: 0.1em 0.3em;
-  border-radius: 2px;
-}
-.prose pre {
-  background: var(--code-bg);
-  padding: 1rem 1.2rem;
-  overflow-x: auto;
-  border-left: 2px solid var(--accent);
-}
-.prose pre code { background: none; padding: 0; }
-.prose ul { margin: 0 0 1.3rem; padding-left: 1.2rem; }
-.prose li { margin-bottom: 0.5rem; }
-
-/* drop cap on the first paragraph of a chapter */
-.prose > p:first-of-type::first-letter {
-  float: left;
-  font-size: 3.6rem;
-  line-height: 0.82;
-  padding: 0.08em 0.1em 0 0;
-  color: var(--accent);
-}
+/* ---- figures: on the sheet, full measure, centred ---- */
+.chapter-figure { margin: var(--space-xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.chapter-figure .fig-svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
+.chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
+.fig-svg text { font-family: var(--font-display); }
 
 /* ---- data figures ---- */
-.figures {
-  margin: 3rem 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  padding: 1.5rem 0;
-}
-.figures h3 {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 1.2rem;
-}
-.fig-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 1.5rem;
-}
-.fig .v {
-  font-size: 1.75rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  display: block;
-}
-.fig .u {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  display: block;
-  margin-top: 0.2rem;
-}
-.fig .l { font-size: 0.85rem; color: var(--ink-soft); display: block; margin-top: 0.4rem; }
+.figures { margin: var(--space-xl) 0; }
+.figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-lg); color: var(--color-ink); letter-spacing: -0.02em; }
+.fig .u { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.fig .l { font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
 
 /* ---- nav ---- */
-.chapter-nav {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid var(--rule);
-  margin-top: 4rem;
-  padding: 1.5rem 0 4rem;
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.78rem;
-}
-.chapter-nav a { color: var(--accent); text-decoration: none; }
-.chapter-nav a:hover { text-decoration: underline; }
+.chapter-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-2xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); font-family: var(--font-display); font-size: var(--text-sm); }
+.chapter-nav a { color: var(--color-ink); text-decoration: none; padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; white-space: normal; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; }
+.chapter-nav a:hover { border-color: var(--color-rule-2); background: var(--color-wash); }
+.chapter-nav a.next { text-align: right; }
+.chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
 
 /* ---- interactive devices ---- */
-.interactive {
-  margin: 3rem 0;
-  border: 1px solid var(--rule);
-  background: var(--code-bg);
-  padding: 1.5rem 1.6rem;
-}
-.interactive h3 {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 0.5rem;
-}
-.interactive .lede {
-  font-size: 0.92rem;
-  color: var(--ink-soft);
-  margin: 0 0 1.2rem;
-  max-width: 30rem;
-}
-.bpe-svg, .attn-svg, .kv-svg { display: block; color: var(--ink); margin-bottom: 1rem; }
-.bpe-svg text, .attn-svg text, .kv-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
-.chapter-figure { margin: 2rem 0; padding: 1rem 0; border-top: 1px solid var(--rule, #ddd); border-bottom: 1px solid var(--rule, #ddd); }
-.chapter-figure .fig-svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
-.chapter-figure figcaption { margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.45; color: var(--muted, #666); }
-.chapter-figure figcaption strong { color: var(--ink); font-weight: 600; }
-.fig-svg text { font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif; }
-
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.9rem;
-}
-.slider-row label {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-input[type=text] {
-  flex: 1;
-  font-family: "DejaVu Sans Mono", monospace;
-  font-size: 0.9rem;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  color: var(--ink);
-  padding: 0.4rem 0.6rem;
-}
-input[type=range] {
-  flex: 1;
-  accent-color: var(--accent);
-  height: 2px;
-  background: var(--rule);
-}
-.readout {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.82rem;
-  color: var(--ink-soft);
-}
-.readout strong { color: var(--ink); font-weight: 600; }
-
-.steps {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1.2rem;
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.84rem;
-}
-.steps li {
-  display: grid;
-  grid-template-columns: 5rem 1fr;
-  gap: 0.9rem;
-  padding: 0.55rem 0;
-  border-top: 1px solid var(--rule);
-  transition: opacity 200ms;
-}
-.steps li .k {
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-size: 0.66rem;
-}
+.interactive { margin: var(--space-xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive h3 { margin-top: 0; }
+.interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
+.interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
+.interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
+.interactive button:hover { background: var(--color-accent-2); }
+.bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
+.interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
+.interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
+.slider-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+.slider-row label { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.slider-row input[type=text] { flex: 1; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--color-accent); }
+.readout { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.readout strong { color: var(--color-ink); font-weight: 600; }
+.steps { list-style: none; padding: 0; margin: 0 0 var(--space-md); font-family: var(--font-display); font-size: var(--text-sm); }
+.steps li { display: grid; grid-template-columns: 5rem 1fr; gap: var(--space-sm); padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.steps li .k { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
 .steps li.wait { opacity: 0.3; }
-.steps li.now .k { color: var(--accent); }
-.steps li.done .k { color: var(--ink-soft); }
-.steps li.done .d { opacity: 0.55; }
-
-.btn {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  padding: 0.55rem 1.1rem;
-  cursor: pointer;
-}
-.btn:hover { background: var(--accent); color: var(--paper); }
+.steps li.now .k { color: var(--color-accent); }
+.steps li.done .k { color: var(--color-muted); }
+.btn { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; background: transparent; border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent); padding: var(--space-2xs) var(--space-sm); cursor: pointer; border-radius: var(--radius-pill); }
+.btn:hover { background: var(--color-accent); color: var(--color-accent-ink); }
 .btn[data-state=running] { opacity: 0.5; pointer-events: none; }
 
 /* ---- provenance table ---- */
-.provenance {
-  margin: 3.5rem 0 0;
-  border-top: 1px solid var(--rule);
-  padding-top: 1.4rem;
-}
-.provenance h3 {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.66rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin: 0 0 1rem;
-}
-.provenance table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
-}
-.provenance thead th {
-  font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  text-align: left;
-  padding: 0 0.8rem 0.5rem 0;
-  border-bottom: 1px solid var(--rule);
-}
-.provenance td {
-  padding: 0.55rem 0.8rem 0.55rem 0;
-  border-bottom: 1px solid var(--rule);
-  vertical-align: top;
-  line-height: 1.45;
-}
-.provenance .pv {
-  font-family: "DejaVu Sans Mono", monospace;
-  font-size: 0.74rem;
-  white-space: nowrap;
-  color: var(--ink);
-}
-.provenance .ps { color: var(--ink-soft); }
-.provenance .pc { color: var(--ink-soft); font-style: italic; }
-
-@media (max-width: 640px) {
-  .provenance .pc { display: none; }
-  .provenance td, .provenance thead th { padding-right: 0.4rem; }
-}
+.provenance { margin: var(--space-2xl) 0; }
+.provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
+.provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
+.provenance td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-xs); vertical-align: top; }
+.provenance td.pv { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-ink); }
+.provenance td.ps { color: var(--color-muted); }
+.provenance td.pc { color: var(--color-ink-2); }
+.provenance .prov-note { font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.provenance details.prov-more { display: block; }
+.provenance details.prov-more summary { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); cursor: pointer; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.provenance details.prov-more table { margin-top: var(--space-2xs); }
+/* provenance is a 3-column table; on a phone let it scroll rather than push the page wide */
+.provenance { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.provenance table { min-width: 30rem; }
+@media (max-width: 40rem) { .provenance table { min-width: 26rem; } }
 
 /* ---- margin rail ---- */
-.prose {
-  position: relative;
-}
-.prose .sidenote {
-  display: none;
-}
+.prose { position: relative; }
+.prose .sidenote { display: none; }
 @media (min-width: 1100px) {
-  .prose .sidenote {
-    display: block;
-    position: absolute;
-    left: calc(var(--measure) + 2.5rem);
-    width: 13rem;
-    font-family: "Nimbus Sans", "Liberation Sans", Helvetica, sans-serif;
-    font-size: 0.7rem;
-    line-height: 1.5;
-    color: var(--ink-soft);
-    border-left: 1px solid var(--rule);
-    padding-left: 0.8rem;
-  }
+  .prose .sidenote { display: block; position: absolute; left: calc(var(--read-measure) + 2.5rem); width: 13rem; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.5; color: var(--color-muted); border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-sm); }
 }
 
-.colophon {
-  border-top: 3px double var(--rule);
-  padding: 2rem 0 3rem;
-  font-size: 0.8rem;
-  color: var(--ink-soft);
+/* ---- reader shell: contents rail, top bar, chapter rail ---- */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; max-width: var(--container); margin-inline: auto; min-height: 100vh; }
+.shell--wide { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); grid-column: 1 / span 2; grid-row: 1; display: flex; align-items: center; gap: var(--space-md); height: var(--topbar-h); padding: 0 var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.topbar .wordmark { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); letter-spacing: -0.01em; color: var(--color-ink); text-decoration: none; white-space: nowrap; display: flex; align-items: baseline; gap: var(--space-xs); }
+.topbar .wordmark .part { color: var(--color-muted); font-weight: 500; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.topbar .spacer { flex: 1 1 auto; }
+.topbar .folio { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; padding-right: var(--space-xs); border-right: var(--rule-hair) solid var(--color-rule); margin-right: var(--space-2xs); }
+/* the topbar must never push the page wide: let it shrink, not overflow */
+.topbar { flex-wrap: nowrap; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.topbar .wordmark { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+@media (max-width: 68rem) {
+  .topbar .folio { display: none; }
+  .topbar .wordmark .part { display: none; }
+  .topbar { gap: var(--space-sm); padding: 0 var(--space-md); }
 }
+.topbar .tool { display: inline-flex; align-items: center; gap: var(--space-2xs); height: 2rem; padding: 0 var(--space-sm); font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-ink); background: transparent; border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); cursor: pointer; }
+.topbar .tool:hover { background: var(--color-paper-2); }
+.topbar .tool kbd { font-family: var(--font-outlier); font-size: 0.6875rem; color: var(--color-muted); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.rail-toggle { display: none; }
+.rail { grid-column: 1; grid-row: 2; position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-lg) var(--space-lg) var(--space-3xl); border-right: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; }
+.rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); letter-spacing: 0; margin: 0 0 var(--space-sm); max-width: none; }
+.rail .part { margin: 0 0 var(--space-lg); }
+.rail .part > h3 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-2xs); max-width: none; line-height: 1.3; }
+.rail ol { list-style: none; margin: 0; padding: 0; }
+.rail a { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: var(--space-2xs); align-items: baseline; padding: var(--space-2xs) var(--space-xs); margin-left: calc(-1 * var(--space-xs)); color: var(--color-ink-2); text-decoration: none; border-radius: var(--radius-pill); }
+.rail a > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail a:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.rail a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: 0.6875rem; color: var(--color-muted); text-align: right; }
+.rail a[aria-current="page"] { background: var(--color-wash); color: var(--color-ink); font-weight: 600; }
+.rail a[aria-current="page"] .n { color: var(--color-accent-text); }
+.rail .meta { margin-top: var(--space-xl); }
+.rail .meta a { display: block; padding: var(--space-2xs) 0; margin-left: 0; color: var(--color-muted); }
+.rail .meta a:hover { background: none; color: var(--color-accent); }
+.main { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--chapter-rail-w); }
+.main--single { grid-template-columns: minmax(0, 1fr); }
+.page { min-width: 0; padding: var(--space-lg) var(--space-xl) var(--space-3xl); }
+.page:has(.cover) { padding-top: 0; }
+.prose, .frontis, .masthead, .chapter-head, .mini-toc { max-width: var(--read-measure); }
+.chapter-rail { position: sticky; top: calc(var(--topbar-h) + var(--space-2xl)); align-self: start; padding: var(--space-md) 0 var(--space-xl); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-lg); margin-left: var(--space-lg); }
+.chapter-rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-sm); max-width: none; }
+.chapter-rail ul { list-style: none; margin: 0; padding: 0; }
+.chapter-rail li { margin: 0 0 var(--space-2xs); }
+.chapter-rail a { color: var(--color-muted); text-decoration: none; display: block; padding: 3px 0; line-height: 1.35; overflow-wrap: break-word; hyphens: auto; }
+.chapter-rail li { min-width: 0; }
+.chapter-rail a:hover { color: var(--color-ink); }
+.chapter-rail a.active { color: var(--color-accent-text); font-weight: 600; }
+/* not colour alone: a rule and a bullet mark the section you are in */
+.chapter-rail a.active::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: 2px; background: var(--color-accent-text); border-radius: 50%; }
+.chapter-rail .progress { margin-top: var(--space-lg); color: var(--color-muted); font-size: 0.6875rem; }
+.chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
+.chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
 
-@media (max-width: 640px) {
-  html { font-size: 17px; }
-  .masthead h1 { font-size: 1.9rem; }
-  .chapter-head h1 { font-size: 1.6rem; }
+/* ---- contents index on the front page ---- */
+.contents { margin: var(--space-xl) 0; }
+.contents > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-lg); }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-2xs); }
+.contents .part-head h3 { font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; }
+.contents .part-head .count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.contents ol { list-style: none; margin: 0; padding: 0; }
+.contents li { border-top: var(--rule-hair) solid var(--color-rule); }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-sm); align-items: baseline; padding: 6px var(--space-2xs); text-decoration: none; color: var(--color-ink-2); }
+.contents li a:hover { background: var(--color-wash); color: var(--color-ink); }
+.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 54ch; }
+.contents li a .m { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+
+/* ---- search dialog ---- */
+.search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
+.search-dialog[open] { display: block; }
+.search-box { max-width: 44rem; margin: 0 auto; background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); box-shadow: 0 24px 60px color-mix(in oklab, var(--color-ink) 30%, transparent); max-height: 84vh; display: flex; flex-direction: column; }
+.search-head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.search-head input { flex: 1; font-family: var(--font-display); font-size: var(--text-lg); border: 0; background: transparent; color: var(--color-ink); outline: none; }
+.search-head input::placeholder { color: var(--color-muted); }
+.search-head .close { font-family: var(--font-display); font-size: var(--text-xs); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); border-radius: var(--radius-pill); padding: 2px var(--space-xs); cursor: pointer; }
+.search-status { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); padding: var(--space-xs) var(--space-md); }
+.search-results { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.search-results li { border-top: var(--rule-hair) solid var(--color-rule); }
+.search-results a { display: block; padding: var(--space-sm) var(--space-md); text-decoration: none; color: var(--color-ink-2); }
+.search-results a:hover, .search-results a[aria-selected="true"] { background: var(--color-wash); }
+.search-results .r-ch { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.search-results .r-t { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); display: block; margin-top: 2px; }
+.search-results .r-s { font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; }
+.search-results mark { background: color-mix(in oklab, var(--color-accent) 24%, transparent); color: var(--color-ink); }
+.search-empty { padding: var(--space-lg) var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+
+/* ---- small screens ---- */
+@media (max-width: 68rem) {
+  .mini-toc { display: grid; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .chapter-rail { display: none; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* the rail is an overlay here, so it must not reserve a column */
+  .rail { grid-column: auto; }
+  .topbar { grid-column: 1 / span 2; }
+  .rail { grid-column: 1; grid-row: 2; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: var(--z-sticky-nav); background: var(--color-paper); height: auto; border-right: 0; display: none; padding-bottom: var(--space-3xl); }
+  .rail[data-open="true"] { display: block; }
+  .rail-toggle { display: inline-flex; }
+  .page { padding: var(--space-xl) var(--space-md) var(--space-2xl); }
+  .prose pre, .prose code { overflow-wrap: anywhere; }
+  .prose pre { white-space: pre-wrap; }
+  .provenance { overflow-x: auto; }
+  .prose pre { max-width: 100%; }
+  .provenance, .provenance table, .interactive table { max-width: 100%; }
+  .chapter-figure { padding: var(--space-sm); }
+  .chapter-nav { grid-template-columns: 1fr; }
+  .chapter-nav a.next { text-align: left; }
+  .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
+  .contents li a .m { display: none; }
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #16150f;
-    --ink: #e8e3d6;
-    --ink-soft: #9c9488;
-    --rule: #35322a;
-    --accent: #c96a4a;
-    --code-bg: #232019;
-  }
+@media (max-width: 40rem) {
+  .topbar { padding-inline: var(--space-md); }
+  .page { padding-inline: var(--space-sm); }
+  .topbar .wordmark .part { display: none; }
+  .topbar .tool .label { display: none; }
+  .masthead h1 { font-size: var(--text-2xl); }
+  .chapter-head h1 { font-size: var(--text-2xl); }
+  .search-dialog { padding: 0; }
+  .search-box { max-height: 100vh; min-height: 100vh; }
+  .mini-toc a { font-size: 0.75rem; }
+  .topbar .tool .label { display: none; }
+  .topbar .tool { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
 }
 """
+
+# Set once by build() before any page is rendered. The contents rail and the
+# top bar are the same on every page, so they are assembled from this.
+BOOK = {"meta": {}, "parts": [], "chapters": [], "current": None, "search": ""}
+
+THEME_BOOT = """<script>(function(){try{var t=localStorage.getItem("sft-theme");
+if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>"""
+
+SEARCH_UI = """<div class="search-dialog" id="search" role="dialog" aria-modal="true" aria-labelledby="search-label">
+<div class="search-box">
+<div class="search-head">
+<label class="visually-hidden" id="search-label" for="search-input">Search the book</label>
+<input id="search-input" type="search" placeholder="Search the book" autocomplete="off" spellcheck="false">
+<button class="close" type="button" data-close-search>Close</button>
+</div>
+<p class="search-status" id="search-status" aria-live="polite">Type a word, a term, or a number.</p>
+<ol class="search-results" id="search-results"></ol>
+</div>
+</div>"""
+
+
+def rail_html():
+    """The contents rail: every part, every chapter, the current one marked."""
+    cur = BOOK.get("current")
+    parts = []
+    by_part = {}
+    for c in BOOK["chapters"]:
+        by_part.setdefault(c.get("part", ""), []).append(c)
+    for p in BOOK.get("parts", []):
+        chs = by_part.get(p, [])
+        if not chs:
+            continue
+        items = "".join(
+            f'<li><a href="{"../" if cur else ""}chapters/{c["id"]}.html"'
+            + (' aria-current="page"' if c["id"] == cur else "")
+            + f' title="{esc(c["title"])}"><span class="n">{c["number"]:02d}</span>'
+            + f'<span>{esc(c["title"])}</span></a></li>'
+            for c in chs
+        )
+        parts.append(f'<div class="part"><h3>{esc(p)}</h3><ol>{items}</ol></div>')
+    meta = (
+        '<div class="meta">'
+        '<a href="paths.html">Reading paths</a>'
+        '<a href="glossary.html">Glossary</a>'
+        '<a href="rig.html">Reproduce this</a>'
+        '<a href="about.html">How this was made</a>'
+        '</div>'
+    )
+    prefix = "../" if cur else ""
+    meta = meta.replace('href="', f'href="{prefix}')
+    return f'<nav class="rail" id="rail" aria-label="Contents"><h2>Contents</h2>{"".join(parts)}{meta}</nav>'
+
+
+def topbar_html():
+    prefix = "../" if BOOK.get("current") else ""
+    title = esc(BOOK["meta"].get("project", ""))
+    part = ""
+    cur = BOOK.get("current")
+    if cur:
+        for c in BOOK["chapters"]:
+            if c["id"] == cur:
+                part = f'<span class="part">{c["number"]:02d} &middot; {esc(c["title"])}</span>'
+                break
+    folio = ""
+    if cur:
+        n = len(BOOK["chapters"])
+        num = next((c["number"] for c in BOOK["chapters"] if c["id"] == cur), 0)
+        folio = f'<span class="folio">{num:02d} / {n:02d}</span>'
+    return f"""<header class="topbar">
+<button class="tool rail-toggle" type="button" data-rail-toggle aria-controls="rail" aria-expanded="false">Contents</button>
+<a class="wordmark" href="{prefix}index.html">{title}{part}</a>
+<span class="spacer"></span>
+{folio}
+<button class="tool" type="button" data-open-search aria-keyshortcuts="/">
+<span class="label">Search</span><kbd>/</kbd>
+</button>
+<button class="tool" type="button" data-theme-toggle aria-label="Switch between light and dark">
+<span class="label">Theme</span>
+</button>
+</header>"""
+
+
+
+def search_chunks(c, txt):
+    """Split a chapter into searchable passages: one per heading, with the
+    chapter title carried on every chunk so a hit always says where it is."""
+    out = []
+    head = c["title"]
+    buf = []
+    for block in re.split(r"\n\s*\n", txt):
+        b = block.strip()
+        if not b:
+            continue
+        if re.match(r"^#{1,3}\s+\S", b):
+            if buf:
+                out.append((" ".join(buf), head))
+                buf = []
+            head = b.lstrip("#").strip()
+            continue
+        b = re.sub(r"^```.*?```$", "", b, flags=re.S).strip()
+        if b:
+            buf.append(b)
+    if buf:
+        out.append((" ".join(buf), head))
+
+    chunks = []
+    for body, h in out:
+        text = re.sub(r"[#*`\[\]]", "", body)
+        text = re.sub(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]", lambda m: m.group(2) or m.group(1), text)
+        text = re.sub(r"\s+", " ", text).strip()
+        # ~700 chars per chunk, cut on a sentence end where possible.
+        while len(text) > 700:
+            cut = text.rfind(". ", 200, 700)
+            cut = cut + 1 if cut > 0 else 700
+            chunks.append({"c": c["id"], "n": c["number"], "h": h, "t": text[:cut].strip()})
+            text = text[cut:].strip()
+        if text:
+            chunks.append({"c": c["id"], "n": c["number"], "h": h, "t": text})
+    return chunks
+
+
+def write_search_index(published):
+    """One JSON file the browser downloads once, then searches locally."""
+    chunks = []
+    for c in published:
+        txt = read_chapter(c)
+        if txt:
+            chunks.extend(search_chunks(c, txt))
+    p = os.path.join(SITE, "search-index.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"chapters": [
+            {"id": c["id"], "n": c["number"], "title": c["title"], "part": c.get("part", "")}
+            for c in published
+        ], "chunks": chunks}, f, ensure_ascii=False, separators=(",", ":"))
+    return len(chunks)
+
 
 def page(title, body, depth=0, description="", canonical=""):
     prefix = "../" if depth else ""
@@ -940,22 +819,48 @@ def page(title, body, depth=0, description="", canonical=""):
         meta += f'<meta property="og:url" content="{esc(canonical)}">\n'
     meta += '<meta name="twitter:card" content="summary">\n'
     meta += FAVICON
+    fonts = (
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+        '<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600'
+        '&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400'
+        '&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">'
+    )
+    search_href = f'{prefix}search-index.json'
+    wide = ' shell--wide' if not BOOK.get("current") else ""
+    single = ' main--single' if not BOOK.get("current") else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
-{meta}<style>{CSS}</style>
+{THEME_BOOT}
+{meta}{fonts}<style>{CSS}</style>
 </head>
 <body>
-<div class="wrap">
+<div class="shell{wide}">
+{topbar_html()}
+{rail_html()}
+<div class="main{single}">
+<div class="page">
 {body}
 </div>
+{rail_slot()}
+</div>
+</div>
+{SEARCH_UI}
+<script>window.__SEARCH_INDEX__ = "{search_href}";</script>
 <script src="{prefix}site.js"></script>
 </body>
 </html>
 """
+
+
+def rail_slot():
+    """The in-chapter rail, filled by build() when the page has 3+ subheads."""
+    return BOOK.get("chapter_rail", "")
+
 
 def figures_panel():
     """Live numbers read from Prometheus, rendered as a typographic strip."""
@@ -1100,6 +1005,60 @@ def figure_for(cid):
 '''
 
 
+def figure_anchor(spec, headings):
+    """Slug of the heading after which this chapter's figure belongs.
+
+    The spec's `section` is a 1-based index into the chapter's headings (the same
+    order `paragraphs()` returns). Anything outside that range -- several specs
+    carry a 7 in a chapter with six headings, because the planner numbered review
+    chunks rather than headings -- clamps to the last heading instead of dropping
+    the figure.
+
+    `section` wins over `sections`: `sections` is every chunk the planner was shown,
+    so its last entry is usually the closing paragraph, and anchoring there puts the
+    figure after the conclusion. The single `section` is the chunk that first
+    proposed a figure, which is the one the caption's `why` describes.
+    """
+    if not headings:
+        return ""
+    n = len(headings)
+    idx = spec.get("section")
+    if not isinstance(idx, int) or idx < 1:
+        idx = 1
+    idx = min(idx, n)
+    return headings[idx - 1][1]
+
+
+def place_figure(prose_html, cid, headings):
+    """Return prose_html with the chapter figure spliced in after one paragraph.
+
+    The figure lands after the first paragraph that follows the anchor heading, so
+    the reader meets the drawing while the prose is still introducing it rather
+    than after the article has ended. A heading with no paragraph under it (or a
+    chapter that lost its anchor) falls back to the end of the prose, which is the
+    old behaviour and never loses the figure.
+    """
+    fig = figure_for(cid)
+    if not fig:
+        return prose_html, ""
+    spec = review.load_diagram(cid) or {}
+    anchor = figure_anchor(spec, headings)
+    if not anchor:
+        return prose_html + fig, "end of chapter"
+    blocks = prose_html.split("\n")
+    for i, b in enumerate(blocks):
+        if b.startswith(f'<h3 id="{anchor}">'):
+            # Walk forward to the first paragraph the heading introduces.
+            for j in range(i + 1, len(blocks)):
+                if blocks[j].startswith("<p>"):
+                    blocks.insert(j + 1, fig.strip())
+                    return "\n".join(blocks), anchor
+            # Heading with nothing after it: append before the next heading.
+            blocks.insert(i + 1, fig.strip())
+            return "\n".join(blocks), anchor
+    return prose_html + fig, "end of chapter"
+
+
 def provenance_for(text):
     """List every sourced fact this chapter actually cites, with its origin.
 
@@ -1136,21 +1095,59 @@ def provenance_for(text):
     if not used:
         return ""
 
+    shown = used[:8]
     rows = "".join(
         f'<tr><td class="pv">{esc(v["display"])}</td>'
-        f'<td class="ps">{esc(v["source"])}</td>'
-        f'<td class="pc">{esc(v["context"])}</td></tr>'
-        for v in used
+        f'<td class="pc">{esc(v["context"])}</td>'
+        f'<td class="ps">{esc(v["source"])}</td></tr>'
+        for v in shown
     )
+    more = ""
+    if len(used) > len(shown):
+        rest = "".join(
+            f'<tr><td class="pv">{esc(v["display"])}</td>'
+            f'<td class="pc">{esc(v["context"])}</td>'
+            f'<td class="ps">{esc(v["source"])}</td></tr>'
+            for v in used[len(shown):]
+        )
+        more = f'<details class="prov-more"><summary>{len(used) - len(shown)} more values</summary><table><tbody>{rest}</tbody></table></details>'
     return f"""
 <section class="provenance">
   <h3>Where these numbers came from</h3>
+  <p class="prov-note">{len(used)} sourced values in this chapter. The origin column is the
+  file or command each one was read from.</p>
   <table>
-    <thead><tr><th>value</th><th>origin</th><th>what it is</th></tr></thead>
+    <thead><tr><th>value</th><th>what it is</th><th>origin</th></tr></thead>
     <tbody>{rows}</tbody>
   </table>
+  {more}
 </section>
 """
+
+
+def prereq_plain(c):
+    """The assumptions as plain text inside the head's meta line."""
+    ids = [i for i in c.get("prereqs", []) if i in CHAPTER_TITLES]
+    if not ids:
+        return ""
+    links = " and ".join(
+        f'<a class="xref" href="{i}.html">{CHAPTER_NUMBERS[i]:02d} &middot; {esc(CHAPTER_TITLES[i])}</a>'
+        for i in ids
+    )
+    return f'Assumes {links}. '
+
+
+def term_plain(cid, entries):
+    txt = read_chapter({"id": cid})
+    if not txt:
+        return ""
+    terms = terms_in(txt, entries)[:MAX_TERM_CHIPS]
+    if not terms:
+        return ""
+    chips = " &middot; ".join(
+        f'<a href="../glossary.html#{e["slug"]}">{esc(e["term"])}</a>' for e in terms
+    )
+    return f'Terms: {chips}'
 
 
 def prereq_strip(c):
@@ -1268,9 +1265,10 @@ is safe. Times are computed from the real word count of the chapters included, a
 
 {chr(10).join(blocks)}
 
-<nav class="chapter-nav">
-  <a href="index.html">&larr; Contents</a>
-  <a href="glossary.html">Glossary</a>
+<nav class="chapter-nav" aria-label="Reference pages">
+  <a href="index.html"><span class="dir">Back</span>Contents</a>
+  <a class="next" href="glossary.html"><span class="dir">Reference</span>Glossary</a>
+  <a href="rig.html"><span class="dir">Reference</span>Reproduce this</a>
 </nav>
 """
     open(os.path.join(SITE, "paths.html"), "w", encoding="utf-8").write(
@@ -1484,6 +1482,13 @@ def build():
         if txt:
             total_words += len(re.findall(r"\S+", txt))
 
+    # The reader shell is built from this on every page: the contents rail, the
+    # top bar and the search index all read the same registry.
+    BOOK["meta"] = meta
+    BOOK["parts"] = q.get("parts", [])
+    BOOK["chapters"] = published
+    write_search_index(published)
+
     # group chapters by part for the table of contents
     parts = q.get("parts", [])
     by_part = {}
@@ -1498,15 +1503,17 @@ def build():
             cls = "" if ok else "pending"
             if ok:
                 n = len(re.findall(r"\S+", txt))
-                status = f"published &middot; {n:,} words"
+                status = ""
+                right = f'{max(1, round(n / WPM))} min'
             else:
-                status = c["status"]
+                status = ""
+                right = ""
             href = f"chapters/{c['id']}.html" if ok else "#"
             out.append(
-                f'<li><a class="{cls}" href="{href}">'
-                f'<span class="t-num">{c["number"]:02d}</span>'
-                f'<span><span class="t-title">{esc(c["title"])}</span>'
-                f'<span class="t-status">{status}</span></span>'
+                f'<li><a class="{cls}" href="{href}" title="{esc(c["thesis"])}">'
+                f'<span class="n">{c["number"]:02d}</span>'
+                f'<span><span class="t">{esc(c["title"])}</span>{status}</span>'
+                f'<span class="m">{right}</span>'
                 f'</a></li>'
             )
         return "\n".join(out)
@@ -1518,66 +1525,67 @@ def build():
             continue
         done = sum(1 for c in chs if c["status"] == "published")
         toc_html.append(
-            f'<section class="part"><h2 class="part-title">{esc(p)}</h2>'
-            f'<p class="part-count">{done} of {len(chs)} written</p>'
-            f'<ul class="toc">\n{toc_items(chs)}\n</ul></section>'
+            f'<section class="part"><div class="part-head">'
+            f'<h3>{esc(p)}</h3><span class="count">{done} of {len(chs)}</span></div>'
+            f'<ol>\n{toc_items(chs)}\n</ol></section>'
         )
-    toc_html = "\n".join(toc_html)
+    toc_html = ('<section class="contents" id="contents"><h2>Contents</h2>'
+                + "\n".join(toc_html) + '</section>')
+
 
     paths = load_paths()
 
+    # The cover: one screen that answers what this is and where to start.
+    # The contents index follows immediately, so nothing is hidden behind a
+    # preface. The old site put the TOC below 330 words of prose.
+    first = published[0]["id"] if published else ""
+    n_words_first = len(re.findall(r"\S+", read_chapter(published[0]) or "")) if published else 0
     index_body = f"""
-<header class="masthead">
-  <p class="kicker">Field notes from a two-machine inference pair</p>
-  <h1>{esc(meta["project"])}</h1>
-  <p class="standfirst">{esc(meta["subtitle"])}</p>
-</header>
+<section class="cover hero">
+  <p class="cover-rule"><span></span></p>
+  <h1 class="cover-title">{esc(meta["project"])}</h1>
+  <p class="cover-stand">{esc(meta["subtitle"])}</p>
 
-<section class="frontis">
-  <p class="lead drop">A language model is a very large pile of numbers that has been
-  arranged, through an expensive and slightly mysterious process, so that it can guess the
-  next piece of text. Everything interesting happens in the gap between that sentence and
-  the thing actually running on the hardware.</p>
+  <p class="cover-gap">A language model is a very large pile of numbers arranged so that it
+  can guess the next piece of text.</p>
 
-  <p>This book is about that gap. It starts at the character you type and ends at the token
-  the sampler picks, and it goes through every layer in between: the tokenizer that chops
-  your text into pieces it was trained to recognise, the embedding table that turns those
-  pieces into coordinates, the residual stream that every layer reads from and writes to,
-  the attention heads that decide which earlier tokens matter, the cache that remembers
-  what has already been computed, the mixture-of-experts router that picks which parameters
-  to load, the four-bit weights that were squeezed down from sixteen, and the sampler that
-  turns a list of scores into one word.</p>
+  <div class="cover-actions">
+    <a class="btn-primary" href="chapters/{first}.html">Start reading<span class="sub">Chapter 01 &middot; {max(1, round(n_words_first / WPM))} min</span></a>
+    <a class="btn-quiet" href="#contents">Contents<span class="sub">{len(published)} chapters in {len(parts)} parts</span></a>
+    <button class="btn-quiet" type="button" data-open-search><span class="sub">Search</span>Press /</button>
+  </div>
 
-  <p>Each idea in this book arrived at a particular moment to fix a particular problem, and
-  the chapters are arranged in that order rather than in the order the code runs. Attention
-  was invented in 2014 to stop a recurrent network from forgetting the beginning of a
-  sentence. PagedAttention was invented in 2023 because serving systems were wasting most
-  of their memory on padding. Grouped-query attention exists because the key-value cache
-  outgrew the weights. Knowing what each one replaced is most of knowing what it does.</p>
-
-  <p>The last part grounds the whole thing on two small machines sitting on a desk, because
-  an explanation that never touches a real number is not an explanation. But that part is
-  the exception. Everything before it would be true on any hardware.</p>
-
-  <hr class="rule-short">
+  <dl class="cover-facts">
+    <div><dt>Chapters</dt><dd>{len(published)}</dd></div>
+    <div><dt>Parts</dt><dd>{len(parts)}</dd></div>
+    <div><dt>Words</dt><dd>{total_words:,}</dd></div>
+    <div><dt>Straight through</dt><dd>{human_time(total_words // WPM)}</dd></div>
+  </dl>
 </section>
-<hr class="rule-short">
-</section>
+
+{toc_html}
 
 {paths_strip(paths)}
 
 {figures_panel()}
 
-{toc_html}
-
-<footer class="colophon">
-<p>Every figure in this document was read from the live engine, a log line, or a timed
-request. The last chapter explains how, so the rest can be checked.</p>
-<p><a href="about.html" style="color:var(--accent)">How this was made</a>
-&middot; <a href="rig.html" style="color:var(--accent)">Reproduce this</a>
-&middot; <a href="paths.html" style="color:var(--accent)">Reading paths</a>
-&middot; <a href="glossary.html" style="color:var(--accent)">Glossary</a></p>
-</footer>
+<section class="colophon-block">
+  <h2>How this was made</h2>
+  <p>An unattended loop wrote these chapters on the same two machines the last part
+  measures. Each draft passed a style gate and a fact gate before it was published, and
+  every figure traces to a source file you can download.</p>
+  <div class="gate-row">
+    <div><span class="gate-v">2</span><span class="gate-l">gates per draft: style and fact</span></div>
+    <div><span class="gate-v">31</span><span class="gate-l">chapters cleared both</span></div>
+    <div><span class="gate-v">36</span><span class="gate-l">sourced values you can re-run</span></div>
+  </div>
+  <nav class="colophon-links" aria-label="Reference pages">
+    <a href="about.html">How this was made</a>
+    <a href="rig.html">Reproduce this</a>
+    <a href="paths.html">Reading paths</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</section>
 """
     open(os.path.join(SITE, "index.html"), "w", encoding="utf-8").write(
         page(meta["project"], index_body,
@@ -1585,10 +1593,10 @@ request. The last chapter explains how, so the rest can be checked.</p>
              canonical="https://bajpaigaurav.github.io/spark-forge/"))
 
     about_body = f"""
-<header class="masthead">
-  <p class="kicker">Colophon</p>
+<header class="chapter-head">
+  <span class="num">Colophon</span>
   <h1>How this was made</h1>
-  <p class="standfirst">An unattended loop wrote these chapters on the same machines it ends up describing.</p>
+  <p class="thesis">An unattended loop wrote these chapters on the same machines it ends up describing, and two gates stood between a draft and publication.</p>
 </header>
 
 <article class="prose">
@@ -1665,26 +1673,42 @@ the model's. The shape of the thing is not.</p>
         next_c = ordered[i+1] if i < len(ordered)-1 else None
         nav = []
         if prev_c:
-            nav.append(f'<a href="{prev_c["id"]}.html">&larr; {esc(prev_c["title"])}</a>')
+            nav.append(f'<a href="{prev_c["id"]}.html"><span class="dir">Previous</span>'
+                       f'{esc(prev_c["title"])}</a>')
         else:
-            nav.append('<a href="../index.html">&larr; Contents</a>')
+            nav.append('<a href="../index.html"><span class="dir">Previous</span>Contents</a>')
         if next_c:
-            nav.append(f'<a href="{next_c["id"]}.html">{esc(next_c["title"])} &rarr;</a>')
+            nav.append(f'<a class="next" href="{next_c["id"]}.html"><span class="dir">Next</span>'
+                       f'{esc(next_c["title"])}</a>')
         else:
-            nav.append('<a href="../index.html">Contents &rarr;</a>')
+            nav.append('<a class="next" href="../index.html"><span class="dir">Next</span>Contents</a>')
         # The last chapter is where the measurements land; give its build-time
         # nav a pointer to the artifact page. Prose is untouched.
         if c["id"] == "31-local-numbers":
-            nav.append('<a href="../rig.html">Reproduce these numbers</a>')
+            nav.append('<a href="../rig.html"><span class="dir">Artifact</span>Reproduce these numbers</a>')
 
         prose_html, headings = paragraphs(txt)
+        # Splice the figure in next to the prose that introduces it, instead of
+        # leaving it stranded after the article.
+        prose_html, figure_anchor_slug = place_figure(prose_html, c["id"], headings)
+        BOOK["current"] = c["id"]
+        chapter_rail = ""
+        if len(headings) >= 3:
+            links = "".join(
+                f'<li><a href="#{sid}" title="{esc(t)}">{esc(t)}</a></li>' for t, sid in headings
+            )
+            chapter_rail = f"""<aside class="chapter-rail" aria-label="In this chapter">
+<h2>In this chapter</h2>
+<ul>{links}</ul>
+<p class="progress"><span id="read-pct">Read 0%</span><span class="bar"><span id="read-bar"></span></span></p>
+</aside>"""
+        BOOK["chapter_rail"] = chapter_rail
         body = f"""
 <header class="chapter-head">
-  <span class="num">{esc(c.get("part",""))} &middot; Chapter {c["number"]:02d}</span>
+  <span class="num">Chapter {c["number"]:02d} &middot; {esc(c.get("part",""))}</span>
   <h1>{esc(c["title"])}</h1>
   <p class="thesis">{esc(c["thesis"])}</p>
-  {prereq_strip(c)}
-  {term_strip(c["id"], glossary)}
+  <p class="meta-line">{prereq_plain(c)}{term_plain(c["id"], glossary)}</p>
 </header>
 
 {mini_toc(headings)}
@@ -1693,20 +1717,26 @@ the model's. The shape of the thing is not.</p>
 {prose_html}
 </article>
 
-{figure_for(c["id"])}
-
 {interactive_for(c["id"])}
 
 {provenance_for(txt)}
 
-<nav class="chapter-nav">
+<nav class="chapter-nav" aria-label="Previous and next chapter">
 {''.join(nav)}
 </nav>
 """
         open(os.path.join(cdir, c["id"] + ".html"), "w", encoding="utf-8").write(
             page(c["title"], body, depth=1, description=c["thesis"],
                  canonical=f"https://bajpaigaurav.github.io/spark-forge/chapters/{c['id']}.html"))
+        BOOK["current"] = None
+        BOOK["chapter_rail"] = ""
 
+
+    # site.js is hand-written and lives at the repo root; it is the only asset
+    # that is not generated, so it is copied rather than built.
+    js = os.path.join(ROOT, "site.js")
+    if os.path.exists(js):
+        shutil.copy2(js, os.path.join(SITE, "site.js"))
     print(f"built: {len(published)} chapters, {total_words:,} words -> {SITE}")
     n_paths = paths_page(paths)
     if n_paths:

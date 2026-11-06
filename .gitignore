@@ -29,3 +29,12 @@ state/.forge_tick.lock
 state/reviews/
 state/verdicts/
 state/reports/
+
+# Scaffold leftovers. The reader stylesheet lives inside build.py's CSS block;
+# these were written by the theme scaffolder and are not imported.
+site/tokens.css
+site/base.css
+site/book.css
+docs/base.css
+docs/book.css
+docs/tokens.css

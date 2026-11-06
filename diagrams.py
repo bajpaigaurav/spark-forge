@@ -39,11 +39,22 @@ def esc(s):
 
 
 def wrap(text, width):
-    """Greedy wrap for box labels, honouring explicit newlines."""
+    """Greedy wrap for box labels, honouring explicit newlines.
+
+    A single word longer than `width` is broken rather than left on one line:
+    leaving it whole is what let long identifiers push past the viewBox.
+    """
+    width = max(1, width)
     lines = []
     for para in str(text).split("\n"):
         cur = ""
         for w in para.split():
+            while len(w) > width:
+                if cur:
+                    lines.append(cur)
+                    cur = ""
+                lines.append(w[:width])
+                w = w[width:]
             cand = (cur + " " + w).strip()
             if len(cand) > width and cur:
                 lines.append(cur)
@@ -52,6 +63,28 @@ def wrap(text, width):
                 cur = cand
         lines.append(cur)
     return lines
+
+
+# The renderer must never emit a label wider than the box it sits in. Character
+# counts are a poor proxy for rendered width, so every placement measures the
+# string first. 0.55em per character is the conservative average for the
+# sans-serif stack this book uses; wrapping and viewBox sizing both read it.
+CHAR_EM = 0.55
+
+
+def text_width(s, size=11):
+    """Rendered width of one line, in user units."""
+    return len(str(s)) * size * CHAR_EM
+
+
+def wrap_px(text, size, max_px):
+    """Greedy wrap that keeps every line inside `max_px` rendered units."""
+    return wrap(text, max(1, int(max_px / (size * CHAR_EM))))
+
+
+def widest(lines, size):
+    """Width of the widest line in a wrapped block."""
+    return max((text_width(ln, size) for ln in lines), default=0)
 
 
 def text_block(x, y, lines, size=11, anchor="middle", fill=INK, weight="400", lh=13):
@@ -64,9 +97,13 @@ def text_block(x, y, lines, size=11, anchor="middle", fill=INK, weight="400", lh
     return "".join(out)
 
 
-def box(x, y, w, h, label, fill="none", stroke=INK, size=11, width=16, bold=False):
-    lines = wrap(label, width)
-    total = len(lines) * 13
+def box(x, y, w, h, label, fill="none", stroke=INK, size=11, width=None, bold=False,
+        pad=10):
+    # `width` used to be a character count picked per shape kind, which let a long
+    # label run out of its own rect. It is now derived from the rect's inner width.
+    lines = wrap_px(label, size, w - 2 * pad) if width is None else wrap(label, width)
+    lh = 13
+    total = len(lines) * lh
     ty = y + h / 2 - total / 2 + 10
     return (
         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="{fill}" '
@@ -84,6 +121,8 @@ def arrow(x1, y1, x2, y2, dashed=False):
 
 
 def svg_open(w, h, title):
+    # Round up: fractional viewBoxes are legal but render blurry at some scales.
+    w, h = int(-(-w // 1)), int(-(-h // 1))
     return (
         f'<svg class="fig-svg" viewBox="0 0 {w} {h}" width="100%" role="img" '
         f'aria-label="{esc(title)}" xmlns="http://www.w3.org/2000/svg">'
@@ -99,8 +138,12 @@ def render_flow(spec):
     if not nodes:
         return ""
     per_row = min(4, len(nodes))
-    bw, bh, gap = 168, 62, 46
+    bw, gap = 168, 46
     rows = (len(nodes) + per_row - 1) // per_row
+    # A box must be tall enough for its wrapped label: the old fixed 62 clipped
+    # four-line labels at this width. Height is the max over the whole figure so
+    # the rows stay aligned.
+    bh = max(62, 24 + 13 * max(len(wrap_px(n, 11, bw - 20)) for n in nodes))
     w = per_row * bw + (per_row - 1) * gap + 24
     h = rows * (bh + 46) + 30
     out = [svg_open(w, h, spec.get("title", "Figure"))]
@@ -126,13 +169,17 @@ def render_layout(spec):
     nodes = spec.get("nodes") or []
     if not nodes:
         return ""
-    bw, bh, gap = 460, 54, 22
+    bw, gap = 460, 22
+    # 58 characters was a guess that happened to fit 460px, but the fixed 54px
+    # height then clipped any label that wrapped to three lines. Size the row
+    # from the wrapped text instead.
+    bh = max(54, 24 + 13 * max(len(wrap_px(n, 11, bw - 20)) for n in nodes))
     w = bw + 24
     h = len(nodes) * (bh + gap) + 24
     out = [svg_open(w, h, spec.get("title", "Figure"))]
     for i, label in enumerate(nodes):
         y = 12 + i * (bh + gap)
-        out.append(box(12, y, bw, bh, label, width=58))
+        out.append(box(12, y, bw, bh, label))
         if i + 1 < len(nodes):
             out.append(arrow(bw / 2 + 12, y + bh, bw / 2 + 12, y + bh + gap))
     out.append("</svg>")
@@ -145,7 +192,10 @@ def render_comparison(spec):
         return ""
     half = (len(nodes) + 1) // 2
     left, right = nodes[:half], nodes[half:]
-    bw, bh, gap = 300, 46, 14
+    bw, gap = 300, 14
+    # Same defect as layout: `width=34` chars was tuned to 300px, but two lines
+    # at 46px left the label hanging over the rect's edge. Both grow here.
+    bh = max(46, 24 + 13 * max(len(wrap_px(n, 11, bw - 20)) for n in nodes))
     w = 2 * bw + 60
     h = max(len(left), len(right)) * (bh + gap) + 56
     out = [svg_open(w, h, spec.get("title", "Figure"))]
@@ -154,39 +204,69 @@ def render_comparison(spec):
     out.append(text_block(bw + 48 + bw / 2, 20, ["second configuration"], size=12,
                           fill=ACCENT, weight="600"))
     for i, label in enumerate(left):
-        out.append(box(12, 34 + i * (bh + gap), bw, bh, label, width=34))
+        out.append(box(12, 34 + i * (bh + gap), bw, bh, label))
     for i, label in enumerate(right):
-        out.append(box(bw + 48, 34 + i * (bh + gap), bw, bh, label, width=34))
+        out.append(box(bw + 48, 34 + i * (bh + gap), bw, bh, label))
     out.append("</svg>")
     return "".join(out)
 
 
 def render_shapes(spec):
-    """A labelled n-by-n grid standing for the score matrix."""
+    """A labelled n-by-n grid standing for the score matrix, with a notes column.
+
+    Two panels share one viewBox: the grid on the left, a wrapped label column on
+    the right. The old code reserved a flat 150px for the column and then printed
+    the labels unwrapped from x=274, so any label longer than 138px ran off the
+    right edge (23-logits lost four of its five labels that way). The column width
+    is now measured from the wrapped text, and the viewBox is the sum of both.
+    """
     n = 7
     cell, pad = 34, 12
-    w = n * cell + pad * 2 + 150
-    h = n * cell + pad * 2 + 60
+    gutter = 26          # room for the rotated 'queries i' axis label
+    grid_w = n * cell
+    grid_x = gutter + pad
+    grid_top = 30
+    grid_h = n * cell
+
+    labels = list(spec.get("nodes") or [])[:4]
+    size = 10
+    col_w = 0
+    col_lines = []
+    if labels:
+        # Wrap to a readable measure rather than to whatever is left over. 190px
+        # is roughly 34 characters at this size, which keeps each line legible
+        # when the figure is scaled down to a phone.
+        col_lines = [ln for label in labels for ln in wrap_px(label, size, 190)]
+        col_w = widest(col_lines, size)
+
+    gap = 24 if col_lines else 0
+    w = grid_x + grid_w + (gap + col_w if col_lines else 0) + pad
+    h = grid_top + grid_h + pad
+
     out = [svg_open(w, h, spec.get("title", "Figure"))]
     for r in range(n):
         for c in range(n):
             # lower triangle is what causal attention actually computes
             fill = "rgba(180,83,42,0.16)" if c <= r else "none"
             out.append(
-                f'<rect x="{pad + c * cell}" y="{pad + 30 + r * cell}" width="{cell}" '
+                f'<rect x="{grid_x + c * cell}" y="{grid_top + r * cell}" width="{cell}" '
                 f'height="{cell}" fill="{fill}" stroke="{MUTED}" stroke-width="0.8"/>'
             )
-    out.append(text_block(pad + n * cell / 2, 20, ["keys j, 0 to n-1"], size=11,
+    out.append(text_block(grid_x + grid_w / 2, 20, ["keys j, 0 to n-1"], size=11,
                           fill=MUTED))
+    # The rotated axis label sits in the gutter. Rotating -90 about its anchor
+    # turns the text into a vertical run, so the gutter only has to cover one
+    # line height (~11px) -- 26px clears it with room to spare.
+    axis_x = gutter - 12
+    axis_y = grid_top + grid_h / 2
     out.append(
-        f'<text x="14" y="{pad + 30 + n * cell / 2}" font-family=\'{FONT}\' font-size="11" '
-        f'fill="{MUTED}" text-anchor="middle" transform="rotate(-90 14 '
-        f'{pad + 30 + n * cell / 2})">queries i</text>'
+        f'<text x="{axis_x}" y="{axis_y}" font-family=\'{FONT}\' font-size="11" '
+        f'fill="{MUTED}" text-anchor="middle" transform="rotate(-90 {axis_x} '
+        f'{axis_y})">queries i</text>'
     )
-    labels = [x for x in (spec.get("nodes") or [])][:4]
-    if labels:
-        out.append(text_block(pad + n * cell + 24, pad + 40, labels, size=10,
-                              anchor="start", fill=INK))
+    if col_lines:
+        out.append(text_block(grid_x + grid_w + gap, grid_top + 22, col_lines,
+                              size=size, anchor="start", fill=INK))
     out.append("</svg>")
     return "".join(out)
 
@@ -195,7 +275,17 @@ def render_curve(spec):
     nodes = spec.get("nodes") or []
     if not nodes:
         return ""
-    w, h = 520, 260
+    size = 9
+    # Labels sit beside points, and the last point is close to the right edge, so
+    # a label centered on it hung past the viewBox (29-roofline's 'batching shifts
+    # decode' ran to 550 in a 520-wide box). Wrap to a fixed measure and clamp the
+    # anchor into the plot area instead of trusting the point's x.
+    max_label_px = 140
+    wrapped = [wrap_px(n, size, max_label_px) for n in nodes]
+    label_w = max(widest(lines, size) for lines in wrapped)
+    margin = 12
+    w = max(520, 56 + 2 * (label_w / 2 + margin))
+    h = 260
     x0, y0, x1, y1 = 56, 20, w - 24, h - 46
     out = [svg_open(w, h, spec.get("title", "Figure"))]
     out.append(f'<line x1="{x0}" y1="{y1}" x2="{x1}" y2="{y1}" stroke="{INK}" stroke-width="1"/>')
@@ -208,9 +298,12 @@ def render_curve(spec):
         '<polyline fill="none" stroke="%s" stroke-width="2" points="%s"/>'
         % (ACCENT, " ".join(f"{px:.1f},{py:.1f}" for px, py in pts))
     )
-    for (px, py), label in zip(pts, nodes):
+    for (px, py), lines in zip(pts, wrapped):
         out.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="3" fill="{ACCENT}"/>')
-        out.append(text_block(px, py - 10, wrap(label, 22), size=9, fill=INK))
+        # Clamp the centered anchor so the widest line of this label stays inside.
+        half = widest(lines, size) / 2
+        cx = min(max(px, half + margin), w - half - margin)
+        out.append(text_block(f"{cx:.1f}", py - 10, lines, size=size, fill=INK))
     out.append("</svg>")
     return "".join(out)
 

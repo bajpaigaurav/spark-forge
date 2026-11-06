@@ -13,7 +13,7 @@ fail=0
 
 # the front page must list every part
 n_parts=$(python3 -c "import json;q=json.load(open('state/queue.json'));print(len(q.get('parts',[])))")
-n_part_html=$(grep -c 'class="part-title"' site/index.html 2>/dev/null || echo 0)
+n_part_html=$(grep -c 'class="part-head"' site/index.html 2>/dev/null || echo 0)
 [ "$n_parts" -eq "$n_part_html" ] || { echo "PART MISMATCH: $n_parts parts vs $n_part_html headings"; fail=1; }
 
 # every published chapter has a page
