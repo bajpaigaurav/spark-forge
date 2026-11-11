@@ -7,12 +7,18 @@
 set -eu
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+# Clean generated directories explicitly. The shell may provide `rm`/`cp`
+# builtins that do not replace directories in place, which leaves stale
+# " 2" copies behind; /bin/rm and /bin/cp always overwrite.
+/bin/rm -rf site/chapters site/figures
+mkdir -p site/chapters site/figures
+
 python3 diagrams.py
 python3 build.py
 ./verify_site.sh
 
-rm -rf docs
+/bin/rm -rf docs
 mkdir -p docs
-cp -a site/. docs/
+/bin/cp -a site/. docs/
 
 echo "docs/ updated: $(find docs -name '*.html' | wc -l) pages, $(find docs/figures -name '*.svg' | wc -l) figures"
