@@ -1,49 +1,129 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "One attention pattern versus eight",
-  "why": "It shows the split the prose describes: one head produces one softmax over the keys and averages two relations into a single vector; eight heads each produce their own 64-wide vector before concatenation back to 512.",
-  "nodes": [
-    "x_i: 512-vector input",
-    "single head: scores -> softmax weights summing to 1 -> weighted sum -> 512-vector output",
-    "two-relation case: weights 0.458, 0.458, 0.062, 0.023 added into one vector",
-    "head h: Q_h=XW_Q^h, K_h=XW_K^h, V_h=XW_V^h with W 512x64",
-    "per-head score (q_i^h · k_j^h)/√64, √64=8",
-    "per-head softmax over j inside head h",
-    "o_i^h: 64-vector",
-    "concat eight 64-vectors -> 512-vector",
-    "W_O: 512x512 -> residual stream"
-  ],
-  "notes": "Flow diagram, no axes. Left branch: one attention operation produces one softmax distribution and one weighted average; label the four example weights 0.644, 0.237, 0.087, 0.032 and the competing-relation weights 0.458, 0.458, 0.062, 0.023, showing they are summed before crossing the layer boundary. Right branch: eight parallel heads each read the same x_i, project through 512x64 matrices into 64-dimensional subspaces, softmax independently, output 64-vectors, concatenate to 512, then W_O 512x512 writes to the residual stream. Label shapes 512, 64, 8, and √64=8; all quantities come from the chapter. | No axes; it is a two-column configuration comparison. Left column: single 512-dimensional head with one softmax and rank ≤512. Right column: eight 64-dimensional heads, each with its own softmax and rank ≤64. Label the shared parameter total 1,048,576 and the per-projection 262,144 from the chapter. Show the two-relation scores 5.0, 0.0, 0.0, −1.0 producing exponentials 148.4, 1.000, 1.000, 0.368 and sum 150.8, giving 0.984 mass per specialized head versus 0.458 in the mixed case. Indicate that each head's 64-vector output is mapped by its own 512×64 block of W_O into the 512-dimensional residual stream, with possible overlap across heads. | Positions i and j are sequence positions; i−1 and j−1 are their predecessors. The figure should label the residual stream at i, the layer-1 copy c_i, the layer-2 query composition, the shifted key side, and the one-position offset between the matched earlier occurrence and the retrieved next token. Shapes: the composition produces a 64-vector via a 64×64 matrix; no other quantities are labelled. | Draw a 2D plane with three unit vectors spaced 120° apart; label each pair's interference as |cos θ| = 0.5. Beside it, note the 512-dimensional case where two features can be exactly orthogonal and interfere not at all. No axis quantities beyond the chapter's 2, 3, 512, 120°, and 0.5; the figure carries the geometry of superposition, not the pruning dataflow. | Comparison table, not a curve. Columns: key/value projections per head vs shared, number of independent key spaces, KV cache per token per layer. MHA: one key and one value vector per head; H independent key spaces; cache is 2 × 512 × 2 = 2,048 bytes per token per layer, independent of head count. MQA: one shared key projection and one shared value projection across all heads; one key space; cache cut by factor 8 in the eight-head case. GQA: sharing within groups; H/G key spaces; cache factor H/G. All quantities come from the chapter. The pool arithmetic (262,144 positions, four streams, 65,536 per stream, 32,750 after reply budget and overhead, native 1,048,576 positions, 0.68 GiB per rank, about 928 bytes per position per rank) is separate and not plotted here.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  "panels": [
+  "spine": "attention",
+  "figures": [
     {
-      "title": "one head, 512 wide",
-      "items": [
-        "scores over keys",
-        "one softmax",
-        "one weighted average",
-        "0.458 and 0.458 summed"
-      ],
-      "note": "Two relations compete for one distribution."
+      "id": "head-split-concat",
+      "title": "One wide head versus eight narrow heads",
+      "caption": "Splitting d_model = 512 into eight heads of d_head = 64 gives each head its own softmax. The wide head must divide one unit of mass between the previous token and the antecedent, 0.497 and 0.458; the split heads each put 0.984 on their relation. The eight 64-vectors concatenate into a 512-vector and W_O maps it back to the residual stream. Parameters are unchanged: 8 × 512 × 64 = 512 × 512 = 262,144 per projection, 4 × 262,144 = 1,048,576 attention weights.",
+      "alt": "Two aligned panels. The left panel, one head of width 512, lists Q, K and V as 512 by 512 matrices, one softmax over the sequence, two relations sharing the mass at 0.497 and 0.458, one 512-vector output, and a 512 by 512 W_O. The right panel, eight heads of width 64, lists Q_h, K_h and V_h as 512 by 64 matrices, eight independent softmaxes, head 1 putting 0.984 on the previous token, head 2 putting 0.984 on the antecedent, eight 64-vector outputs, and a 512-vector concatenation followed by W_O. The parameter note says 8 × 512 × 64 = 262,144 per projection either way.",
+      "anchor": "splitting-attention-into-eight-heads",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "One head, width 512",
+            "items": [
+              "Q, K, V: 512 × 512 each",
+              "one softmax over the sequence",
+              "two relations split the mass: 0.497 + 0.458",
+              "output: one 512-vector",
+              "W_O: 512 × 512"
+            ],
+            "note": "Parameters: 512 × 512 = 262,144 per projection."
+          },
+          {
+            "title": "Eight heads, width 64",
+            "items": [
+              "Q_h, K_h, V_h: 512 × 64 each",
+              "eight softmaxes, one per head",
+              "head 1: 0.984 on the previous token",
+              "head 2: 0.984 on the antecedent",
+              "o^h: 64-vector each",
+              "concat: 512-vector, then W_O"
+            ],
+            "note": "Parameters: 8 × 512 × 64 = 262,144 per projection; 4 × 262,144 = 1,048,576 attention weights either way."
+          }
+        ]
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to split the layer into heads and put it back together.",
+        "steps": [
+          {
+            "label": "Start with one 512-wide head and one softmax.",
+            "highlight": [
+              "one-head"
+            ]
+          },
+          {
+            "label": "Split d_model = 512 into eight heads of d_head = 64.",
+            "highlight": [
+              "split",
+              "eight-heads"
+            ]
+          },
+          {
+            "label": "Each head runs its own softmax over the sequence.",
+            "highlight": [
+              "softmax"
+            ]
+          },
+          {
+            "label": "Head 1 puts 0.984 on the previous token; head 2 puts 0.984 on the antecedent.",
+            "highlight": [
+              "eight-heads"
+            ]
+          },
+          {
+            "label": "Concatenate the eight 64-vectors into a 512-vector.",
+            "highlight": [
+              "concat"
+            ]
+          },
+          {
+            "label": "W_O maps the concatenation back into the residual stream.",
+            "highlight": [
+              "project"
+            ]
+          }
+        ]
+      }
     },
     {
-      "title": "eight heads, 64 each",
-      "items": [
-        "Q_h, K_h, V_h: 512 x 64",
-        "score / sqrt(64) = 8",
-        "softmax inside head h",
-        "o_i^h: 64 wide",
-        "concat to 512, then W_O"
-      ],
-      "note": "Each head gets its own pattern; W_O mixes them back."
+      "id": "head-pruning",
+      "title": "What survives head pruning",
+      "caption": "The sparse model kept 14 of 48 encoder self-attention heads, 31 of 48 decoder self-attention heads, and 30 of 48 decoder-encoder heads. The last bar is the 48-head budget, not a pruned model. Most encoder layers tolerated losing a large share of heads with a small BLEU change; the decoder was less prunable.",
+      "alt": "Four horizontal bars. Encoder self-attention: 14 of 48. Decoder self-attention: 31 of 48. Decoder-encoder attention: 30 of 48. A reference bar shows the 48-head budget.",
+      "anchor": "what-heads-learn-and-which-ones-matter",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "encoder self-attention",
+            "value": 14,
+            "display": "14 of 48",
+            "accent": true
+          },
+          {
+            "label": "decoder self-attention",
+            "value": 31,
+            "display": "31 of 48"
+          },
+          {
+            "label": "decoder-encoder attention",
+            "value": 30,
+            "display": "30 of 48"
+          },
+          {
+            "label": "48-head budget",
+            "value": 48,
+            "display": "48"
+          }
+        ],
+        "note": "Voita et al. 2019 kept these heads in their sparse model after L0 head gating. The last bar is the budget, not a pruned model."
+      }
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1706.03762",
+      "note": "Vaswani et al., Attention Is All You Need; the eight-head split, 512/64 widths, and W_O."
+    },
+    {
+      "url": "https://arxiv.org/abs/1905.09418",
+      "note": "Voita et al., Analyzing Multi-Head Self-Attention; the 14/31/30 of 48 kept heads."
     }
   ]
 }
