@@ -1,57 +1,177 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "Private key-value heads versus shared ones",
-  "why": "It shows the layout the prose describes in sequence: in MHA each query head reads its own key and value head, so the cache scales with H; in MQA every query head reads one shared pair, so it scales with 1.",
-  "nodes": [
-    "MHA: each of H query heads has its own key head and value head",
-    "MQA: all H query heads read from one shared key head and one shared value head",
-    "KV cache per token per layer: 16,384 bytes for MHA, 512 bytes for MQA",
-    "Attention arithmetic intensity: 1 FLOP/byte for MHA, 32 FLOP/byte for MQA",
-    "Ridge point = peak FLOPs / memory bandwidth; both intensities remain below it"
-  ],
-  "notes": "Left side: MHA layout with H private key/value subspaces feeding H query heads. Right side: MQA layout with H query heads all reading the same key/value subspace. Label cache bytes per token per layer on the KV blocks and arithmetic intensity beside each configuration. Mark the ridge point qualitatively above both intensities, since the chapter gives no numeric ridge value. No axes needed; the figure is a memory-layout comparison with labelled quantities from the prose. | Bar chart with attention variant on the x-axis and cache size per token across 32 layers on the y-axis. Label MHA at 512 KiB/token, GQA at 128 KiB/token, and MLA at 160 KiB/token, all from the chapter. Annotate the 4,096-token totals: MHA 2 GiB, GQA 512 MiB, MLA 640 MiB. Add a note that MLA is 3.2x smaller than MHA. Do not plot MQA numerically because the chapter gives no cache value for it; it appears only as the G=1 endpoint of the GQA dial. | Flow: q is multiplied by W_UKᵀ at load time to form the absorbed query; at decode the kernel multiplies that against the cached latent c and concatenates the separate per-head rotary key before scoring. On the output side, the weighted sum over latents is multiplied by W_UV, which folds into the output projection. The cache stores the latent plus the small rotary key, not full per-head key and value matrices. No numeric dimensions are labelled because the chapter gives none; only the structural quantities q, c, W_UK, W_UV, and the rotary key appear.",
-  "section": 2,
-  "sections": [
-    2,
-    3,
-    4
-  ],
-  "bars": [
+  "spine": "cache",
+  "figures": [
     {
-      "label": "MHA: H private KV heads",
-      "value": 16384,
-      "display": "16,384 B per token per layer"
+      "id": "kv-head-sharing-map",
+      "title": "Which key/value head each query head reads",
+      "caption": "The three sharing schemes differ only in how many query heads share one key/value head: MHA gives each query head its own, GQA puts them in groups of four here, MQA gives all of them one. The entry is the KV head index; the cache scales with the number of distinct KV heads, not with query heads.",
+      "alt": "A grid of eight query heads down the rows and three schemes across the columns. The MHA column reads 0,1,2,3,4,5,6,7: one KV head per query head. The GQA column reads 0,0,1,1,2,2,3,3: four groups, each shared by two query heads. The MQA column reads 0 in every row: one KV head for all query heads.",
+      "anchor": "from-multi-head-to-multi-query-attention",
+      "kind": "matrix",
+      "data": {
+        "rows": [
+          [
+            "0",
+            "0",
+            "0"
+          ],
+          [
+            "1",
+            "0",
+            "0"
+          ],
+          [
+            "2",
+            "1",
+            "0"
+          ],
+          [
+            "3",
+            "1",
+            "0"
+          ],
+          [
+            "4",
+            "2",
+            "0"
+          ],
+          [
+            "5",
+            "2",
+            "0"
+          ],
+          [
+            "6",
+            "3",
+            "0"
+          ],
+          [
+            "7",
+            "3",
+            "0"
+          ]
+        ],
+        "cols": [
+          "MHA",
+          "GQA G = 4",
+          "MQA"
+        ],
+        "col_head": "scheme",
+        "row_head": "query head h",
+        "corner": "KV head",
+        "highlight_col": 1,
+        "note": "Schematic: 8 query heads and G = 4 shown. The chapter's model has 32 query heads; GQA with G = 8 puts four query heads in each group."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Switch the sharing scheme and watch the key/value heads collapse.",
+        "steps": [
+          {
+            "label": "MHA: every query head has its own key and value head, so the cache holds one KV head per query head.",
+            "highlight": [
+              "mha"
+            ]
+          },
+          {
+            "label": "GQA: query heads are divided into G groups, each with one KV head; G = 4 is shown.",
+            "highlight": [
+              "gqa"
+            ]
+          },
+          {
+            "label": "MQA: a single KV head serves every query head.",
+            "highlight": [
+              "mqa"
+            ]
+          },
+          {
+            "label": "The cache scales with distinct KV heads, so MQA pays one eighth of MHA on this schematic.",
+            "highlight": [
+              "cache"
+            ]
+          }
+        ]
+      }
     },
     {
-      "label": "MQA: one shared KV head",
-      "value": 512,
-      "display": "512 B per token per layer"
+      "id": "cache-bill-bars",
+      "title": "The cache bill for one token at four sharing schemes",
+      "caption": "For 32 layers of 32 heads with d_head = 128 in FP16, the cache costs 512 KiB per token under MHA, 128 KiB under GQA with 8 groups, and 16 KiB under MQA: a 32x spread. MLA caches a 512-element latent plus a 64-element rotary key, 36 KiB per token, about 14.2x smaller than MHA.",
+      "alt": "Four horizontal bars in KiB per token across 32 layers. MHA is 512 KiB per token and 2 GiB at 4,096 tokens. GQA with 8 groups is 128 KiB per token and 512 MiB at 4,096. MQA is 16 KiB per token and 64 MiB at 4,096. MLA is 36 KiB per token and 144 MiB at 4,096.",
+      "anchor": "the-arithmetic-behind-the-cache-bill",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "MHA, g = 32",
+            "value": 512,
+            "display": "512 KiB/token, 2 GiB at 4,096"
+          },
+          {
+            "label": "GQA, g = 8",
+            "value": 128,
+            "display": "128 KiB/token, 512 MiB at 4,096"
+          },
+          {
+            "label": "MQA, g = 1",
+            "value": 16,
+            "display": "16 KiB/token, 64 MiB at 4,096"
+          },
+          {
+            "label": "MLA latent",
+            "value": 36,
+            "display": "36 KiB/token, 144 MiB at 4,096",
+            "accent": true
+          }
+        ],
+        "note": "2 x 32 layers x g x 128 x 2 bytes. MQA reads 512 bytes per token per layer where MHA reads 16,384."
+      }
+    },
+    {
+      "id": "mla-latent",
+      "title": "MLA caches a latent, not per-head keys and values",
+      "caption": "MLA stores one 512-element latent plus a 64-element rotary key per token per layer: 576 elements, 1,152 bytes, 36 KiB across 32 layers. Each head reconstructs its own key and value from the latent with W_UK and W_UV, so nothing per-head is cached.",
+      "alt": "Three aligned panels. Panel one lists what is cached per token per layer: a 512-element latent, a 64-element rotary key, and 576 elements equal to 1,152 bytes in FP16, or 36 KiB across 32 layers. Panel two lists what each head reconstructs: k equals W_UK times the latent with d_head 128, v equals W_UV times the latent with d_head 128, and 32 heads share one 576-element cache. Panel three gives the bill at 4,096 tokens: 36 KiB per token, 144 MiB total, against 2 GiB for MHA.",
+      "anchor": "mla-compresses-keys-and-values-into-a-latent",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Cached and reconstructed",
+            "items": [
+              "cached: latent 512 + rotary key 64 = 576 elements",
+              "1,152 bytes per token per layer, 36 KiB across 32 layers",
+              "each head rebuilds k and v with W_UK and W_UV, d_head = 128"
+            ],
+            "note": "Nothing per-head is stored. At load time W_UK folds into W_Q and W_UV into W_O, so decode multiplies the absorbed query against c."
+          },
+          {
+            "title": "The bill at 4,096 tokens",
+            "items": [
+              "576 x 2 bytes x 32 layers = 36 KiB/token",
+              "4,096 tokens gives 144 MiB",
+              "MHA for the same model gives 2 GiB"
+            ],
+            "note": "About 14.2x smaller than MHA. The 64 rotary elements stay separate because rotation cannot be folded into the latent."
+          }
+        ]
+      }
     }
   ],
-  "note": "The cache scales with g, the number of KV heads, not with h, the number of query heads. Fewer KV heads means a lower arithmetic intensity, so the decode step is more bandwidth-bound.",
-  "panels": [
+  "sources": [
     {
-      "title": "MHA: H private KV heads",
-      "items": [
-        "H query heads",
-        "H key heads",
-        "H value heads",
-        "cache: 16,384 B per token per layer",
-        "1 FLOP per byte"
-      ],
-      "note": "The cache scales with the head count."
+      "url": "https://arxiv.org/abs/1911.02150",
+      "note": "Shazeer, Fast Transformer Decoding: multi-query attention and the cache-read reduction."
     },
     {
-      "title": "MQA: one shared KV head",
-      "items": [
-        "H query heads",
-        "1 key head",
-        "1 value head",
-        "cache: 512 B per token per layer",
-        "32 FLOPs per byte"
-      ],
-      "note": "32 times less cache, at 32 times the arithmetic intensity."
+      "url": "https://arxiv.org/abs/2305.13245",
+      "note": "Ainslie et al., GQA: grouping query heads onto shared key/value heads, and the uptraining recipe."
+    },
+    {
+      "url": "https://arxiv.org/abs/2405.04434",
+      "note": "DeepSeek-V2: the MLA latent cache, the decoupled rotary key, and the absorbed projections."
     }
   ]
 }

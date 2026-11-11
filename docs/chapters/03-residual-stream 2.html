@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The one lane everything writes into</title>
+<script>(function(){try{var t=localStorage.getItem("sft-theme");
+if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<meta name="description" content="Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks.">
+<meta property="og:description" content="Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks.">
+<meta property="og:title" content="The one lane everything writes into">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://bajpaigaurav.github.io/spark-forge/chapters/03-residual-stream.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%238a3324%22/><path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 stroke-linecap=%22round%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>
+/* ---- tokens: Almanac, the reference-book register ---- */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --color-paper: oklch(84% 0.012 245); --color-paper-2: oklch(81% 0.012 245); --color-paper-3: oklch(77% 0.012 245);
+  --color-ink: oklch(16% 0.020 245); --color-ink-2: oklch(24% 0.018 245); --color-muted: oklch(38% 0.016 245);
+  --color-rule: oklch(73% 0.013 240); --color-rule-2: oklch(32% 0.018 240);
+  --color-accent: oklch(45% 0.180 350); --color-accent-2: oklch(37% 0.160 350); --color-accent-ink: oklch(97% 0.006 245); --color-focus: oklch(46% 0.190 350);
+  --color-sheet: oklch(93.5% 0.008 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 7%, var(--color-sheet));
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader", ui-serif, Georgia, serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 0; --radius-pill: 2px; --rule-hair: 1px; --rule-bar: 2px; --rule-heavy: 4px; --shadow-card: none;
+  --tracking-display: -0.02em; --display-weight: 600;
+  --container: 1440px; --gutter: 64px;
+  --z-sticky-nav: 300; --z-modal: 400;
+  --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
+  --measure: var(--read-measure);
+}
+
+/* ---- dark: the same stock read by lamplight; magenta lifts one step ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(24% 0.016 245); --color-paper-2: oklch(21% 0.016 245); --color-paper-3: oklch(18% 0.016 245);
+  --color-ink: oklch(95% 0.008 245); --color-ink-2: oklch(88% 0.010 245); --color-muted: oklch(74% 0.014 245);
+  --color-rule: oklch(36% 0.016 240); --color-rule-2: oklch(62% 0.018 240);
+  --color-accent: oklch(70% 0.165 350); --color-accent-2: oklch(78% 0.150 350); --color-accent-ink: oklch(17% 0.016 245); --color-accent-text: oklch(82% 0.130 350); --color-focus: oklch(76% 0.175 350);
+  --color-sheet: oklch(30% 0.014 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 14%, var(--color-sheet));
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-muted) var(--color-paper); scroll-padding-top: calc(var(--topbar-h) + var(--space-md)); }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-synthesis: none; letter-spacing: var(--tracking-display); line-height: 1.05; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+img, video, svg { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+.num, td.num { font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+
+/* ---- frontispiece ---- */
+.frontis { margin: 0 0 var(--space-2xl); }
+.frontis p { max-width: 66ch; margin: 0 0 var(--space-md); }
+.frontis p.lead { font-size: var(--text-lead); line-height: 1.4; color: var(--color-ink); max-width: 52ch; }
+.frontis .drop::first-letter { font-size: 1em; float: none; color: inherit; }
+.rule-short { width: 4rem; border: 0; border-top: var(--rule-bar) solid var(--color-accent); margin: var(--space-xl) 0; }
+
+/* ---- masthead ---- */
+/* ---- cover: one screen, then the contents ---- */
+.cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
+.cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
+.cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
+.cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
+.btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
+.btn-primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
+.btn-quiet:hover { background: var(--color-wash); }
+.cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts div { margin: 0; }
+.cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
+.cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
+
+/* ---- the contents, set as a printed index ---- */
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
+.contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
+.contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.contents ol { list-style: none; margin: 0; padding: 0; }
+.contents li { border-top: 0; }
+.contents li:last-child { border-bottom: 0; }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a:hover { background: var(--color-wash); }
+.contents li a:hover .t { color: var(--color-accent-text); }
+.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 62ch; }
+.contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+
+/* ---- live numbers: the book's own measurements, set as a strip ---- */
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
+.fig .u { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); margin-top: 2px; }
+.fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
+
+/* ---- colophon block ---- */
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
+.colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
+.gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
+.gate-row > div { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.gate-row .gate-v { display: block; font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-accent); }
+.gate-row .gate-l { display: block; font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+.colophon-links { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-lg); font-family: var(--font-display); font-size: var(--text-sm); }
+.colophon-links a { color: var(--color-ink); text-decoration: none; border-bottom: var(--rule-hair) solid var(--color-accent); padding-bottom: 1px; }
+.colophon-links a:hover { color: var(--color-accent); }
+
+.masthead { padding: var(--space-xl) 0 var(--space-lg); border-bottom: var(--rule-bar) solid var(--color-rule-2); margin-bottom: var(--space-xl); }
+.masthead .kicker { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.masthead h1 { font-size: var(--text-3xl); color: var(--color-ink); margin: 0 0 var(--space-xs); }
+.masthead .standfirst { font-size: var(--text-lg); color: var(--color-muted); line-height: 1.4; margin: 0; max-width: 52ch; }
+.masthead .facts { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-md); font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.masthead .facts strong { color: var(--color-ink); font-weight: 500; }
+
+/* ---- parts ---- */
+.part { margin: 0 0 var(--space-xl); }
+.part-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); }
+.part-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-md); }
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: var(--rule-hair) solid var(--color-rule); }
+.toc li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.toc a { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: var(--space-md); padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.toc a:hover { background: var(--color-wash); }
+.toc a:hover .t-title { color: var(--color-ink); }
+.t-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.t-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.toc a.pending .t-title { color: var(--color-muted); }
+
+/* ---- chapter page ---- */
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
+.chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
+.chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
+.chapter-head .xref { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+
+.mini-toc { display: none; margin: var(--space-lg) 0 0; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); border-bottom: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-sm); grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc h2 { font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-2xs); grid-column: 1 / -1; }
+.mini-toc ul { list-style: none; margin: 0; padding: 0; grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc li { margin: 0; }
+.mini-toc li:first-child a { border-top: 0; }
+.mini-toc a { color: var(--color-ink-2); text-decoration: none; display: block; padding: 4px 0; line-height: 1.3; overflow-wrap: break-word; border-top: var(--rule-hair) solid var(--color-rule); }
+.mini-toc a:hover { color: var(--color-accent); }
+.prose h3 { scroll-margin-top: calc(var(--topbar-h) + var(--space-md)); }
+
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.glossary { max-width: var(--read-measure); }
+.glossary dl { margin: 0; }
+.glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
+.glossary dt a { color: var(--color-ink); text-decoration: none; }
+.glossary dt a:hover { color: var(--color-accent); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
+.glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.glossary dd .src a { color: var(--color-accent); text-decoration: none; }
+.glossary dd .src a:hover { text-decoration: underline; }
+
+/* ---- reading paths ---- */
+.paths-strip { margin: var(--section-gap) 0 0; }
+.paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
+.paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
+.paths-strip a { display: block; text-decoration: none; }
+.paths-strip a:hover .p-what { color: var(--color-accent); }
+.paths-kicker { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.p-when { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-accent); }
+.p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
+
+.paths-intro { max-width: var(--read-measure); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
+.path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
+.path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
+.path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.path-list a { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.path-list a:hover { background: var(--color-wash); }
+.path-list a:hover .p-title { color: var(--color-ink); }
+.p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
+
+/* ---- reproduce-this page ---- */
+.rig-artifacts { max-width: var(--read-measure); }
+.rig-artifacts ul { list-style: none; margin: 0; padding: 0; }
+.rig-artifacts li { padding: var(--space-sm) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-artifacts li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.rig-artifacts .r-name { font-family: var(--font-outlier); font-size: var(--text-sm); display: block; }
+.rig-artifacts .r-name a { color: var(--color-accent); text-decoration: none; }
+.rig-artifacts .r-name a:hover { text-decoration: underline; }
+.rig-artifacts .r-what { display: block; color: var(--color-muted); font-size: var(--text-sm); margin-top: var(--space-2xs); }
+.rig-limits { max-width: var(--read-measure); }
+.rig-limits dl { margin: 0; }
+.rig-limits dt { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); margin: var(--space-md) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.rig-limits dd { margin: var(--space-2xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); }
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
+
+/* ---- prose ---- */
+.prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
+.prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.prose a { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 0.15em; }
+.prose a:hover { text-decoration-thickness: 2px; }
+.prose strong { color: var(--color-ink); font-weight: 600; }
+.prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
+
+/* ---- figures: on the sheet, full measure, centred ---- */
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
+.chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
+.chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
+.fig-svg text { font-family: var(--font-display); }
+.fig-controls { display: none; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-top: var(--space-sm); }
+.chapter-figure.is-animated .fig-controls { display: flex; }
+.fig-controls button { min-height: 44px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; }
+.fig-controls button:hover { border-color: var(--color-accent); }
+.fig-controls button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.fig-label { flex: 1 1 18rem; min-width: 12rem; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.chapter-figure .fig-svg [data-part] { transition: opacity .2s ease; }
+.chapter-figure.is-animated .fig-svg [data-part].is-dim { opacity: .22; }
+.chapter-figure.is-animated .fig-svg [data-part].is-active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .chapter-figure .fig-svg [data-part] { transition: none; } }
+@media print { .fig-controls { display: none !important; } .chapter-figure .fig-scroll { overflow: visible; } .chapter-figure .fig-scroll .fig-svg { min-width: 0; } }
+
+/* ---- data figures ---- */
+.figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-lg); color: var(--color-ink); letter-spacing: -0.02em; }
+.fig .u { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.fig .l { font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+
+/* ---- nav ---- */
+.chapter-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-2xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); font-family: var(--font-display); font-size: var(--text-sm); }
+.chapter-nav a { color: var(--color-ink); text-decoration: none; padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; white-space: normal; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; }
+.chapter-nav a:hover { border-color: var(--color-rule-2); background: var(--color-wash); }
+.chapter-nav a.next { text-align: right; }
+.chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
+
+/* ---- interactive devices ---- */
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive h3 { margin-top: 0; }
+.interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
+.interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
+.interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
+.interactive button:hover { background: var(--color-accent-2); }
+.bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+.bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
+.interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
+.interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
+.slider-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+.slider-row label { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.slider-row input[type=text] { flex: 1; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--color-accent); }
+.readout { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.readout strong { color: var(--color-ink); font-weight: 600; }
+.steps { list-style: none; padding: 0; margin: 0 0 var(--space-md); font-family: var(--font-display); font-size: var(--text-sm); }
+.steps li { display: grid; grid-template-columns: 5rem 1fr; gap: var(--space-sm); padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.steps li .k { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--color-accent); }
+.steps li.done .k { color: var(--color-muted); }
+.btn { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; background: transparent; border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent); padding: var(--space-2xs) var(--space-sm); cursor: pointer; border-radius: var(--radius-pill); }
+.btn:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
+.provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
+.provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
+.provenance td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-xs); vertical-align: top; }
+.provenance td.pv { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-ink); }
+.provenance td.ps { color: var(--color-muted); }
+.provenance td.pc { color: var(--color-ink-2); }
+.provenance .prov-note { font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.provenance details.prov-more { display: block; }
+.provenance details.prov-more summary { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); cursor: pointer; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.provenance details.prov-more table { margin-top: var(--space-2xs); }
+/* provenance is a 3-column table; on a phone let it scroll rather than push the page wide */
+.provenance { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.provenance table { min-width: 30rem; }
+@media (max-width: 40rem) { .provenance table { min-width: 26rem; } }
+
+/* ---- margin rail ---- */
+.prose { position: relative; }
+.prose .sidenote { display: none; }
+@media (min-width: 1100px) {
+  .prose .sidenote { display: block; position: absolute; left: calc(var(--read-measure) + 2.5rem); width: 13rem; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.5; color: var(--color-muted); border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-sm); }
+}
+
+/* ---- reader shell: contents rail, top bar, chapter rail ---- */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; max-width: var(--container); margin-inline: auto; min-height: 100vh; }
+.shell--wide { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); grid-column: 1 / span 2; grid-row: 1; display: flex; align-items: center; gap: var(--space-md); height: var(--topbar-h); padding: 0 var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.topbar .wordmark { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); letter-spacing: -0.01em; color: var(--color-ink); text-decoration: none; white-space: nowrap; display: flex; align-items: baseline; gap: var(--space-xs); }
+.topbar .wordmark .part { color: var(--color-muted); font-weight: 500; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.topbar .spacer { flex: 1 1 auto; }
+.topbar .folio { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; padding-right: var(--space-xs); border-right: var(--rule-hair) solid var(--color-rule); margin-right: var(--space-2xs); }
+/* the topbar must never push the page wide: let it shrink, not overflow */
+.topbar { flex-wrap: nowrap; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.topbar .wordmark { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+@media (max-width: 68rem) {
+  .topbar .folio { display: none; }
+  .topbar .wordmark .part { display: none; }
+  .topbar { gap: var(--space-sm); padding: 0 var(--space-md); }
+}
+.topbar .tool { display: inline-flex; align-items: center; gap: var(--space-2xs); height: 2rem; padding: 0 var(--space-sm); font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-ink); background: transparent; border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); cursor: pointer; }
+.topbar .tool:hover { background: var(--color-paper-2); }
+.topbar .tool kbd { font-family: var(--font-outlier); font-size: 0.6875rem; color: var(--color-muted); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.rail-toggle { display: none; }
+.rail { grid-column: 1; grid-row: 2; position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-lg) var(--space-lg) var(--space-3xl); border-right: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; }
+.rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); letter-spacing: 0; margin: 0 0 var(--space-sm); max-width: none; }
+.rail .part { margin: 0 0 var(--space-lg); }
+.rail .part > h3 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-2xs); max-width: none; line-height: 1.3; }
+.rail ol { list-style: none; margin: 0; padding: 0; }
+.rail a { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: var(--space-2xs); align-items: baseline; padding: var(--space-2xs) var(--space-xs); margin-left: calc(-1 * var(--space-xs)); color: var(--color-ink-2); text-decoration: none; border-radius: var(--radius-pill); }
+.rail a > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail a:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.rail a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: 0.6875rem; color: var(--color-muted); text-align: right; }
+.rail a[aria-current="page"] { background: var(--color-wash); color: var(--color-ink); font-weight: 600; }
+.rail a[aria-current="page"] .n { color: var(--color-accent-text); }
+.rail .meta { margin-top: var(--space-xl); }
+.rail .meta a { display: block; padding: var(--space-2xs) 0; margin-left: 0; color: var(--color-muted); }
+.rail .meta a:hover { background: none; color: var(--color-accent); }
+.main { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--chapter-rail-w); }
+.main--single { grid-template-columns: minmax(0, 1fr); }
+.page { min-width: 0; padding: var(--space-lg) var(--space-xl) var(--space-3xl); }
+.page:has(.cover) { padding-top: 0; }
+.prose, .frontis, .masthead, .chapter-head, .mini-toc { max-width: var(--read-measure); }
+.chapter-rail { position: sticky; top: calc(var(--topbar-h) + var(--space-2xl)); align-self: start; padding: var(--space-md) 0 var(--space-xl); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-lg); margin-left: var(--space-lg); }
+.chapter-rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-sm); max-width: none; }
+.chapter-rail ul { list-style: none; margin: 0; padding: 0; }
+.chapter-rail li { margin: 0 0 var(--space-2xs); }
+.chapter-rail a { color: var(--color-muted); text-decoration: none; display: block; padding: 3px 0; line-height: 1.35; overflow-wrap: break-word; hyphens: auto; }
+.chapter-rail li { min-width: 0; }
+.chapter-rail a:hover { color: var(--color-ink); }
+.chapter-rail a.active { color: var(--color-accent-text); font-weight: 600; }
+/* not colour alone: a rule and a bullet mark the section you are in */
+.chapter-rail a.active::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: 2px; background: var(--color-accent-text); border-radius: 50%; }
+.chapter-rail .progress { margin-top: var(--space-lg); color: var(--color-muted); font-size: 0.6875rem; }
+.chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
+.chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
+
+
+/* ---- search dialog ---- */
+.search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
+.search-dialog[open] { display: block; }
+.search-box { max-width: 44rem; margin: 0 auto; background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); box-shadow: 0 24px 60px color-mix(in oklab, var(--color-ink) 30%, transparent); max-height: 84vh; display: flex; flex-direction: column; }
+.search-head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.search-head input { flex: 1; font-family: var(--font-display); font-size: var(--text-lg); border: 0; background: transparent; color: var(--color-ink); outline: none; }
+.search-head input::placeholder { color: var(--color-muted); }
+.search-head .close { font-family: var(--font-display); font-size: var(--text-xs); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); border-radius: var(--radius-pill); padding: 2px var(--space-xs); cursor: pointer; }
+.search-status { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); padding: var(--space-xs) var(--space-md); }
+.search-results { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.search-results li { border-top: var(--rule-hair) solid var(--color-rule); }
+.search-results a { display: block; padding: var(--space-sm) var(--space-md); text-decoration: none; color: var(--color-ink-2); }
+.search-results a:hover, .search-results a[aria-selected="true"] { background: var(--color-wash); }
+.search-results .r-ch { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.search-results .r-t { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); display: block; margin-top: 2px; }
+.search-results .r-s { font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; }
+.search-results mark { background: color-mix(in oklab, var(--color-accent) 24%, transparent); color: var(--color-ink); }
+.search-empty { padding: var(--space-lg) var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+
+/* ---- small screens ---- */
+@media (max-width: 68rem) {
+  .mini-toc { display: grid; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .chapter-rail { display: none; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* the rail is an overlay here, so it must not reserve a column */
+  .rail { grid-column: auto; }
+  .topbar { grid-column: 1 / span 2; }
+  .rail { grid-column: 1; grid-row: 2; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: var(--z-sticky-nav); background: var(--color-paper); height: auto; border-right: 0; display: none; padding-bottom: var(--space-3xl); }
+  .rail[data-open="true"] { display: block; }
+  .rail-toggle { display: inline-flex; }
+  .page { padding: var(--space-xl) var(--space-md) var(--space-2xl); }
+  .prose pre, .prose code { overflow-wrap: anywhere; }
+  .prose pre { white-space: pre-wrap; }
+  .provenance { overflow-x: auto; }
+  .prose pre { max-width: 100%; }
+  .provenance, .provenance table, .interactive table { max-width: 100%; }
+  .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
+  .chapter-nav { grid-template-columns: 1fr; }
+  .chapter-nav a.next { text-align: left; }
+  .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
+  .contents li a .m { display: none; }
+}
+@media (max-width: 40rem) {
+  .topbar { padding-inline: var(--space-md); }
+  .page { padding-inline: var(--space-sm); }
+  .topbar .wordmark .part { display: none; }
+  .topbar .tool .label { display: none; }
+  .masthead h1 { font-size: var(--text-2xl); }
+  .chapter-head h1 { font-size: var(--text-2xl); }
+  .search-dialog { padding: 0; }
+  .search-box { max-height: 100vh; min-height: 100vh; }
+  .mini-toc a { font-size: 0.75rem; }
+  .topbar .tool .label { display: none; }
+  .topbar .tool { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+<button class="tool rail-toggle" type="button" data-rail-toggle aria-controls="rail" aria-expanded="false">Contents</button>
+<a class="wordmark" href="../index.html">The Shape of a Token<span class="part">03 &middot; The one lane everything writes into</span></a>
+<span class="spacer"></span>
+<span class="folio">03 / 31</span>
+<button class="tool" type="button" data-open-search aria-keyshortcuts="/">
+<span class="label">Search</span><kbd>/</kbd>
+</button>
+<button class="tool" type="button" data-theme-toggle aria-label="Switch between light and dark">
+<span class="label">Theme</span>
+</button>
+</header>
+<nav class="rail" id="rail" aria-label="Contents"><h2>Contents</h2><div class="part"><h3>I. The raw material</h3><ol><li><a href="../chapters/01-tokens.html" title="Text is not numbers yet"><span class="n">01</span><span>Text is not numbers yet</span></a></li><li><a href="../chapters/02-embeddings.html" title="A vector is a coordinate, not a meaning"><span class="n">02</span><span>A vector is a coordinate, not a meaning</span></a></li><li><a href="../chapters/03-residual-stream.html" aria-current="page" title="The one lane everything writes into"><span class="n">03</span><span>The one lane everything writes into</span></a></li></ol></div><div class="part"><h3>II. Attention</h3><ol><li><a href="../chapters/04-before-attention.html" title="The bottleneck attention was invented to fix"><span class="n">04</span><span>The bottleneck attention was invented to fix</span></a></li><li><a href="../chapters/05-scaled-dot-product.html" title="The 2017 move: drop the recurrence"><span class="n">05</span><span>The 2017 move: drop the recurrence</span></a></li><li><a href="../chapters/06-multi-head.html" title="Why many small heads beat one large one"><span class="n">06</span><span>Why many small heads beat one large one</span></a></li><li><a href="../chapters/07-softmax.html" title="The function that turns scores into shares"><span class="n">07</span><span>The function that turns scores into shares</span></a></li><li><a href="../chapters/08-positions.html" title="Attention has no idea where it is"><span class="n">08</span><span>Attention has no idea where it is</span></a></li><li><a href="../chapters/09-quadratic-wall.html" title="The cost that defines the field"><span class="n">09</span><span>The cost that defines the field</span></a></li></ol></div><div class="part"><h3>III. The cache</h3><ol><li><a href="../chapters/10-kv-cache.html" title="Why generation is slow and memory-hungry"><span class="n">10</span><span>Why generation is slow and memory-hungry</span></a></li><li><a href="../chapters/11-mqa-gqa-mla.html" title="Three generations of sharing the cache"><span class="n">11</span><span>Three generations of sharing the cache</span></a></li><li><a href="../chapters/12-paged-attention.html" title="Virtual memory for the KV cache"><span class="n">12</span><span>Virtual memory for the KV cache</span></a></li><li><a href="../chapters/13-prefix-caching.html" title="Why the second request is cheaper"><span class="n">13</span><span>Why the second request is cheaper</span></a></li><li><a href="../chapters/14-flash-attention.html" title="Attention that never builds the matrix"><span class="n">14</span><span>Attention that never builds the matrix</span></a></li><li><a href="../chapters/15-sparse-sliding.html" title="Not every token needs to see every token"><span class="n">15</span><span>Not every token needs to see every token</span></a></li></ol></div><div class="part"><h3>IV. The rest of the block</h3><ol><li><a href="../chapters/16-ffn.html" title="Where most of the parameters actually live"><span class="n">16</span><span>Where most of the parameters actually live</span></a></li><li><a href="../chapters/17-activations.html" title="ReLU, GELU, and the gated turn"><span class="n">17</span><span>ReLU, GELU, and the gated turn</span></a></li><li><a href="../chapters/18-normalization.html" title="Keeping the residual stream in range"><span class="n">18</span><span>Keeping the residual stream in range</span></a></li><li><a href="../chapters/19-moe.html" title="More parameters without more arithmetic"><span class="n">19</span><span>More parameters without more arithmetic</span></a></li></ol></div><div class="part"><h3>V. Precision</h3><ol><li><a href="../chapters/20-precision.html" title="From fp32 to bf16 to fp8"><span class="n">20</span><span>From fp32 to bf16 to fp8</span></a></li><li><a href="../chapters/21-quantization.html" title="Four bits and the outlier problem"><span class="n">21</span><span>Four bits and the outlier problem</span></a></li><li><a href="../chapters/22-why-4bit-works.html" title="Why four bits is enough"><span class="n">22</span><span>Why four bits is enough</span></a></li></ol></div><div class="part"><h3>VI. Producing a token</h3><ol><li><a href="../chapters/23-logits.html" title="From a vector to a word"><span class="n">23</span><span>From a vector to a word</span></a></li><li><a href="../chapters/24-sampling.html" title="Temperature, top-k, top-p, and what each one does"><span class="n">24</span><span>Temperature, top-k, top-p, and what each one does</span></a></li><li><a href="../chapters/25-speculative.html" title="Guessing ahead and checking cheaply"><span class="n">25</span><span>Guessing ahead and checking cheaply</span></a></li></ol></div><div class="part"><h3>VII. Serving</h3><ol><li><a href="../chapters/26-prefill-decode.html" title="Two regimes in one machine"><span class="n">26</span><span>Two regimes in one machine</span></a></li><li><a href="../chapters/27-batching.html" title="Continuous batching and the scheduler"><span class="n">27</span><span>Continuous batching and the scheduler</span></a></li><li><a href="../chapters/28-parallelism.html" title="Splitting a model across devices"><span class="n">28</span><span>Splitting a model across devices</span></a></li><li><a href="../chapters/29-roofline.html" title="What the hardware actually allows"><span class="n">29</span><span>What the hardware actually allows</span></a></li></ol></div><div class="part"><h3>VIII. Grounding it</h3><ol><li><a href="../chapters/30-measurement.html" title="How to know any of this is true"><span class="n">30</span><span>How to know any of this is true</span></a></li><li><a href="../chapters/31-local-numbers.html" title="The same book, measured on two small machines"><span class="n">31</span><span>The same book, measured on two small machines</span></a></li></ol></div><div class="meta"><a href="../paths.html">Reading paths</a><a href="../glossary.html">Glossary</a><a href="../rig.html">Reproduce this</a><a href="../about.html">How this was made</a></div></nav>
+<div class="main">
+<div class="page">
+
+<header class="chapter-head">
+  <span class="num">Chapter 03 &middot; I. The raw material</span>
+  <h1>The one lane everything writes into</h1>
+  <p class="thesis">Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks.</p>
+  <p class="meta-line">Assumes <a class="xref" href="02-embeddings.html">02 &middot; A vector is a coordinate, not a meaning</a>. Terms: <a href="../glossary.html#residual-stream">residual stream</a> &middot; <a href="../glossary.html#attention">attention</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#embedding">embedding</a> &middot; <a href="../glossary.html#layernorm">LayerNorm</a> &middot; <a href="../glossary.html#logits">logits</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#prefill">prefill</a></p>
+</header>
+
+<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#the-residual-path-and-the-gradient-product">The residual path and the gradient product</a></li><li><a href="#residual-sublayers-and-the-persistent-stream">Residual sublayers and the persistent stream</a></li><li><a href="#pre-norm-post-norm-and-stream-growth">Pre-norm, post-norm, and stream growth</a></li><li><a href="#superposition-and-interference-in-a-fixed-width-stream">Superposition and interference in a fixed-width stream</a></li><li><a href="#layernorm-attribution-and-the-logit-lens">LayerNorm, attribution, and the logit lens</a></li><li><a href="#live-stream-versus-kv-cache-at-scale">Live stream versus KV cache at scale</a></li></ul></nav>
+
+<article class="prose">
+<p>In 2015 Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun at Microsoft Research put "Deep Residual Learning for Image Recognition" on arXiv, and it was published at CVPR in 2016. The idea inside it is one of the key enabling ingredients that lets you train a transformer with forty layers instead of four; normalization, initialization, attention scaling, and optimization also matter They were training convolutional networks on ImageNet and hit a wall that had nothing to do with overfitting. In the 2015 ResNet paper, a 56-layer plain network on CIFAR-10 had higher training error than a 20-layer plain network on the same data; on ImageNet, a 34-layer plain net had higher validation error than an 18-layer one. Overfitting would show up as a gap between training and test error; here the training loss itself refused to come down. Adding layers had made the optimization problem harder.</p>
+<h3 id="the-residual-path-and-the-gradient-product">The residual path and the gradient product</h3>
+<p>The fix was to stop asking a block to compute the whole transformation. Each block computes a correction F(x), and the layer outputs F(x) + x. The original input is added back, unchanged, at every block.</p>
+<p>Why that trains is a statement about the backward pass. A Jacobian is the matrix of partial derivatives of a vector output with respect to a vector input. Its spectral norm is its largest singular value, which bounds how much it can stretch a vector. For a plain stack, the gradient reaching the first block is a product of L Jacobians. If each has spectral norm s, the product has norm at most s^L. For two layers with s=0.9, the product norm is at most 0.81; with s=1.1, at most 1.21. At 56 layers, the bound is about 0.003 and 208 The first vanishes, the second explodes.</p>
+<p>With the residual, the layer map is x_{l+1}=x_l+F_l(x_l). Its Jacobian is I + J_l, where J_l is the Jacobian of F_l. The product over L layers is ∏(I+J_l). Expand for two layers: (I+J_1)(I+J_2)=I+J_1+J_2+J_1J_2. For L layers, the product is I plus every ordered product of a subset of the J_l, including the empty product I. The identity path has derivative exactly I. Even if each J_l is small, that term still delivers a gradient to the first layer. The expansion is usable when the J_l are small enough that the higher-order products do not dominate; initialization and normalization are chosen to keep them small at the start. He et al. trained a 110-layer ResNet on CIFAR-10 and a 152-layer one on ImageNet, so depth stopped being a gamble.</p>
+<p>They were not first. Srivastava, Greff and Schmidhuber published highway networks earlier in 2015, with y=T(x)H(x)+(1-T(x))x, where T is a learned gate. ResNet dropped the gate and used a bare identity. A plain addition has no parameters, cannot be trained to close itself off, and costs nothing. The gated version could learn something richer, but the ungated one scaled further in practice.</p>
+<h3 id="residual-sublayers-and-the-persistent-stream">Residual sublayers and the persistent stream</h3>
+<p>Vaswani and colleagues built the 2017 transformer on the same spine. Every sublayer in the encoder and decoder ends by adding its output to its input. Encoder layers have two residual sublayers—self-attention and the feed-forward network—so the encoder stream is written to twice per layer. Decoder layers have three—masked self-attention, cross-attention, and the feed-forward network—so the decoder stream is written to three times per layer.</p>
+
+<figure class="chapter-figure" data-fig-id="residual-lane">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="One lane, read and written at every block">
+<svg class="fig-svg" viewBox="0 0 900 261" width="100%" role="img" aria-labelledby="fig-title-5c733832" aria-describedby="fig-desc-5c733832" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-5c733832" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-5c733832" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="261" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-5c733832">One lane, read and written at every block</title><desc id="fig-desc-5c733832">Every sublayer reads the residual stream, computes a correction, and adds it back. The lane holds one vector per token at width d_model from the embedding lookup to the unembedding; attention and the feed-forward network never replace it, so nothing else survives the depth.</desc><text x="16.00" y="24.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Attention is the only stage that moves information between positions; every other stage is per-token.</text><text x="16.00" y="43.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Encoder layers write to the stream twice, decoder layers three times.</text><text x="16.00" y="105.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.12" font-weight="400" fill="var(--color-accent, #8a3324)" text-anchor="start">residual stream: width d_model, never replaced</text><path d="M16,113.19999999999999 L884,113.19999999999999" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.6" marker-end="url(#arrow-accent-5c733832)"/><rect x="16.00" y="145.20" width="152.80" height="54.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.2"/><text x="92.40" y="174.16" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18.0" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">embedding</text><text x="92.40" y="223.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">d_model</text><rect x="194.80" y="145.20" width="152.80" height="54.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.2"/><text x="271.20" y="174.16" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18.0" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">attention</text><text x="271.20" y="223.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">d_model</text><rect x="373.60" y="145.20" width="152.80" height="54.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.2"/><text x="450.00" y="174.16" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18.0" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">feed-forward</text><text x="450.00" y="223.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">d_model</text><rect x="552.40" y="145.20" width="152.80" height="54.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.2"/><text x="628.80" y="174.16" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18.0" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">final norm</text><text x="628.80" y="223.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">d_model</text><rect x="731.20" y="145.20" width="152.80" height="54.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.2"/><text x="807.60" y="174.16" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="18.0" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">unembedding</text><text x="807.60" y="223.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">V</text><path d="M884,113.19999999999999 L884,139.2" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.6" marker-end="url(#arrow-accent-5c733832)"/></svg>
+</div>
+<figcaption><strong>One lane, read and written at every block</strong> Every sublayer reads the residual stream, computes a correction, and adds it back. The lane holds one vector per token at width d_model from the embedding lookup to the unembedding; attention and the feed-forward network never replace it, so nothing else survives the depth.</figcaption>
+<div class="fig-controls" data-fig-controls>
+<button type="button" data-play>Play</button>
+<button type="button" data-pause>Pause</button>
+<button type="button" data-prev aria-label="Previous step">Previous</button>
+<button type="button" data-next aria-label="Next step">Next</button>
+<button type="button" data-reset>Reset</button>
+<span class="fig-label" aria-live="polite"></span>
+</div>
+<script type="application/json" class="fig-anim">{"mode": "step", "interval": 1400, "intro": "Press Play or Next to add each write to the lane.", "steps": [{"label": "The embedding lookup writes the first vector into the lane.", "highlight": ["embedding"]}, {"label": "Attention reads the lane at every position and adds its output back.", "highlight": ["attention"]}, {"label": "The feed-forward network reads and writes one position at a time.", "highlight": ["feed-forward"]}, {"label": "The final norm rescales the accumulated stream.", "highlight": ["final-norm"]}, {"label": "The unembedding scores every vocabulary item from the same lane.", "highlight": ["unembedding"]}]}</script>
+</figure>
+
+<p>Here is where the picture changes. It is natural to draw a transformer as a stack of blocks, each handing a transformed representation to the next, the way a CNN hands feature maps up a hierarchy. That drawing misses the object that persists. There is one vector per token, its width is set once and never changes, and it lasts from the embedding lookup to the final unembedding. Attention and the feed-forward network do not replace it. They read from it and add to it.</p>
+<p>Concretely, attention projects the stream three ways into queries, keys and values. Each head computes a weighted sum over the values at all positions up to and including the current one (causal masking blocks only future positions). The heads' outputs are concatenated, projected back up to the stream's width by an output matrix, and added. The feed-forward network reads the stream, expands it into a wider hidden layer, applies a nonlinearity, projects back down, and adds. Neither sublayer carries state from one layer to the next. The only thing that survives the whole depth is the stream itself.</p>
+<p>The division of labor is clean. Attention is the only operation that moves information between positions; everything else in the block is per-token. The feed-forward network is where a token does its own computation, reading what attention brought in and writing conclusions back. Because the width never changes, any sublayer can read the stream at any depth without an adapter. The unembedding matrix at the end can be applied to the stream after layer three, provided the final layer norm is applied first, just as mechanically as after layer forty. That is what makes the stream a bus rather than a pipeline. Every component is wired to the same lane, at the same gauge. It is also why deleting a layer at inference time can still yield coherent text.</p>
+<p>Deleting a block removes the sublayer computation and its write; the identity path still carries the stream forward, but every later block now reads a different vector. Coherence after deletion is an empirical property of trained networks, not a theorem.</p>
+<h3 id="pre-norm-post-norm-and-stream-growth">Pre-norm, post-norm, and stream growth</h3>
+<p>The placement of layer normalization determines what the stream looks like. The 2017 paper put the norm after the residual addition, so each block computed LayerNorm(x+Sublayer(x)). That renormalizes the stream at every layer, keeping its magnitude bounded, but it also puts a rescaling operation directly in the identity path. Post-norm transformers in practice used learning-rate warmup. GPT-2 in 2019 used pre-norm instead, normalizing the input to the sublayer and then adding the sublayer's raw output to the unnormalized stream. Xiong and colleagues analyzed the two arrangements in 2020 and showed that pre-norm gives better-behaved gradients at initialization, which is why warmup can be dropped. GPT-3 in 2020 and LLaMA in 2023 also use pre-norm.</p>
+
+<figure class="chapter-figure" data-fig-id="pre-post-norm">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Where the norm sits decides what the identity path carries">
+<svg class="fig-svg" viewBox="0 0 900 355" width="100%" role="img" aria-labelledby="fig-title-53677602" aria-describedby="fig-desc-53677602" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-53677602" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-53677602" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="355" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-53677602">Where the norm sits decides what the identity path carries</title><desc id="fig-desc-53677602">Post-norm puts LayerNorm after the addition, so the norm&#x27;s Jacobian multiplies the identity term and rescaling sits directly in the gradient path. Pre-norm normalizes only the sublayer branch, leaving a bare identity term; that is why it trains without warmup, and why the stream&#x27;s norm is never renormalized and grows with depth.</desc><text x="16.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">post-norm (2017 paper)</text><line x1="16.00" y1="51.20" x2="436.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="16.00" y="61.20" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="78.65" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">y = LayerNorm(x + F(x))</text><rect x="16.00" y="100.80" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="118.25" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">Jacobian J_N + J_N J_F</text><rect x="16.00" y="140.40" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="157.85" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">the norm multiplies the identity term</text><rect x="16.00" y="180.00" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="197.45" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">stream renormalized every layer</text><rect x="16.00" y="219.60" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="237.05" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">learning-rate warmup in practice</text><text x="16.00" y="277.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Magnitude stays bounded, but rescaling sits</text><text x="16.00" y="295.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">directly in the identity path.</text><text x="464.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">pre-norm (GPT-2, GPT-3, LLaMA)</text><line x1="464.00" y1="51.20" x2="884.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="464.00" y="61.20" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="78.65" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">y = x + F(LayerNorm(x))</text><rect x="464.00" y="100.80" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="118.25" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">Jacobian I + J_F J_N</text><rect x="464.00" y="140.40" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="157.85" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">the identity term is a bare I</text><rect x="464.00" y="180.00" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="197.45" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">stream never renormalized</text><rect x="464.00" y="219.60" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="237.05" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">warmup can be dropped</text><text x="464.00" y="277.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">The stream&#x27;s norm grows with depth: L independent</text><text x="464.00" y="295.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">writes of variance v give variance Lv and standard</text><text x="464.00" y="313.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">deviation sqrt(Lv).</text></svg>
+</div>
+<figcaption><strong>Where the norm sits decides what the identity path carries</strong> Post-norm puts LayerNorm after the addition, so the norm's Jacobian multiplies the identity term and rescaling sits directly in the gradient path. Pre-norm normalizes only the sublayer branch, leaving a bare identity term; that is why it trains without warmup, and why the stream's norm is never renormalized and grows with depth.</figcaption>
+
+
+</figure>
+
+<p>The gradient argument is worth writing out. For pre-norm, the block is y=x+F(N(x)). Its Jacobian is I+J_F J_N. The identity term I is separate; the LayerNorm Jacobian J_N multiplies only the branch. For post-norm, the block is y=N(x+F(x)). Its Jacobian is J_N(I+J_F)=J_N+J_N J_F. The identity path is multiplied by J_N. LayerNorm's Jacobian is not the identity. With scale γ=1 and ignoring the derivative of the variance for a moment, it is (1/σ)(I-(1/n)11^T), which subtracts the mean and scales the mean-zero part by 1/σ. That factor sits on the identity gradient path in post-norm but not in pre-norm; in pre-norm it multiplies only the sublayer branch At initialization, if the sublayer output is scaled small, J_F is small and the identity term dominates in pre-norm. That is the mechanism behind the warmup difference.</p>
+<p>The consequence is that the stream is never renormalized. Every sublayer adds its output, so the norm of the stream grows with depth. If each write has variance v and the writes are independent, the sum of L writes has variance Lv and standard deviation √(Lv). With v=0.01 and L=40, the per-coordinate standard deviation is 0.1√40, about 0.63; the L2 norm also scales with √width. Positively correlated writes grow faster; negative correlations can make the variance grow more slowly A final norm before the unembedding has to undo that growth. This is a real wart. Wang and colleagues at Microsoft proposed DeepNorm in 2022, with x_{l+1}=LN(α x_l+G_l(x_l)), α=(2N)^{1/4}, and sublayer initialization scaled by β=(2N)^{-1/4}. They trained post-norm transformers with a thousand layers. DeepNorm shows post-norm can be trained at that scale with a different residual scaling; it did not settle the practical choice.</p>
+<h3 id="superposition-and-interference-in-a-fixed-width-stream">Superposition and interference in a fixed-width stream</h3>
+<p>The fixed width has a cost that shows up in interpretability work. Every attention head and every feed-forward neuron writes into the same vector. There is no separate channel for separate concepts. Elhage and colleagues at Anthropic described the stream in 2021 as a communication channel of limited bandwidth, and in their 2022 work on superposition they showed what happens when a model needs to represent more features than the channel has dimensions. A toy case makes the interference concrete. Take a two-dimensional stream and three unit features placed at 0°, 120° and 240°. The dot product between any two feature directions is cos 120° = -0.5. If the stream holds a u1 + b u2 + c u3, reading feature 1 by projecting onto u1 gives a -0.5b -0.5c. The other features leak into the readout. The model can represent three features in two dimensions, but it pays interference.</p>
+<p>Width bounds how many linearly independent directions the stream can carry, and hence how many orthogonal features it can represent; superposition lets the model represent more features than that by using non-orthogonal directions, at a cost in interference Whether width is the binding constraint in a given model is an empirical question, but the arithmetic sets a hard ceiling on orthogonal features.</p>
+<h3 id="layernorm-attribution-and-the-logit-lens">LayerNorm, attribution, and the logit lens</h3>
+<p>That same additivity is what makes the model tractable to inspect, with a caveat. At block boundaries the final stream is a sum of terms, and each term came from a specific head or neuron. But each write is a nonlinear function of the stream, so the terms are not independent. Zeroing a component changes the inputs to later sublayers and therefore changes their writes. Attribution is local and approximate. You can project a single term through the final layer norm and the unembedding and ask what it alone would predict, but the final norm blocks a clean linear decomposition. LayerNorm is nonlinear. Take x=(2,0), a=(1.5,0.5), b=(0.5,-0.5), γ=1, β=0. For x, the mean is 1 and the standard deviation is 1, so LN(x)=(1,-1). For a, the mean is 1 and the standard deviation is 0.5, so LN(a)=(1,-1).</p>
+<p>For b, the mean is 0 and the standard deviation is 0.5, so LN(b)=(1,-1). Then LN(a)+LN(b)=(2,-2), while LN(a+b)=LN(x)=(1,-1). The norm does not commute with addition. A logit lens that applies the final norm and then the unembedding is not a sum of per-term logits. To attribute a term, you linearize the norm at the actual stream, or you compare ablations. Meng and colleagues used causal tracing (activation patching) in 2022 to follow factual associations through the layers.</p>
+<p>The logit lens, posted by nostalgebraist in 2020, is the cleanest demonstration. Take the stream at an intermediate layer, apply the final layer norm and the unembedding matrix, and read off a distribution over next tokens. Early layers produce a broad, high-entropy distribution. Middle layers produce plausible continuations. Late layers sharpen them. The model has a usable guess long before its last layer, and the remaining depth refines it.</p>
+<p>That lens works when the stream stays in a consistent basis across depth. A basis here means the coordinate system in which the stream vector is expressed. If the map from layer l to the final stream changes with l, applying the final unembedding early reads the vector in the wrong coordinates. Pre-norm helps because it leaves the stream unnormalized and preserves a clean identity path, but it does not guarantee a fixed basis. Belrose and colleagues introduced the tuned lens in 2023, training a small affine map per layer before the unembedding. In their paper, the tuned lens reported lower KL divergence from the model's final distribution than the raw logit lens across the layers they tested. That improvement is consistent with basis drift, but it does not isolate drift as the cause. A trained affine map also adds capacity that the raw unembedding lacks.</p>
+<p>You would need a capacity-matched probe to separate the two.</p>
+<h3 id="live-stream-versus-kv-cache-at-scale">Live stream versus KV cache at scale</h3>
+<p>For scale, consider what this looks like in a running engine. The /metrics endpoint reported 111,515,771,428 bytes, or 111.5 GB, of unified memory on 2026-10-31, covering weights, caches and live streams. The KV pool is set to 262,144 positions by CONTEXT=262144 in scripts/local.sh and rank1 --pool 262144. The config uses 0.9 GiB per 1,048,576 positions per rank, so 262,144 positions cost 0.9 × 262,144 / 1,048,576 = 0.225 GiB per rank. In a sampled window of 98 requests, the mean prompt was 130,659 tokens and the mean prefill took 3.33 seconds. The aggregate prefill rate is total prompt tokens divided by total prefill seconds, 39,237 tok/s over that sample. The mean prompt divided by mean prefill gives the same number because both averages use the same count. That number is a ratio of totals; it is not the mean of per-request rates.</p>
+<p>During prefill, every one of those 130,659 tokens has a live stream vector at whatever layer is currently being computed, and each layer reads and writes that vector twice. The stream is transient. It exists only for tokens in flight. The KV cache is persistent. It holds keys and values for every position in the context across the whole generation. At width d and two bytes per element, the live stream for 130,659 tokens costs 130,659 × d × 2 bytes. Take d=4,096 as an illustration. That is 130,659 × 8,192 = 1,070,358,528 bytes, about 1.07 GB. At d=4096, a single K or V tensor for 262,144 positions is 2 GiB; the full KV pool per rank is 262,144 × d × 2 bytes × 2 × L / TP, which is far larger than 0.225 GiB unless L and TP are specified.</p>
+<p>The stream is small beside the 111.5 GB total, but at long context it is the part that decides how many tokens can be pushed through at once, because it scales with the number of tokens in flight while the KV pool scales with the number of positions reserved.</p>
+</article>
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <p class="prov-note">6 sourced values in this chapter. The origin column is the
+  file or command each one was read from.</p>
+  <table>
+    <thead><tr><th>value</th><th>what it is</th><th>origin</th></tr></thead>
+    <tbody><tr><td class="pv">111.5 GB</td><td class="pc">Total unified memory the engine holds: weights, caches, live streams.</td><td class="ps">tensorfold:device_memory_bytes from /metrics, 2026-10-31</td></tr><tr><td class="pv">3.33 s</td><td class="pc">Mean prefill duration per request.</td><td class="ps">derived: request_prefill_seconds_sum / _count over 98 requests</td></tr><tr><td class="pv">130,659 tokens</td><td class="pc">Mean prompt length in the sampled window.</td><td class="ps">derived: prompt_tokens_total / request count = 12,804,579 / 98</td></tr><tr><td class="pv">262,144 positions</td><td class="pc">Shared KV pool size.</td><td class="ps">CONTEXT=262144 in scripts/local.sh, rank1 --pool 262144</td></tr><tr><td class="pv">98 requests</td><td class="pc">Requests counted in the latency aggregates above.</td><td class="ps">tensorfold:request_latency_seconds_count</td></tr><tr><td class="pv">1,048,576 positions</td><td class="pc">Hypothetical pool if raised to the native window size.</td><td class="ps">derived: POOL raised to the model's full 1,048,576-token window</td></tr></tbody>
+  </table>
+  
+</section>
+
+
+<nav class="chapter-nav" aria-label="Previous and next chapter">
+<a href="02-embeddings.html"><span class="dir">Previous</span>A vector is a coordinate, not a meaning</a><a class="next" href="04-before-attention.html"><span class="dir">Next</span>The bottleneck attention was invented to fix</a>
+</nav>
+
+</div>
+<aside class="chapter-rail" aria-label="In this chapter">
+<h2>In this chapter</h2>
+<ul><li><a href="#the-residual-path-and-the-gradient-product" title="The residual path and the gradient product">The residual path and the gradient product</a></li><li><a href="#residual-sublayers-and-the-persistent-stream" title="Residual sublayers and the persistent stream">Residual sublayers and the persistent stream</a></li><li><a href="#pre-norm-post-norm-and-stream-growth" title="Pre-norm, post-norm, and stream growth">Pre-norm, post-norm, and stream growth</a></li><li><a href="#superposition-and-interference-in-a-fixed-width-stream" title="Superposition and interference in a fixed-width stream">Superposition and interference in a fixed-width stream</a></li><li><a href="#layernorm-attribution-and-the-logit-lens" title="LayerNorm, attribution, and the logit lens">LayerNorm, attribution, and the logit lens</a></li><li><a href="#live-stream-versus-kv-cache-at-scale" title="Live stream versus KV cache at scale">Live stream versus KV cache at scale</a></li></ul>
+<p class="progress"><span id="read-pct">Read 0%</span><span class="bar"><span id="read-bar"></span></span></p>
+</aside>
+</div>
+</div>
+<div class="search-dialog" id="search" role="dialog" aria-modal="true" aria-labelledby="search-label">
+<div class="search-box">
+<div class="search-head">
+<label class="visually-hidden" id="search-label" for="search-input">Search the book</label>
+<input id="search-input" type="search" placeholder="Search the book" autocomplete="off" spellcheck="false">
+<button class="close" type="button" data-close-search>Close</button>
+</div>
+<p class="search-status" id="search-status" aria-live="polite">Type a word, a term, or a number.</p>
+<ol class="search-results" id="search-results"></ol>
+</div>
+</div>
+<script>window.__SEARCH_INDEX__ = "../search-index.json";</script>
+<script src="../figures.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>
