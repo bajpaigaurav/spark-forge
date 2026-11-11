@@ -105,7 +105,60 @@
             ]
           }
         ],
-        "note": "Only the gaps between logits matter: shifting all three scores by the same amount cancels from every term. Implementations subtract the largest logit before exponentiating, which leaves the distribution unchanged and keeps e^s from overflowing. The 204,800,000 and 201,300,000 figures are multiply-add counts per token."
+        "note": "Only the gaps between logits matter: shifting all three scores by the same amount cancels from every term. Implementations subtract the largest logit before exponentiating, which leaves the distribution unchanged and keeps e^s from overflowing. The 204,800,000 and 201,300,000 figures are multiply-add counts per token.",
+        "parts": {
+          "steps": [
+            "hidden",
+            "logits",
+            "exp",
+            "normalizer",
+            "probabilities"
+          ],
+          "lanes": [
+            "hidden",
+            "logits",
+            "logits",
+            "logits",
+            "normalizer"
+          ],
+          "cells": [
+            [
+              "hidden",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              "logits",
+              "exp",
+              null,
+              "probabilities"
+            ],
+            [
+              null,
+              "logits",
+              "exp",
+              null,
+              "probabilities"
+            ],
+            [
+              null,
+              "logits",
+              "exp",
+              null,
+              "probabilities"
+            ],
+            [
+              null,
+              null,
+              null,
+              "normalizer",
+              "normalizer probabilities"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

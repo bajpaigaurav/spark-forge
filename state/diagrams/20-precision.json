@@ -62,7 +62,13 @@
             ],
             "note": "Only the casts and the multiply inputs are low precision; the accumulation stays fp32."
           }
-        ]
+        ],
+        "parts": {
+          "panels": [
+            "fp32-master",
+            "low-precision"
+          ]
+        }
       },
       "anim": {
         "mode": "step",

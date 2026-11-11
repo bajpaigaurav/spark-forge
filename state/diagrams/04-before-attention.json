@@ -10,40 +10,138 @@
       "anchor": "the-fixed-vector-bottleneck-and-its-workarounds",
       "kind": "timeline",
       "data": {
-        "steps": ["encode source", "bottleneck", "decode target"],
-        "lanes": [
-          {"name": "source tokens", "cells": [
-            {"label": "5 → 1,280 floats; 50 → 12,800", "kind": "solid"},
-            {"label": "discarded", "kind": "waste"},
-            null
-          ]},
-          {"name": "annotations h_j", "cells": [
-            {"label": "one per source token", "kind": "solid"},
-            {"label": "discarded in plain seq2seq", "kind": "waste"},
-            {"label": "kept: attention reads all (Bahdanau)", "kind": "new"}
-          ]},
-          {"name": "summary h_T", "cells": [
-            {"label": "last state", "kind": "solid"},
-            {"label": "256 floats: the only crossing", "kind": "cache"},
-            {"label": "decoder start state", "kind": "solid"}
-          ]},
-          {"name": "target tokens", "cells": [
-            null,
-            null,
-            {"label": "one per step", "kind": "solid"}
-          ]}
+        "steps": [
+          "encode source",
+          "bottleneck",
+          "decode target"
         ],
-        "note": "Plain seq2seq keeps only h_T, so 1,280 or 12,800 floats of embeddings compress into 256 slots. The gradient back to the first source word is a product of T−1 Jacobians: with each factor 0.4, twenty steps give 0.4^19 ≈ 2.7 × 10^-8."
+        "lanes": [
+          {
+            "name": "source tokens",
+            "cells": [
+              {
+                "label": "5 → 1,280 floats; 50 → 12,800",
+                "kind": "solid"
+              },
+              {
+                "label": "discarded",
+                "kind": "waste"
+              },
+              null
+            ]
+          },
+          {
+            "name": "annotations h_j",
+            "cells": [
+              {
+                "label": "one per source token",
+                "kind": "solid"
+              },
+              {
+                "label": "discarded in plain seq2seq",
+                "kind": "waste"
+              },
+              {
+                "label": "kept: attention reads all (Bahdanau)",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "summary h_T",
+            "cells": [
+              {
+                "label": "last state",
+                "kind": "solid"
+              },
+              {
+                "label": "256 floats: the only crossing",
+                "kind": "cache"
+              },
+              {
+                "label": "decoder start state",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "target tokens",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "one per step",
+                "kind": "solid"
+              }
+            ]
+          }
+        ],
+        "note": "Plain seq2seq keeps only h_T, so 1,280 or 12,800 floats of embeddings compress into 256 slots. The gradient back to the first source word is a product of T−1 Jacobians: with each factor 0.4, twenty steps give 0.4^19 ≈ 2.7 × 10^-8.",
+        "parts": {
+          "steps": [
+            "encode-source",
+            "bottleneck",
+            "decode-target"
+          ],
+          "lanes": [
+            "encode-source",
+            "annotations",
+            "bottleneck",
+            "decode-target"
+          ],
+          "cells": [
+            [
+              "encode-source",
+              "bottleneck",
+              null
+            ],
+            [
+              "annotations",
+              "bottleneck",
+              "annotations"
+            ],
+            [
+              "bottleneck",
+              "bottleneck",
+              "bottleneck"
+            ],
+            [
+              null,
+              null,
+              "decode-target"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",
         "interval": 1400,
         "intro": "Press Play or Next to follow the encode–decode path.",
         "steps": [
-          {"label": "The encoder reads the source one token at a time and writes an annotation per token.", "highlight": ["encode-source"]},
-          {"label": "Only the last state crosses the bottleneck; the annotations are discarded.", "highlight": ["bottleneck"]},
-          {"label": "The decoder starts from h_T and emits one token per step.", "highlight": ["decode-target"]},
-          {"label": "Bahdanau keeps the annotations so each decoder step can score all of them.", "highlight": ["annotations"]}
+          {
+            "label": "The encoder reads the source one token at a time and writes an annotation per token.",
+            "highlight": [
+              "encode-source"
+            ]
+          },
+          {
+            "label": "Only the last state crosses the bottleneck; the annotations are discarded.",
+            "highlight": [
+              "bottleneck"
+            ]
+          },
+          {
+            "label": "The decoder starts from h_T and emits one token per step.",
+            "highlight": [
+              "decode-target"
+            ]
+          },
+          {
+            "label": "Bahdanau keeps the annotations so each decoder step can score all of them.",
+            "highlight": [
+              "annotations"
+            ]
+          }
         ]
       }
     },
@@ -90,22 +188,62 @@
       "kind": "bars",
       "data": {
         "bars": [
-          {"label": "h_1, score 2.0", "value": 0.665, "display": "0.665"},
-          {"label": "h_2, score 1.0", "value": 0.245, "display": "0.245"},
-          {"label": "h_3, score 0.0", "value": 0.09, "display": "0.090"},
-          {"label": "h_1, score 4.0", "value": 0.936, "display": "0.936", "accent": true},
-          {"label": "h_2, score 1.0 (after)", "value": 0.047, "display": "0.047"},
-          {"label": "h_3, score 0.0 (after)", "value": 0.017, "display": "0.017"}
+          {
+            "label": "h_1, score 2.0",
+            "value": 0.665,
+            "display": "0.665"
+          },
+          {
+            "label": "h_2, score 1.0",
+            "value": 0.245,
+            "display": "0.245"
+          },
+          {
+            "label": "h_3, score 0.0",
+            "value": 0.09,
+            "display": "0.090"
+          },
+          {
+            "label": "h_1, score 4.0",
+            "value": 0.936,
+            "display": "0.936",
+            "accent": true
+          },
+          {
+            "label": "h_2, score 1.0 (after)",
+            "value": 0.047,
+            "display": "0.047"
+          },
+          {
+            "label": "h_3, score 0.0 (after)",
+            "value": 0.017,
+            "display": "0.017"
+          }
         ],
         "note": "e^2, e^1, e^0 = 7.389, 2.718, 1.000; sum 11.107. Raise h_1 to 4.0: 54.598, 2.718, 1.000; sum 58.316. The gradient through the softmax keeps a baseline, so the weights across source positions sum to zero in the score gradient. Koehn and Knowles (2017): attention weights are a poor guide to alignment."
       }
     }
   ],
   "sources": [
-    {"url": "https://arxiv.org/abs/1409.0473", "note": "Bahdanau, Cho and Bengio 2014: annotations, additive scoring, and the context vector."},
-    {"url": "https://arxiv.org/abs/1508.04025", "note": "Luong, Pham and Manning 2015: dot, general and additive scoring; local attention."},
-    {"url": "https://arxiv.org/abs/1706.03762", "note": "Vaswani et al. 2017: dot-product attention with the sqrt(d_k) scaling."},
-    {"url": "https://aclanthology.org/W17-3204", "note": "Koehn and Knowles 2017: attention weights do not reliably behave like word alignments."},
-    {"url": "https://jalammar.github.io/illustrated-transformer", "note": "Pedagogical visual explanation of encoder–decoder attention and Q/K/V."}
+    {
+      "url": "https://arxiv.org/abs/1409.0473",
+      "note": "Bahdanau, Cho and Bengio 2014: annotations, additive scoring, and the context vector."
+    },
+    {
+      "url": "https://arxiv.org/abs/1508.04025",
+      "note": "Luong, Pham and Manning 2015: dot, general and additive scoring; local attention."
+    },
+    {
+      "url": "https://arxiv.org/abs/1706.03762",
+      "note": "Vaswani et al. 2017: dot-product attention with the sqrt(d_k) scaling."
+    },
+    {
+      "url": "https://aclanthology.org/W17-3204",
+      "note": "Koehn and Knowles 2017: attention weights do not reliably behave like word alignments."
+    },
+    {
+      "url": "https://jalammar.github.io/illustrated-transformer",
+      "note": "Pedagogical visual explanation of encoder–decoder attention and Q/K/V."
+    }
   ]
 }

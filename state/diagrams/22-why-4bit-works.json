@@ -28,7 +28,14 @@
             "display": "1.23"
           }
         ],
-        "note": "The ratio is 64 = √4,096. Aligned errors share a sign; independent errors cancel in quadrature."
+        "note": "The ratio is 64 = √4,096. Aligned errors share a sign; independent errors cancel in quadrature.",
+        "parts": {
+          "bars": [
+            "aligned",
+            "independent",
+            "uniform"
+          ]
+        }
       },
       "anim": {
         "mode": "step",

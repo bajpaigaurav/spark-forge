@@ -78,7 +78,40 @@
             ]
           }
         ],
-        "note": "A request-level LRU would evict S1 and S2 when A finishes and destroy the prefix B is still using; block-level LRU with refcounts keeps them until both requests are done."
+        "note": "A request-level LRU would evict S1 and S2 when A finishes and destroy the prefix B is still using; block-level LRU with refcounts keeps them until both requests are done.",
+        "parts": {
+          "steps": [
+            "prefix",
+            "reuse",
+            "evict",
+            "evict"
+          ],
+          "lanes": [
+            "prefix",
+            "suffix",
+            "refcount"
+          ],
+          "cells": [
+            [
+              "prefix",
+              "reuse prefix",
+              "prefix",
+              null
+            ],
+            [
+              "suffix",
+              "suffix",
+              "evict suffix",
+              "evict suffix"
+            ],
+            [
+              "refcount",
+              "refcount",
+              "refcount",
+              "refcount"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

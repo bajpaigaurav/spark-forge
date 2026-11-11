@@ -34,7 +34,10 @@
       var step = steps[index];
       var active = step.highlight || step.active || [];
       parts.forEach(function (part) {
-        var on = active.indexOf(part.getAttribute("data-part")) !== -1;
+        var names = (part.getAttribute("data-part") || "").split(/\s+/);
+        var on = names.some(function (name) {
+          return active.indexOf(name) !== -1;
+        });
         part.classList.toggle("is-active", on);
         part.classList.toggle("is-dim", !on);
       });

@@ -79,7 +79,18 @@
           "8d_model²",
           "residual"
         ],
-        "note": "Pre-norm: a = x + Attn(LN(x)); x' = a + MLP(LN(a)). The addition is outside the norm, so dy/dx = I + J_f(LN(x))·J_LN(x). Post-norm: y = LN(x + f(x)), so the identity path is multiplied by J_LN; Xiong et al. 2020 link that multiplication to the warmup requirement."
+        "note": "Pre-norm: a = x + Attn(LN(x)); x' = a + MLP(LN(a)). The addition is outside the norm, so dy/dx = I + J_f(LN(x))·J_LN(x). Post-norm: y = LN(x + f(x)), so the identity path is multiplied by J_LN; Xiong et al. 2020 link that multiplication to the warmup requirement.",
+        "parts": {
+          "stages": [
+            "norm1",
+            "attn",
+            "add1",
+            "norm2",
+            "mlp",
+            "add2"
+          ],
+          "bypass": "identity"
+        }
       },
       "anim": {
         "mode": "step",

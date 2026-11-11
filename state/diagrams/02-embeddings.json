@@ -11,28 +11,96 @@
       "kind": "matrix",
       "data": {
         "rows": [
-          [1.0, 0.2],
-          [0.9, 0.7],
-          [0.8, 0.1],
-          [0.7, 0.6]
+          [
+            1.0,
+            0.2
+          ],
+          [
+            0.9,
+            0.7
+          ],
+          [
+            0.8,
+            0.1
+          ],
+          [
+            0.7,
+            0.6
+          ]
         ],
-        "cols": ["d0", "d1"],
+        "cols": [
+          "d0",
+          "d1"
+        ],
         "corner": "row offset",
         "row_head": "V rows, one per vocabulary id",
         "col_head": "d_model (toy: 2)",
         "highlight_row": 2,
         "scale": 1.0,
-        "note": "The highlighted row is the one the id selects. The row numbers are positions in this excerpt, not a rank: the id records when a BPE merge happened. A gather returns one row; no arithmetic mixes rows."
+        "note": "The highlighted row is the one the id selects. The row numbers are positions in this excerpt, not a rank: the id records when a BPE merge happened. A gather returns one row; no arithmetic mixes rows.",
+        "parts": {
+          "rows": [
+            "table",
+            "table",
+            "row vector",
+            "table"
+          ],
+          "cols": [
+            "table",
+            "table"
+          ],
+          "cells": [
+            [
+              "table",
+              "table"
+            ],
+            [
+              "table",
+              "table"
+            ],
+            [
+              "row vector",
+              "row vector"
+            ],
+            [
+              "table",
+              "table"
+            ]
+          ],
+          "corner": "id",
+          "headers": "table",
+          "note": "table"
+        }
       },
       "anim": {
         "mode": "step",
         "interval": 1400,
         "intro": "Press Play or Next to follow one lookup.",
         "steps": [
-          {"label": "A BPE id arrives as an integer.", "highlight": ["id"]},
-          {"label": "The integer is an offset into E, which has V rows.", "highlight": ["table"]},
-          {"label": "The gather returns exactly one row; no arithmetic mixes rows.", "highlight": ["row"]},
-          {"label": "That row, of width d_model, becomes x in the residual stream.", "highlight": ["vector"]}
+          {
+            "label": "A BPE id arrives as an integer.",
+            "highlight": [
+              "id"
+            ]
+          },
+          {
+            "label": "The integer is an offset into E, which has V rows.",
+            "highlight": [
+              "table"
+            ]
+          },
+          {
+            "label": "The gather returns exactly one row; no arithmetic mixes rows.",
+            "highlight": [
+              "row"
+            ]
+          },
+          {
+            "label": "That row, of width d_model, becomes x in the residual stream.",
+            "highlight": [
+              "vector"
+            ]
+          }
         ]
       }
     },
@@ -79,21 +147,55 @@
       "kind": "bars",
       "data": {
         "bars": [
-          {"label": "embedding matrix alone", "value": 38.597376, "display": "38,597,376"},
-          {"label": "GPT-2 small, tied (published)", "value": 124, "display": "124M"},
-          {"label": "GPT-2 small, untied", "value": 163, "display": "≈163M", "accent": true}
+          {
+            "label": "embedding matrix alone",
+            "value": 38.597376,
+            "display": "38,597,376"
+          },
+          {
+            "label": "GPT-2 small, tied (published)",
+            "value": 124,
+            "display": "124M"
+          },
+          {
+            "label": "GPT-2 small, untied",
+            "value": 163,
+            "display": "≈163M",
+            "accent": true
+          }
         ],
         "note": "50,257 × 768 = 38,597,376. GPT-2's 124M already counts that matrix once. Untying adds a second copy: 124 + 38.6 ≈ 163M, so tying saves 38.6 / 163 ≈ 24% of the untied count. LLaMA-7B (32,000 × 4,096 = 131M) leaves the matrices untied."
       }
     }
   ],
   "sources": [
-    {"url": "https://arxiv.org/abs/1301.3781", "note": "Mikolov et al. 2013, word2vec: distributed representations learned as a side effect of prediction."},
-    {"url": "https://aclanthology.org/D14-1162/", "note": "Pennington, Socher and Manning 2014, GloVe: the co-occurrence-factorization route to the same geometry."},
-    {"url": "https://arxiv.org/abs/1607.04606", "note": "Bojanowski et al. 2016, fastText: subword n-gram sums, including the running example."},
-    {"url": "https://arxiv.org/abs/1909.00512", "note": "Ethayarajh 2019: measured anisotropy across layers and models."},
-    {"url": "https://arxiv.org/abs/1702.01417", "note": "Mu and Viswanath 2018, All-but-the-Top: subtract the mean, then remove top principal components."},
-    {"url": "https://arxiv.org/abs/1608.05859", "note": "Press and Wolf 2017: tying the input and output embeddings, and the gradient argument."},
-    {"url": "https://jalammar.github.io/illustrated-word2vec", "note": "Pedagogical visual explanation of embedding tables and cosine similarity."}
+    {
+      "url": "https://arxiv.org/abs/1301.3781",
+      "note": "Mikolov et al. 2013, word2vec: distributed representations learned as a side effect of prediction."
+    },
+    {
+      "url": "https://aclanthology.org/D14-1162/",
+      "note": "Pennington, Socher and Manning 2014, GloVe: the co-occurrence-factorization route to the same geometry."
+    },
+    {
+      "url": "https://arxiv.org/abs/1607.04606",
+      "note": "Bojanowski et al. 2016, fastText: subword n-gram sums, including the running example."
+    },
+    {
+      "url": "https://arxiv.org/abs/1909.00512",
+      "note": "Ethayarajh 2019: measured anisotropy across layers and models."
+    },
+    {
+      "url": "https://arxiv.org/abs/1702.01417",
+      "note": "Mu and Viswanath 2018, All-but-the-Top: subtract the mean, then remove top principal components."
+    },
+    {
+      "url": "https://arxiv.org/abs/1608.05859",
+      "note": "Press and Wolf 2017: tying the input and output embeddings, and the gradient argument."
+    },
+    {
+      "url": "https://jalammar.github.io/illustrated-word2vec",
+      "note": "Pedagogical visual explanation of embedding tables and cosine similarity."
+    }
   ]
 }

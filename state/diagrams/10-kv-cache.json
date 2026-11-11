@@ -101,7 +101,52 @@
             ]
           }
         ],
-        "note": "Without the cache, pass 607 would re-feed 131,265 tokens and recompute keys and values it already had."
+        "note": "Without the cache, pass 607 would re-feed 131,265 tokens and recompute keys and values it already had.",
+        "parts": {
+          "steps": [
+            "prefill",
+            "decode",
+            "decode",
+            "decode",
+            "decode"
+          ],
+          "lanes": [
+            "new-tokens",
+            "kv-write",
+            "cache-read",
+            "step-cost"
+          ],
+          "cells": [
+            [
+              "prefill new-tokens",
+              "new-tokens decode",
+              "new-tokens decode",
+              null,
+              "new-tokens decode"
+            ],
+            [
+              "prefill kv-write",
+              "kv-write decode",
+              "kv-write decode",
+              null,
+              "kv-write decode"
+            ],
+            [
+              null,
+              "cache-read decode",
+              "cache-read decode",
+              null,
+              "cache-read decode"
+            ],
+            [
+              "prefill step-cost",
+              "step-cost decode",
+              "step-cost decode",
+              null,
+              "step-cost decode"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

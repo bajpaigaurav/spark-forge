@@ -93,7 +93,47 @@
             ]
           }
         ],
-        "note": "exp(2), exp(1), exp(0) = 7.389, 2.718, 1.000, sum 11.107; shares 0.665, 0.245, 0.090. The output is the share-weighted sum of the values. Scaling by 1/sqrt(d_k) is the next figure."
+        "note": "exp(2), exp(1), exp(0) = 7.389, 2.718, 1.000, sum 11.107; shares 0.665, 0.245, 0.090. The output is the share-weighted sum of the values. Scaling by 1/sqrt(d_k) is the next figure.",
+        "parts": {
+          "steps": [
+            "project",
+            "scores",
+            "shares",
+            "output"
+          ],
+          "lanes": [
+            "project",
+            "project",
+            "project",
+            "output"
+          ],
+          "cells": [
+            [
+              "project",
+              "scores",
+              "shares",
+              "output"
+            ],
+            [
+              "project",
+              "scores",
+              "shares",
+              "output"
+            ],
+            [
+              "project",
+              "scores",
+              "shares",
+              "output"
+            ],
+            [
+              null,
+              null,
+              null,
+              "output"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

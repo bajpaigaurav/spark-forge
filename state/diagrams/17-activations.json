@@ -39,7 +39,17 @@
           "total: 3·d_model·m = 8d_model²",
           "residual"
         ],
-        "note": "Holding 8d_model²: 3·d_model·m = 8d_model² gives m = 8d_model/3 = 10,922.67 at d_model = 4,096; LLaMA rounds to 11,008, a multiple of 256; the exact width is about 2.67d_model. Linear multiply-adds stay at 8d_model², the gate adds a sigmoid and an elementwise multiply per element, and the scratch width falls from 4d_model to 8d_model/3."
+        "note": "Holding 8d_model²: 3·d_model·m = 8d_model² gives m = 8d_model/3 = 10,922.67 at d_model = 4,096; LLaMA rounds to 11,008, a multiple of 256; the exact width is about 2.67d_model. Linear multiply-adds stay at 8d_model², the gate adds a sigmoid and an elementwise multiply per element, and the scratch width falls from 4d_model to 8d_model/3.",
+        "parts": {
+          "stages": [
+            "input",
+            "gate value",
+            "product",
+            "down",
+            "add"
+          ],
+          "bypass": "residual"
+        }
       },
       "anim": {
         "mode": "step",

@@ -82,7 +82,46 @@
             ]
           }
         ],
-        "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. The pair decodes at 59.1 tok/s, so one forward pass takes 1000/59.1 = 16.9 ms; over 32 blocks and two collectives that is 64 collectives and a budget of 16.9/64 = 0.264 ms, or 264 µs, per collective. Above that round trip the schedule cannot hit 59.1 tok/s."
+        "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. The pair decodes at 59.1 tok/s, so one forward pass takes 1000/59.1 = 16.9 ms; over 32 blocks and two collectives that is 64 collectives and a budget of 16.9/64 = 0.264 ms, or 264 µs, per collective. Above that round trip the schedule cannot hit 59.1 tok/s.",
+        "parts": {
+          "steps": [
+            "input",
+            "column-parallel",
+            "row-parallel",
+            "all-reduce",
+            "next-block"
+          ],
+          "lanes": [
+            "input",
+            "column-parallel",
+            "row-parallel",
+            "all-reduce",
+            "next-block"
+          ],
+          "cells": [
+            [
+              "input",
+              "column-parallel",
+              "row-parallel",
+              "all-reduce",
+              "next-block"
+            ],
+            [
+              "input",
+              "column-parallel",
+              "row-parallel",
+              "all-reduce",
+              "next-block"
+            ],
+            [
+              null,
+              null,
+              null,
+              "all-reduce",
+              null
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

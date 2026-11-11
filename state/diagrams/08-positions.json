@@ -106,7 +106,31 @@
             ],
             "note": "The penalty grows linearly, so far scores go to negative infinity with no periodic ambiguity."
           }
-        ]
+        ],
+        "parts": {
+          "panels": [
+            "rope",
+            "alibi"
+          ],
+          "items": [
+            [
+              "rope",
+              "query rope",
+              "key rope",
+              "dot",
+              "dot",
+              "key rope"
+            ],
+            [
+              "alibi",
+              "alibi",
+              "alibi",
+              "alibi",
+              "alibi",
+              "alibi"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

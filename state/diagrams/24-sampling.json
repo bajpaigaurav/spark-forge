@@ -92,7 +92,22 @@
             ]
           }
         ],
-        "note": "Holtzman et al. documented this in 2019: maximising likelihood step by step produces text that loops, drifts and contradicts itself. The previous token's key and value sit in the cache; if attention puts weight on them and the context supplies no stronger signal, the same direction reaches the head again."
+        "note": "Holtzman et al. documented this in 2019: maximising likelihood step by step produces text that loops, drifts and contradicts itself. The previous token's key and value sit in the cache; if attention puts weight on them and the context supplies no stronger signal, the same direction reaches the head again.",
+        "parts": {
+          "steps": [
+            "context",
+            "scores",
+            "choice",
+            "context",
+            "scores"
+          ],
+          "lanes": [
+            "context",
+            "scores",
+            "choice",
+            null
+          ]
+        }
       },
       "anim": {
         "mode": "step",
@@ -266,7 +281,57 @@
             ]
           }
         ],
-        "note": "The three cuts coincide here because B clears both the cumulative target and the floor. They diverge elsewhere: ten tokens at 0.1 each are kept nine by top-p = 0.9 but five by top-k = 5; one token at 0.95 with the rest thin is kept alone by top-p but fifty by top-k = 50. Top-p admits a variable count that follows the shape; top-k fixes the count; min-p sets the floor at min_p × p_max = 0.1 × 0.844 = 0.0844."
+        "note": "The three cuts coincide here because B clears both the cumulative target and the floor. They diverge elsewhere: ten tokens at 0.1 each are kept nine by top-p = 0.9 but five by top-k = 5; one token at 0.95 with the rest thin is kept alone by top-p but fifty by top-k = 50. Top-p admits a variable count that follows the shape; top-k fixes the count; min-p sets the floor at min_p × p_max = 0.1 × 0.844 = 0.0844.",
+        "parts": {
+          "steps": [
+            "temperature",
+            "temperature",
+            "temperature",
+            "cut",
+            "cut",
+            "renormalise"
+          ],
+          "lanes": [
+            "temperature",
+            "temperature",
+            "temperature",
+            "renormalise"
+          ],
+          "cells": [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "cut temperature",
+              "cut temperature",
+              "cut temperature"
+            ],
+            [
+              null,
+              null,
+              null,
+              "renormalise",
+              "renormalise",
+              "renormalise"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

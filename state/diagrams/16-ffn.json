@@ -39,7 +39,17 @@
           "pair: 8d_model² = 134,217,728",
           "residual"
         ],
-        "note": "Per layer the pair holds 2·d_model·m = 8d_model² = 134,217,728 parameters at d_model = 4,096, twice attention's 4d_model². A gated variant replaces the single up-projection with W_g and W_v and sets m = 8d_model/3, so 3·d_model·m stays 8d_model²."
+        "note": "Per layer the pair holds 2·d_model·m = 8d_model² = 134,217,728 parameters at d_model = 4,096, twice attention's 4d_model². A gated variant replaces the single up-projection with W_g and W_v and sets m = 8d_model/3, so 3·d_model·m stays 8d_model².",
+        "parts": {
+          "stages": [
+            "input",
+            "up",
+            "bend",
+            "down",
+            "add"
+          ],
+          "bypass": "residual"
+        }
       },
       "anim": {
         "mode": "step",

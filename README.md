@@ -204,7 +204,8 @@ works in a clone as well as on the rig.
 After the 31 chapters were published, a supervised pass read every one of them as a senior
 ML engineer and as an AI/MLOps engineer, adjudicated the findings, and drew a figure for
 each chapter. The prose is the same book; what changed is that 489 confirmed corrections
-landed in it and every page now carries a diagram.
+landed in it and every chapter now carries two figures, or three where a distinct
+quantitative argument needs its own drawing. The 31 chapters hold 70 figures in all.
 
 ```bash
 python3 review_run.py all                 # both reviewers plus the figure planner, resumable
@@ -232,11 +233,16 @@ example: a reviewer claimed chapter 10's `98,092` was bad arithmetic, but
 `229,358 - 131,266 = 98,092` is correct and the reviewer had double-counted the 32,768
 reservation.
 
-**Why the figures are hand-rendered.** `diagrams.py` draws from a fixed vocabulary of five
-shapes -- flow, layout, comparison, shapes, curve -- so the book's figures look like one
-set. They are inline SVG with no script, so they inherit the page's CSS variables, print
-with the page, and survive a reader with JavaScript off. Nothing in a figure is invented:
-the planner was told to label only quantities that already appear in the chapter.
+**Why the figures are hand-rendered.** `diagrams.py` draws from a fixed vocabulary of
+thirteen kinds -- token strips, matrices, timelines, memory maps, bit fields, bars, log
+axes, panels, lanes, flows, grids, BPE traces, and vocabulary stacks -- so the book's
+figures look like one set. Each is inline SVG with no script of its own; the animation
+layer in `figures.js` is an enhancement over the static drawing. Figures inherit the
+page's CSS variables, print with the page, and remain complete with JavaScript off. Every
+animated figure carries a static fallback, a `<desc>`, keyboard controls, a pause when it
+scrolls out of view, and no transition under `prefers-reduced-motion`. Nothing in a figure
+is invented: the planner was told to label only quantities that already appear in the
+chapter.
 
 ## Known limits
 

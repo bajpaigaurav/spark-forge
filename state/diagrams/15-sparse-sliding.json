@@ -148,7 +148,158 @@
         "row_head": "queries i",
         "corner": "i, j",
         "highlight_row": 9,
-        "note": "Schematic 10 x 10 grid with W = 4. In the deployment W = 4,096; the band has 4,096 cells per row and the mask is applied tile by tile."
+        "note": "Schematic 10 x 10 grid with W = 4. In the deployment W = 4,096; the band has 4,096 cells per row and the mask is applied tile by tile.",
+        "parts": {
+          "cols": [
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal"
+          ],
+          "rows": [
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal",
+            "causal"
+          ],
+          "cells": [
+            [
+              "causal window global",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal",
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal",
+              "causal",
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal",
+              "causal",
+              "causal",
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked",
+              "masked"
+            ],
+            [
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal window",
+              "causal window",
+              "causal window",
+              "causal window",
+              "masked"
+            ],
+            [
+              "causal slide",
+              "causal slide",
+              "causal slide",
+              "causal slide",
+              "causal slide",
+              "causal slide",
+              "causal window slide",
+              "causal window slide",
+              "causal window slide",
+              "causal window slide"
+            ]
+          ],
+          "corner": "causal",
+          "headers": "causal",
+          "note": "dilated"
+        }
       },
       "anim": {
         "mode": "step",

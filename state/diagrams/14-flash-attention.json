@@ -148,7 +148,158 @@
         "row_head": "Q tile, Br = 128 queries",
         "corner": "tile",
         "highlight_row": 9,
-        "note": "Schematic 10 x 10 tile map. In deployment Br = 128 and Bc = 64, so the real tile grid is far larger than shown. Blank cells are masked by causality and never computed."
+        "note": "Schematic 10 x 10 tile map. In deployment Br = 128 and Bc = 64, so the real tile grid is far larger than shown. Blank cells are masked by causality and never computed.",
+        "parts": {
+          "cols": [
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile",
+            "k-tile next-tile"
+          ],
+          "rows": [
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile",
+            "q-tile output"
+          ],
+          "cells": [
+            [
+              "score-tile",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null,
+              null
+            ],
+            [
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              "score-tile",
+              null
+            ],
+            [
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output",
+              "score-tile output next-tile"
+            ]
+          ],
+          "corner": "q-tile k-tile",
+          "headers": "q-tile k-tile",
+          "note": "online-softmax"
+        }
       },
       "anim": {
         "mode": "step",

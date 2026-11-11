@@ -64,6 +64,28 @@ def _fit(spec, base_w, build, min_w=520):
     return build(w, size_for(w))
 
 
+def _part_at(parts, key, idx):
+    """Return the part name for one item in a spec's optional `parts` map."""
+    if not parts:
+        return None
+    seq = parts.get(key)
+    if isinstance(seq, str):
+        return seq if idx == 0 else None
+    if isinstance(seq, list) and idx < len(seq):
+        return seq[idx] or None
+    return None
+
+
+def _cell_part(parts, row, col):
+    """Return a per-cell part name, or None when the spec has no cell map."""
+    if not parts:
+        return None
+    grid = parts.get("cells") or []
+    if row < len(grid) and col < len(grid[row]):
+        return grid[row][col] or None
+    return None
+
+
 # ---------------------------------------------------------------------------
 # tokens -- a sequence as cells, with attention between them
 # ---------------------------------------------------------------------------
@@ -146,6 +168,7 @@ def render_matrix(spec):
     note = spec.get("note")
     corner = spec.get("corner")
     scale = spec.get("scale") or 1.0       # 0..1, how much of the cell is inked
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -161,7 +184,8 @@ def render_matrix(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 16
         grid_y = 44 + note_h
         for r in range(nrow):
@@ -178,37 +202,43 @@ def render_matrix(spec):
                     fill = WASH_2 if highlight_row is None or r != highlight_row else WASH_3
                     stroke = ACCENT
                     sw = 1.1
+                part = _cell_part(parts, r, k)
+                if not part:
+                    part = _part_at(parts, "cols", k) or _part_at(parts, "rows", r)
                 x = grid_x + k * cell
                 y = grid_y + r * hcell
-                c.add(c.rect(x, y, cell, hcell, fill=fill, stroke=stroke, sw=sw))
+                c.add(c.rect(x, y, cell, hcell, fill=fill, stroke=stroke, sw=sw,
+                             part=part))
                 if val != "":
                     # a value cell: a proportional ink block plus its number
                     v = float(val) if isinstance(val, (int, float)) else None
                     if v is not None and scale:
                         bh = max(2, min(hcell - 10, (hcell - 10) * v * float(scale)))
                         c.add(c.rect(x + 5, y + hcell - 5 - bh, cell - 10, bh,
-                                     fill=ACCENT, stroke="none", rx=0))
+                                     fill=ACCENT, stroke="none", rx=0, part=part))
                         c.add(c.text(x + cell / 2, y + 12, f"{v:g}", size * 0.82,
-                                     fill=INK, weight="600"))
+                                     fill=INK, weight="600", part=part))
                     else:
                         c.add(c.text(x + cell / 2, y + hcell / 2 + size * 0.35,
-                                     str(val), size * 0.9))
+                                     str(val), size * 0.9, part=part))
         # headers
         for k, name in enumerate(cols):
             c.add(c.text(grid_x + k * cell + cell / 2, grid_y - 8, str(name), size * 0.82,
-                         fill=MUTED))
+                         fill=MUTED, part=_part_at(parts, "cols", k)))
         for r in range(nrow):
             c.add(c.text(grid_x - 8, grid_y + r * hcell + hcell / 2 + size * 0.3,
-                         str(r), size * 0.82, anchor="end", fill=MUTED))
+                         str(r), size * 0.82, anchor="end", fill=MUTED,
+                         part=_part_at(parts, "rows", r)))
         if col_head:
             c.add(c.text(grid_x + ncol * cell / 2, grid_y - 8 - size * 1.5, col_head,
-                         size * 0.82, fill=MUTED))
+                         size * 0.82, fill=MUTED, part=parts.get("headers")))
         if row_head:
             c.add(c.text(grid_x - 8 - size * 1.6, grid_y + nrow * hcell / 2, row_head,
-                         size * 0.82, anchor="middle", fill=MUTED, rotate=-90))
+                         size * 0.82, anchor="middle", fill=MUTED, rotate=-90,
+                         part=parts.get("headers")))
         if corner:
             c.add(c.text(grid_x - 8, grid_y - 8, corner, size * 0.82, anchor="end",
-                         fill=MUTED))
+                         fill=MUTED, part=parts.get("corner")))
         c.h = grid_y + nrow * hcell + 20
         return c
 
@@ -225,6 +255,7 @@ def render_timeline(spec):
         return None
     lanes = spec.get("lanes") or []        # [{name, cells:[step index or None]}]
     note = spec.get("note")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -237,7 +268,8 @@ def render_timeline(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 16
         top = 40 + note_h
         rh = max(38, min(58, 340 / max(1, len(lanes))))
@@ -245,13 +277,16 @@ def render_timeline(spec):
         for i, s in enumerate(steps):
             x = plot_x + i * cw + cw / 2
             lines = wrap_px(s, size * 0.8, cw - 6)
-            c.add(c.block_centered(x, top - size * 0.2, lines, size * 0.8, fill=MUTED))
+            c.add(c.block_centered(x, top - size * 0.2, lines, size * 0.8,
+                                   fill=MUTED, part=_part_at(parts, "steps", i)))
         # lane rows
         for li, lane in enumerate(lanes):
             y = top + li * (rh + 12)
+            lane_part = _part_at(parts, "lanes", li)
             c.add(c.text(pad, y + rh / 2 + size * 0.3, lane["name"], size * 0.86,
-                         anchor="start", fill=INK, weight="600"))
-            c.add(c.line(pad, y + rh + 6, w - pad, y + rh + 6, stroke=RULE, sw=1))
+                         anchor="start", fill=INK, weight="600", part=lane_part))
+            c.add(c.line(pad, y + rh + 6, w - pad, y + rh + 6, stroke=RULE, sw=1,
+                         part=lane_part))
             for ci, cell in enumerate(lane.get("cells") or []):
                 if not cell:
                     # a step with nothing happening in this lane: the baseline
@@ -259,6 +294,7 @@ def render_timeline(spec):
                     continue
                 x = plot_x + ci * cw
                 kind = cell.get("kind", "solid")
+                part = _cell_part(parts, li, ci) or lane_part
                 # A cell is inked on its accent outline, never on a wash: the
                 # washes are fixed alphas over the sheet, and on a dark sheet they
                 # vanish. Outline plus label reads at any theme.
@@ -266,11 +302,12 @@ def render_timeline(spec):
                 stroke = ACCENT if kind in ("solid", "cache", "new") else RULE
                 dash = "3 3" if kind == "waste" else None
                 c.add(c.rect(x + 1, y, cw - 2, rh, fill=fill, stroke=stroke, sw=1.1,
-                             dash=dash))
+                             dash=dash, part=part))
                 if cell.get("label"):
                     lines = wrap_px(cell["label"], size * 0.82, cw - 8)
                     c.add(c.block_centered(x + cw / 2, y + rh / 2, lines, size * 0.82,
-                                           weight="600" if kind == "new" else "400"))
+                                           weight="600" if kind == "new" else "400",
+                                           part=part))
         c.h = top + len(lanes) * (rh + 12) + 20
         return c
 
@@ -289,6 +326,7 @@ def render_memory(spec):
     table = spec.get("table") or {}        # {title, rows: [[logical, physical, ref]]}
     axis = spec.get("axis")                # [{at, label}]
     note = spec.get("note")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -299,14 +337,16 @@ def render_memory(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
-            note_h = nl * size * 1.2 + 12
-        bar_y = 34 + note_h
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
+            note_h = nl * size * 1.2 + 16
+        bar_y = 40 + note_h
         bar_h = 46
         # the pool
         c.add(c.rect(bar_x, bar_y, bar_w, bar_h, fill="none", stroke=INK, sw=1.4))
         # spans: each drawn to scale, with its number inside or under
-        for s in spans:
+        for si, s in enumerate(spans):
+            span_part = _part_at(parts, "spans", si)
             x1 = bar_x + bar_w * s["from"] / total
             x2 = bar_x + bar_w * s["to"] / total
             kind = s.get("kind", "used")
@@ -315,15 +355,15 @@ def render_memory(spec):
             stroke = ACCENT if kind in ("used", "reserved", "share") else RULE
             dash = "4 3" if kind == "waste" else None
             c.add(c.rect(x1, bar_y, max(1, x2 - x1), bar_h, fill=fill, stroke=stroke,
-                         sw=1.1, dash=dash))
+                         sw=1.1, dash=dash, part=span_part))
             if s.get("label"):
                 mid = (x1 + x2) / 2
                 if x2 - x1 > text_width(s["label"], size * 0.84) + 8:
                     c.add(c.text(mid, bar_y + bar_h / 2 + size * 0.3, s["label"],
-                                 size * 0.84, weight="600"))
+                                 size * 0.84, weight="600", part=span_part))
                 else:
                     c.add(c.text(mid, bar_y + bar_h + size + 4, s["label"], size * 0.84,
-                                 fill=ACCENT, weight="600"))
+                                 fill=ACCENT, weight="600", part=span_part))
         # the axis under the bar
         bottom = bar_y + bar_h + (size * 1.8 if any(s.get("label") for s in spans
                                                     if s["to"] - s["from"] < 0.2 * total)
@@ -339,18 +379,19 @@ def render_memory(spec):
 
         # the block table, if there is one: logical entries pointing into the pool
         if table.get("rows"):
+            table_part = parts.get("table")
             ty = c.h + 16
             c.add(c.text(pad, ty, table.get("title", ""), size * 0.82, anchor="start",
-                         fill=MUTED))
+                         fill=MUTED, part=table_part))
             ty += size + 8
             colw = [56, 56, 56]
             for row in table["rows"]:
                 for k, cell in enumerate(row):
                     x = pad + sum(colw[:k])
                     c.add(c.rect(x, ty, colw[k], 24, fill=WASH if k == 2 else "none",
-                                 stroke=RULE, sw=0.9))
+                                 stroke=RULE, sw=0.9, part=table_part))
                     c.add(c.text(x + colw[k] / 2, ty + 16, str(cell), size * 0.82,
-                                 weight="600" if k == 2 else "400"))
+                                 weight="600" if k == 2 else "400", part=table_part))
                 ty += 28
             c.h = ty + 8
         return c
@@ -395,9 +436,17 @@ def render_bits(spec):
             c.add(c.rect(x1, y, x2 - x1, h, fill=fill, stroke=stroke,
                          sw=1.6 if f.get("accent") else 1.2))
             mid = (x1 + x2) / 2
-            lines = wrap_px(f["name"], size * 0.84, x2 - x1 - 6)
-            c.add(c.block_centered(mid, y + h / 2 - (size * 0.5 if f.get("note") else 0),
-                                   lines, size * 0.84, weight="600"))
+            field_w = x2 - x1
+            # A one-bit field is too narrow for its name: wrapping "sign" would
+            # split it into "si"/"gn". Rotate short field names instead, which
+            # keeps the label intact inside the bar.
+            if field_w < text_width(f["name"], size * 0.84) + 6:
+                c.add(c.text(mid, y + h / 2, f["name"], size * 0.78,
+                             weight="600", rotate=-90))
+            else:
+                lines = wrap_px(f["name"], size * 0.84, field_w - 6)
+                c.add(c.block_centered(mid, y + h / 2 - (size * 0.5 if f.get("note") else 0),
+                                       lines, size * 0.84, weight="600"))
             if f.get("note"):
                 c.add(c.text(mid, y + h / 2 + size * 0.9, f["note"], size * 0.78,
                              fill=MUTED))
@@ -433,6 +482,7 @@ def render_bars(spec):
         return None
     group = spec.get("group")             # optional: {name: [...]} for small multiples
     note = spec.get("note")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -444,25 +494,29 @@ def render_bars(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 10
         top = 26 + note_h
         vmax = max(float(b["value"]) for b in bars) or 1
         rh = 26
         y = top
-        for b in bars:
+        for bi, b in enumerate(bars):
+            bar_part = _part_at(parts, "bars", bi)
             ll = wrap_px(b["label"], size * 0.86, label_w - 8)
             c.add(c.block(pad, y + rh / 2 - (len(ll) - 1) * size * 0.6 + size * 0.3, ll,
-                          size * 0.86, anchor="start", fill=INK))
+                          size * 0.86, anchor="start", fill=INK, part=bar_part))
             bw = plot_w * float(b["value"]) / vmax
             c.add(c.rect(plot_x, y + 3, max(2, bw), rh - 6,
                          fill=WASH_3 if b.get("accent") else WASH_2,
-                         stroke=ACCENT if b.get("accent") else RULE, sw=1))
+                         stroke=ACCENT if b.get("accent") else RULE, sw=1,
+                         part=bar_part))
             disp = b.get("display", f"{b['value']:g}")
             dl = wrap_px(disp, size * 0.84, w - (plot_x + max(2, bw) + 6) - pad)
             c.add(c.block(plot_x + max(2, bw) + 6,
                           y + rh / 2 - (len(dl) - 1) * size * 0.6 + size * 0.3, dl,
-                          size * 0.84, anchor="start", fill=INK, weight="600"))
+                          size * 0.84, anchor="start", fill=INK, weight="600",
+                          part=bar_part))
             y += rh + 8
         c.h = y + 10
         return c
@@ -481,6 +535,7 @@ def render_logaxes(spec):
     x_label = spec.get("x_label", "")
     y_label = spec.get("y_label", "")
     note = spec.get("note")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -489,7 +544,8 @@ def render_logaxes(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 12
         x0 = pad + 76
         y0 = 26 + note_h + size * 2.2
@@ -519,17 +575,20 @@ def render_logaxes(spec):
         def sy(v):     # log10 y from 0..3 -> pixel
             return y1 - (y1 - y0) * max(0, min(3, math.log10(max(v, 1e-9)))) / 3
 
-        for s in series:
+        for si, s in enumerate(series):
+            series_part = _part_at(parts, "series", si)
             kind = s.get("kind", "line")
             if kind == "line" and s.get("points"):
                 pts = " ".join(f"{sx(px):.1f},{sy(py):.1f}" for px, py in s["points"])
-                c.add(f'<polyline points="{pts}" fill="none" stroke="{ACCENT}" '
-                      f'stroke-width="2.2"/>')
+                line = (f'<polyline points="{pts}" fill="none" stroke="{ACCENT}" '
+                        f'stroke-width="2.2"/>')
+                c.add(c.group(series_part, line) if series_part else line)
             elif kind == "hline" and s.get("y"):
-                c.add(c.line(x0, sy(s["y"]), x1, sy(s["y"]), stroke=ACCENT, sw=2.2))
+                c.add(c.line(x0, sy(s["y"]), x1, sy(s["y"]), stroke=ACCENT, sw=2.2,
+                             part=series_part))
             elif kind == "point" and s.get("x"):
                 px, py = sx(s["x"]), sy(s["y"])
-                c.add(c.circle(px, py, 4.5))
+                c.add(c.circle(px, py, 4.5, part=series_part))
                 label = s.get("label", "")
                 lines = wrap_px(label, size * 0.82, 190)
                 # the label sits above the point, anchored so it stays inside the
@@ -541,17 +600,19 @@ def render_logaxes(spec):
                     lx, anchor = px - 10, "end"
                 else:
                     lx, anchor = px, "middle"
-                c.add(c.block(lx, py - size * 1.6, lines, size * 0.82, anchor=anchor))
+                c.add(c.block(lx, py - size * 1.6, lines, size * 0.82, anchor=anchor,
+                              part=series_part))
         # labels for the roofs
-        for s in series:
+        for si, s in enumerate(series):
+            series_part = _part_at(parts, "series", si)
             if s.get("label") and s.get("kind") in ("line", "hline"):
                 if s["kind"] == "hline":
                     c.add(c.text(x0 + 6, sy(s["y"]) - 6, s["label"], size * 0.82,
-                                 anchor="start", fill=ACCENT))
+                                 anchor="start", fill=ACCENT, part=series_part))
                 elif s.get("points"):
                     (ex, ey) = s["points"][-1]
                     c.add(c.text(sx(ex) - 6, sy(ey) - 6, s["label"], size * 0.82,
-                                 anchor="end", fill=ACCENT))
+                                 anchor="end", fill=ACCENT, part=series_part))
         c.h = y1 + size * 4.6
         return c
 
@@ -566,6 +627,7 @@ def render_panels(spec):
     panels = spec.get("panels") or []
     if not panels:
         return None
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -575,22 +637,32 @@ def render_panels(spec):
         pw = (w - 2 * pad - gap) / len(panels)
         top = 26
         tallest = 0
+        item_parts = parts.get("items") or []
         for i, p in enumerate(panels):
             px = pad + i * (pw + gap)
+            panel_part = _part_at(parts, "panels", i)
             c.add(c.text(px, top, p.get("title", ""), size * 0.9, anchor="start",
-                         fill=ACCENT, weight="600"))
+                         fill=ACCENT, weight="600", part=panel_part))
             y = top + size * 1.4
-            c.add(c.line(px, y, px + pw, y, stroke=INK, sw=1))
+            c.add(c.line(px, y, px + pw, y, stroke=INK, sw=1, part=panel_part))
             y += 10
-            for item in p.get("items") or []:
+            for j, item in enumerate(p.get("items") or []):
+                item_part = None
+                if i < len(item_parts) and j < len(item_parts[i]):
+                    item_part = item_parts[i][j]
+                if not item_part:
+                    item_part = panel_part
                 lines = wrap_px(item, size * 0.86, pw - 12)
                 hh = max(26, len(lines) * size * 1.2 + 10)
-                c.add(c.rect(px, y, pw, hh, fill="none", stroke=RULE, sw=1))
-                c.add(c.block_centered(px + pw / 2, y + hh / 2, lines, size * 0.86))
+                c.add(c.rect(px, y, pw, hh, fill="none", stroke=RULE, sw=1,
+                             part=item_part))
+                c.add(c.block_centered(px + pw / 2, y + hh / 2, lines, size * 0.86,
+                                       part=item_part))
                 y += hh + 8
             if p.get("note"):
                 nl = c.note_lines(p["note"], size * 0.82, pw)
-                c.add(c.note(px, y + size, p["note"], size * 0.82, pw))
+                c.add(c.note(px, y + size, p["note"], size * 0.82, pw,
+                             part=panel_part))
                 y += nl * size * 1.2 + size * 0.5
             tallest = max(tallest, y)
         c.h = max(tallest + 22, 210)
@@ -610,6 +682,7 @@ def render_lane(spec):
     bypass = spec.get("bypass")           # label of the identity lane
     note = spec.get("note")
     sizes = spec.get("sizes") or []       # structural shape labels under each stage
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -618,28 +691,34 @@ def render_lane(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 16
         top = 40 + note_h
         gap = 26
         bw = (w - 2 * pad - (len(stages) - 1) * gap) / len(stages)
         bh = 54
         # the bypass lane above the stages: one line, two arrows, no boxes
+        bypass_part = parts.get("bypass")
         if bypass:
             by = top + 14
-            c.add(c.text(pad, by - 8, bypass, size * 0.84, anchor="start", fill=ACCENT))
+            c.add(c.text(pad, by - 8, bypass, size * 0.84, anchor="start",
+                         fill=ACCENT, part=bypass_part))
             c.add(c.path(f"M{pad},{by} L{w - pad},{by}", stroke=ACCENT, sw=1.6,
-                         arrow=True, accent=True))
+                         arrow=True, accent=True, part=bypass_part))
         stage_y = top + (46 if bypass else 10)
         for i, s in enumerate(stages):
             x = pad + i * (bw + gap)
-            c.add(c.rect(x, stage_y, bw, bh, fill="none", stroke=INK, sw=1.2))
+            stage_part = _part_at(parts, "stages", i)
+            c.add(c.rect(x, stage_y, bw, bh, fill="none", stroke=INK, sw=1.2,
+                         part=stage_part))
             lines = wrap_px(s, size, bw - 12)
-            c.add(c.block_centered(x + bw / 2, stage_y + bh / 2, lines, size, weight="600"))
+            c.add(c.block_centered(x + bw / 2, stage_y + bh / 2, lines, size,
+                                   weight="600", part=stage_part))
             if i < len(sizes):
                 sl = wrap_px(sizes[i], size * 0.8, bw - 4)
                 c.add(c.block_centered(x + bw / 2, stage_y + bh + size * 0.8 + 8,
-                                       sl, size * 0.8, fill=MUTED))
+                                       sl, size * 0.8, fill=MUTED, part=stage_part))
             if i < len(stages) - 1:
                 arrow_between(c, x + bw, stage_y + bh / 2, x + bw + gap, stage_y + bh / 2)
         c.h = max(stage_y + bh + size * 3.4, 200)
@@ -647,7 +726,8 @@ def render_lane(spec):
             # the bypass rejoins after the last stage: a short down stub that
             # stops above the size labels rather than running into them
             c.add(c.path(f"M{w - pad},{top + 14} L{w - pad},{stage_y - 6}",
-                         stroke=ACCENT, sw=1.6, arrow=True, accent=True))
+                         stroke=ACCENT, sw=1.6, arrow=True, accent=True,
+                         part=bypass_part))
         return c
 
     return _fit(spec, 900, build).render()
@@ -661,6 +741,7 @@ def render_flow(spec):
     nodes = spec.get("nodes") or []
     if not nodes:
         return None
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -677,8 +758,11 @@ def render_flow(spec):
             r, k = divmod(i, per_row)
             x = pad + k * (bw + gap)
             yy = y + r * (bh + 34)
-            c.add(c.rect(x, yy, bw, bh, fill="none", stroke=INK, sw=1.2))
-            c.add(c.block_centered(x + bw / 2, yy + bh / 2, lines, size))
+            node_part = _part_at(parts, "nodes", i)
+            c.add(c.rect(x, yy, bw, bh, fill="none", stroke=INK, sw=1.2,
+                         part=node_part))
+            c.add(c.block_centered(x + bw / 2, yy + bh / 2, lines, size,
+                                   part=node_part))
             if k < per_row - 1 and i + 1 < len(nodes):
                 arrow_between(c, x + bw, yy + bh / 2, x + bw + gap, yy + bh / 2)
             elif i + 1 < len(nodes):
@@ -699,6 +783,7 @@ def render_grid(spec):
     n = int(spec.get("n") or 7)
     note = spec.get("note")
     highlight_row = spec.get("highlight_row")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -710,7 +795,8 @@ def render_grid(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
+            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
             note_h = nl * size * 1.2 + 10
         top = 26 + note_h
         for r in range(n):
@@ -724,14 +810,15 @@ def render_grid(spec):
                 if highlight_row is not None and r == highlight_row and causal:
                     fill = WASH_3
                 c.add(c.rect(grid_x + k * cell, top + r * cell, cell, cell, fill=fill,
-                             stroke=stroke, sw=0.9))
+                             stroke=stroke, sw=0.9, part=_cell_part(parts, r, k)))
         c.add(c.text(grid_x + n * cell / 2, top - 8, "keys j  (causal: j <= i)",
-                     size * 0.82, fill=MUTED))
+                     size * 0.82, fill=MUTED, part=parts.get("axis")))
         c.add(c.text(pad + size * 0.9, top + n * cell / 2, "queries i", size * 0.82,
-                     anchor="middle", fill=MUTED, rotate=-90))
+                     anchor="middle", fill=MUTED, rotate=-90,
+                     part=parts.get("axis")))
         c.add(c.text(grid_x + n * cell / 2, top + n * cell + size * 1.6,
                      "n x n scores; the upper triangle is masked", size * 0.8,
-                     fill=MUTED))
+                     fill=MUTED, part=parts.get("axis")))
         c.h = top + n * cell + size * 2.8
         return c
 

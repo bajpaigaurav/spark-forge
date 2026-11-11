@@ -196,7 +196,76 @@
             ]
           }
         ],
-        "note": "Padding wastes prefill too: a batch whose longest prompt is 130,659 tokens forces every shorter prompt out to that length, and the layers chew through the padding as text. Continuous batching keeps the linear projections batched but segments attention per sequence with a block-diagonal mask, so finished sequences cost nothing. At concurrency 1 a step takes 16.9 ms; at concurrency 4 it takes 37.7 ms and emits four tokens."
+        "note": "Padding wastes prefill too: a batch whose longest prompt is 130,659 tokens forces every shorter prompt out to that length, and the layers chew through the padding as text. Continuous batching keeps the linear projections batched but segments attention per sequence with a block-diagonal mask, so finished sequences cost nothing. At concurrency 1 a step takes 16.9 ms; at concurrency 4 it takes 37.7 ms and emits four tokens.",
+        "parts": {
+          "lanes": [
+            "static-batch",
+            "static-batch",
+            "static-batch",
+            "continuous-batch",
+            "continuous-batch",
+            "continuous-batch",
+            "continuous-batch"
+          ],
+          "cells": [
+            [
+              "static-batch",
+              "static-batch",
+              "static-batch",
+              "static-batch",
+              "static-batch",
+              "retire static-batch"
+            ],
+            [
+              "static-batch",
+              "retire static-batch",
+              "waste static-batch",
+              "waste static-batch",
+              "waste static-batch",
+              "waste static-batch"
+            ],
+            [
+              "static-batch",
+              "retire static-batch",
+              "waste static-batch",
+              "waste static-batch",
+              "waste static-batch",
+              "waste static-batch"
+            ],
+            [
+              "continuous-batch",
+              "continuous-batch",
+              "continuous-batch",
+              "continuous-batch",
+              "continuous-batch",
+              "retire continuous-batch"
+            ],
+            [
+              "continuous-batch",
+              "retire continuous-batch",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "continuous-batch",
+              "retire continuous-batch",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              "admit continuous-batch",
+              "continuous-batch",
+              "continuous-batch",
+              "continuous-batch",
+              "continuous-batch"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

@@ -32,7 +32,17 @@
           "top-2: experts 3 and 2",
           "0.731·E3 + 0.269·E2"
         ],
-        "note": "Renormalizing over the selected pair gives 0.657/0.899 = 0.731 and 0.242/0.899 = 0.269. At d_model = 4,096, E = 64, k = 2, the router costs d_model × E = 262,144 multiply-adds per token against 235 million for the two experts, about a tenth of a percent."
+        "note": "Renormalizing over the selected pair gives 0.657/0.899 = 0.731 and 0.242/0.899 = 0.269. At d_model = 4,096, E = 64, k = 2, the router costs d_model × E = 262,144 multiply-adds per token against 235 million for the two experts, about a tenth of a percent.",
+        "parts": {
+          "nodes": [
+            "input",
+            "router",
+            "scores",
+            "softmax",
+            "topk",
+            "combine weights"
+          ]
+        }
       },
       "anim": {
         "mode": "step",

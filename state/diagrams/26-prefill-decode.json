@@ -117,7 +117,60 @@
             ]
           }
         ],
-        "note": "Prefill is 3.33 s and decode is 8.38 s of engine time; TTFT 3.46 s leaves 0.13 s for queueing, cache lookup and the first decode step. The rates are means over a 98-request window: 130,659 prompt tokens and 607 generated tokens per request, 39,237 prefill tok/s and 59.1 decode tok/s. Prefill intensity is 130,659 FLOP/byte because each bf16 weight is used N times for one 2-byte read."
+        "note": "Prefill is 3.33 s and decode is 8.38 s of engine time; TTFT 3.46 s leaves 0.13 s for queueing, cache lookup and the first decode step. The rates are means over a 98-request window: 130,659 prompt tokens and 607 generated tokens per request, 39,237 prefill tok/s and 59.1 decode tok/s. Prefill intensity is 130,659 FLOP/byte because each bf16 weight is used N times for one 2-byte read.",
+        "parts": {
+          "steps": [
+            "arrival",
+            "prefill",
+            "ttft",
+            "decode",
+            "finish"
+          ],
+          "lanes": [
+            "arrival",
+            "prefill",
+            "ttft",
+            "decode",
+            "finish"
+          ],
+          "cells": [
+            [
+              "arrival",
+              "prefill",
+              "ttft",
+              "decode",
+              "finish"
+            ],
+            [
+              null,
+              "prefill",
+              null,
+              "decode",
+              null
+            ],
+            [
+              "arrival",
+              "prefill",
+              "ttft",
+              "decode",
+              "finish"
+            ],
+            [
+              null,
+              "prefill",
+              null,
+              "decode",
+              null
+            ],
+            [
+              null,
+              "prefill",
+              null,
+              "decode",
+              null
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

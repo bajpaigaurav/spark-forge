@@ -25,7 +25,17 @@
           "d_model",
           "V"
         ],
-        "note": "Attention is the only stage that moves information between positions; every other stage is per-token. Encoder layers write to the stream twice, decoder layers three times."
+        "note": "Attention is the only stage that moves information between positions; every other stage is per-token. Encoder layers write to the stream twice, decoder layers three times.",
+        "parts": {
+          "stages": [
+            "embedding",
+            "attention",
+            "feed-forward",
+            "final-norm",
+            "unembedding"
+          ],
+          "bypass": "residual"
+        }
       },
       "anim": {
         "mode": "step",

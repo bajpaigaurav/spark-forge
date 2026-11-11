@@ -34,7 +34,30 @@
             ],
             "note": "Parameters: 8 × 512 × 64 = 262,144 per projection; 4 × 262,144 = 1,048,576 attention weights either way."
           }
-        ]
+        ],
+        "parts": {
+          "panels": [
+            "one-head",
+            "eight-heads"
+          ],
+          "items": [
+            [
+              "project",
+              "softmax",
+              "softmax",
+              "concat",
+              "project"
+            ],
+            [
+              "split",
+              "softmax",
+              "eight-heads",
+              "eight-heads",
+              "concat",
+              "concat project"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

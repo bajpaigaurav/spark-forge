@@ -16,7 +16,7 @@ Affine quantization maps a real interval onto a fixed set of integers. Jacob, Kl
 
 Four bits unsigned gives sixteen levels, 0 through 15. Two numbers define the map, a scale s and a zero point z. For a group running from min to max, s = (max − min)/15 and z = round(−min/s). Encoding is q = clamp(round(w/s) + z, 0, 15); decoding is ŵ = (q − z)·s.
 
-Take a group running from −1 to 1. The scale is 2/15 ≈ 0.1429 and the zero point is 8. A weight of 0.05 encodes as round(0.375) + 8 = 8 and decodes as 0. A weight of 0.2 encodes as round(1.5) + 8 = 10 and decodes as 0.2667, an error of 0.0667. Every weight in the group pays at most half a step, and the bound is set locally rather than by the loudest number in the whole matrix.
+Take a group running from −1 to 1. The scale is 2/15 ≈ 0.1333 and the zero point is 8. A weight of 0.05 encodes as round(0.375) + 8 = 8 and decodes as 0. A weight of 0.2 encodes as round(1.5) + 8 = 10 and decodes as 0.2667, an error of 0.0667. Every weight in the group pays at most half a step, and the bound is set locally rather than by the loudest number in the whole matrix.
 
 The zero point exists so the interval need not be symmetric about zero. A one-sided distribution wastes levels if the map is forced to straddle zero, and the zero point spends them where the values are. For weights, whose distribution is roughly symmetric, the zero point often sits at 8 and the scale does the work. For activations after a ReLU the zero point is what keeps zero exactly representable, and that is an activation-side property. A weight-only format does not preserve activation sparsity, and it does not need to, because it never quantizes an activation.
 

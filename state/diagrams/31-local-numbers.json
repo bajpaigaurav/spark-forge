@@ -126,7 +126,66 @@
             ]
           }
         ],
-        "note": "The engine's device_memory_bytes gauge reads 111,515,771,428 bytes, about 55.8 GB per rank, covering weights, caches and live streams. The KV pool is 262,144 positions at 921.6 bytes per position, so the pool is not what crosses the floor; growth in live streams and the page cache is. SIGKILL is the point: a graceful stop would let the rank release the pool, and the floor exists to keep the host from thrashing before that can happen."
+        "note": "The engine's device_memory_bytes gauge reads 111,515,771,428 bytes, about 55.8 GB per rank, covering weights, caches and live streams. The KV pool is 262,144 positions at 921.6 bytes per position, so the pool is not what crosses the floor; growth in live streams and the page cache is. SIGKILL is the point: a graceful stop would let the rank release the pool, and the floor exists to keep the host from thrashing before that can happen.",
+        "parts": {
+          "steps": [
+            "footprint",
+            "kv",
+            "memguard",
+            "floor",
+            "kill",
+            "restart"
+          ],
+          "lanes": [
+            "footprint",
+            "floor",
+            "memguard",
+            "kill",
+            "restart"
+          ],
+          "cells": [
+            [
+              "footprint",
+              "kv",
+              null,
+              null,
+              null,
+              "restart"
+            ],
+            [
+              "floor",
+              "kv",
+              "memguard",
+              "floor",
+              null,
+              "restart"
+            ],
+            [
+              null,
+              null,
+              "memguard",
+              "floor",
+              "kill",
+              null
+            ],
+            [
+              "footprint",
+              "kv",
+              null,
+              null,
+              "kill",
+              "restart"
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              "kill",
+              "restart"
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

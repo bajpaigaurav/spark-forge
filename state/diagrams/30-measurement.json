@@ -111,7 +111,66 @@
             ]
           }
         ],
-        "note": "3.33 + 8.38 + 0.13 s is nearly twelve seconds. The 0.13 s is the sum of queueing, cache lookup and the first decode step; the metrics do not break it down further. The wall clock also includes tokenization, admission, detokenization and the client's own overhead, which no counter separates. This is the mean request from the 98-request window, not a single trace."
+        "note": "3.33 + 8.38 + 0.13 s is nearly twelve seconds. The 0.13 s is the sum of queueing, cache lookup and the first decode step; the metrics do not break it down further. The wall clock also includes tokenization, admission, detokenization and the client's own overhead, which no counter separates. This is the mean request from the 98-request window, not a single trace.",
+        "parts": {
+          "steps": [
+            "arrival",
+            "queue",
+            "prefill",
+            "ttft",
+            "decode",
+            "wall-clock"
+          ],
+          "lanes": [
+            "wall-clock",
+            "arrival",
+            "prefill",
+            "decode",
+            "ttft"
+          ],
+          "cells": [
+            [
+              "arrival",
+              null,
+              null,
+              null,
+              null,
+              "wall-clock"
+            ],
+            [
+              null,
+              null,
+              "prefill",
+              "ttft",
+              "decode",
+              null
+            ],
+            [
+              "arrival",
+              null,
+              null,
+              "ttft",
+              null,
+              "wall-clock"
+            ],
+            [
+              "arrival",
+              null,
+              null,
+              "ttft",
+              "decode",
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "ttft",
+              null,
+              null
+            ]
+          ]
+        }
       },
       "anim": {
         "mode": "step",

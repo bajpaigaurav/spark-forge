@@ -33,7 +33,13 @@
             ],
             "note": "The zero point keeps zero representable and spends levels where the values are. Only storage is four bits; the kernel subtracts z, multiplies by s, and converts to fp16 for the tensor-core multiply."
           }
-        ]
+        ],
+        "parts": {
+          "panels": [
+            "encode",
+            "decode"
+          ]
+        }
       },
       "anim": {
         "mode": "step",

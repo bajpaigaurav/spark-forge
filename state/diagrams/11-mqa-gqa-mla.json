@@ -61,7 +61,69 @@
         "row_head": "query head h",
         "corner": "KV head",
         "highlight_col": 1,
-        "note": "Schematic: 8 query heads and G = 4 shown. The chapter's model has 32 query heads; GQA with G = 8 puts four query heads in each group."
+        "note": "Schematic: 8 query heads and G = 4 shown. The chapter's model has 32 query heads; GQA with G = 8 puts four query heads in each group.",
+        "parts": {
+          "cols": [
+            "cache mha",
+            "cache gqa",
+            "cache mqa"
+          ],
+          "rows": [
+            "cache",
+            "cache",
+            "cache",
+            "cache",
+            "cache",
+            "cache",
+            "cache",
+            "cache"
+          ],
+          "cells": [
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ],
+            [
+              "cache mha",
+              "cache gqa",
+              "cache mqa"
+            ]
+          ],
+          "corner": "cache",
+          "headers": "cache",
+          "note": "cache"
+        }
       },
       "anim": {
         "mode": "step",
