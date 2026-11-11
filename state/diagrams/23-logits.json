@@ -1,48 +1,200 @@
 {
   "needed": true,
-  "kind": "bars",
-  "title": "One vector, V scores, V shares",
-  "why": "It shows the final projection as the many-to-many map it is: h of width d_model scores every row of W, giving V logits, and softmax turns those into shares that sum to one.",
-  "nodes": [
-    "h: last-position residual vector, length d_model",
-    "W: output matrix, V rows by d_model columns",
-    "s = h W^T: logits vector, length V",
-    "softmax(s): probability distribution over V entries",
-    "batch form: B by d_model hidden states -> B by V logits"
-  ],
-  "notes": "Left-to-right flow: h (d_model) multiplied by W^T (d_model by V) yields s (V); softmax normalizes s into probabilities over the vocabulary. Batch path labels B sequences and T positions, with last non-padding position selected to form B by d_model, then B by V logits. W's V rows are directions in d_model space; row w gives score h·W_w. Optional bias b is length V. Quantities labelled: d_model, V, B, T; no numeric values invented. | Flow is left to right: h multiplies the vocabulary rows to produce one logit per token ID, softmax turns logits into p, and cross-entropy sends gradients back to W and h. Row i of W corresponds to token ID i; V is the fixed tokenizer vocabulary size and d is the residual width. Training moves row W_y toward h and non-target rows away, while h moves toward W_y and away from other rows. Quantities labelled are h, W_j, s_j, p_j, y, L, and the gradient expressions; no numeric values are invented. | Left-to-right flow: h enters the tied matrix, producing one score per vocabulary entry; softmax turns the V logits into V probabilities. Label shapes d_model and V, and note that E and W are the same V×d_model block when tied. The chapter's concrete example uses V = 50,000 and d_model = 4,096, giving a head of 50,000 × 4,096 = 204,800,000 parameters, about 205 million, removed by tying. The softmax example scores 2, 1, 0 yield exponentials about 7.389, 2.718, 1, sum about 11.107, and probabilities about 0.665, 0.245, 0.090; shifting all scores by the same amount leaves the distribution unchanged. | Left-to-right dataflow. Label the head matvec as d_model × V multiply-adds, or 2 d_model V FLOPs; at d_model = 4,096 and V = 50,000 this is 204,800,000 multiply-adds per token. Label the comparison to one transformer layer at the same width with a 4d feedforward block: about 12 d_model² multiply-adds, about 201,300,000. Temperature acts after logits: show the same three logits 2, 1, 0 scaled by T = 0.5 to 4, 2, 0 and by T = 2 to 1, 0.5, 0, feeding the softmax to produce the stated probabilities. No axis; the flow is vector shape [d_model] into matrix [d_model × V] into vector [V], then reweighting over the same V entries. | Left-to-right flow: residual vector enters final projection, producing a logit vector with one entry per vocabulary item; softmax turns it into a distribution. The distribution then branches into decoding variants: greedy takes argmax and admits no tail; top-k keeps a fixed count k; top-p keeps a variable count until cumulative probability reaches p; temperature divides logits by T before softmax and changes the distribution shape before any cut. No axes; labels are structural parameters k, p, and T, plus the vocabulary dimension. No numeric values are shown. | Left-to-right flow: logits enter softmax, producing probabilities that feed greedy or top-p decoding; the chosen token is appended to the KV cache and can be attended to at the next decode step, producing a new hidden state and logits. A repetition penalty is shown as an edit on the logit vector before softmax. Label the hallucination example on the logits/probabilities: correct logit 5, generic logit 6, 100 others at 0; probabilities about 0.228, 0.619, 0.153; top-p threshold 0.6 keeps only the generic token. Label the repetition-penalty example: logits 2,1,0 for A,B,C; A and B present; δ=1 gives edited logits 1,0,0 and probabilities about 0.576,0.212,0.212, versus pre-penalty about 0.665,0.245,0.090. No axes; arrows carry the dataflow and the cache-feedback loop. | Left-to-right dataflow: a d_model vector is multiplied by the d_model × V head to produce V scores, softmax turns those into a distribution, and a decoding rule chooses. Annotate two invocation paths: prefill processes the prompt in one pass and applies the head once per request; decode applies the head once per generated token. Label the average request counts from the chapter: 130,659 prompt tokens and 607 generated tokens, so the head ran 607 times while prefill ran once. Also label the two cost scalings: attention during decode O(n d_model) per layer per token, head O(d_model V) per token, with n the current context length. No axes; quantities are tensor dimensions and invocation counts.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-  ],
-  "bars": [
+  "spine": "logits",
+  "figures": [
     {
-      "label": "h, one vector",
-      "value": 1,
-      "display": "d_model"
+      "id": "head-projection-to-softmax",
+      "title": "The head: h to V logits to a distribution",
+      "caption": "The head projects the final hidden state h of width d_model into one score per vocabulary entry with s = h·Wᵀ, then softmax turns those scores into a distribution. For three candidates scoring 2, 1 and 0, the exponentials are 7.389, 2.718 and 1, summing to 11.107, and the probabilities are 0.665, 0.245 and 0.090. At d_model = 4,096 and V = 50,000 the projection performs d_model·V = 204,800,000 multiply-adds, or 2·d_model·V FLOPs, comparable to a 4d feedforward layer's 12·d_model² ≈ 201,300,000.",
+      "alt": "Five lanes across five steps. Step one is the final hidden vector h of width 4,096. Steps two and three score three candidate tokens A, B and C with logits 2, 1 and 0, then exponentiate them to 7.389, 2.718 and 1. A separate lane sums those exponentials to 11.107 in step four, and step five divides each by the sum, giving 0.665, 0.245 and 0.090. The probabilities are outlined as the new cells.",
+      "anchor": "softmax-and-the-arithmetic-of-the-head",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "h",
+          "s = h·Wᵀ",
+          "e^s",
+          "Σ e^s",
+          "p = e^s / Σ"
+        ],
+        "lanes": [
+          {
+            "name": "h (4,096)",
+            "cells": [
+              {
+                "label": "h",
+                "kind": "solid"
+              },
+              null,
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "name": "A: s = 2",
+            "cells": [
+              null,
+              {
+                "label": "2",
+                "kind": "solid"
+              },
+              {
+                "label": "7.389",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "0.665",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "B: s = 1",
+            "cells": [
+              null,
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              {
+                "label": "2.718",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "0.245",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "C: s = 0",
+            "cells": [
+              null,
+              {
+                "label": "0",
+                "kind": "solid"
+              },
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "0.090",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "Σ e^s",
+            "cells": [
+              null,
+              null,
+              null,
+              {
+                "label": "11.107",
+                "kind": "solid"
+              },
+              {
+                "label": "1",
+                "kind": "solid"
+              }
+            ]
+          }
+        ],
+        "note": "Only the gaps between logits matter: shifting all three scores by the same amount cancels from every term. Implementations subtract the largest logit before exponentiating, which leaves the distribution unchanged and keeps e^s from overflowing. The 204,800,000 and 201,300,000 figures are multiply-add counts per token."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to project h and normalise the scores.",
+        "steps": [
+          {
+            "label": "h is the last residual-stream vector, d_model wide.",
+            "highlight": [
+              "hidden"
+            ]
+          },
+          {
+            "label": "Each vocabulary row of Wᵀ scores h: three candidates get 2, 1 and 0.",
+            "highlight": [
+              "logits"
+            ]
+          },
+          {
+            "label": "Exponentiate each score; the gaps become ratios.",
+            "highlight": [
+              "exp"
+            ]
+          },
+          {
+            "label": "Sum the exponentials: 11.107.",
+            "highlight": [
+              "normalizer"
+            ]
+          },
+          {
+            "label": "Divide by the sum; the probabilities are 0.665, 0.245 and 0.090.",
+            "highlight": [
+              "probabilities"
+            ]
+          }
+        ]
+      }
     },
     {
-      "label": "W, V rows",
-      "value": 16,
-      "display": "V rows by d_model",
-      "accent": true
-    },
-    {
-      "label": "s = h W^T",
-      "value": 16,
-      "display": "V logits"
-    },
-    {
-      "label": "softmax(s)",
-      "value": 16,
-      "display": "V shares, sum 1"
+      "id": "temperature-softmax-table",
+      "title": "Temperature reshapes the same three logits",
+      "caption": "Temperature divides every logit before softmax and leaves the order unchanged. On the same logits 2, 1 and 0, T = 0.5 sharpens the distribution to 0.867 / 0.117 / 0.016, T = 1 gives 0.665 / 0.245 / 0.090, and T = 2 flattens it to 0.506 / 0.307 / 0.186. Row 1 is T = 1. Each cell is a probability, inked in proportion to its value.",
+      "alt": "A four-column table with three rows. The first column names the temperature: 0.5, 1 and 2. The next three columns are the probabilities assigned to candidates with logits 2, 1 and 0. At T = 0.5 the row reads 0.867, 0.117, 0.016; at T = 1, 0.665, 0.245, 0.090; at T = 2, 0.506, 0.307, 0.186. The ink in each cell grows with its probability, so the first column darkens as temperature falls.",
+      "anchor": "temperature-and-distillation",
+      "kind": "matrix",
+      "data": {
+        "rows": [
+          [
+            "T = 0.5",
+            0.867,
+            0.117,
+            0.016
+          ],
+          [
+            "T = 1",
+            0.665,
+            0.245,
+            0.09
+          ],
+          [
+            "T = 2",
+            0.506,
+            0.307,
+            0.186
+          ]
+        ],
+        "cols": [
+          "",
+          "s = 2",
+          "s = 1",
+          "s = 0"
+        ],
+        "col_head": "p(token)",
+        "corner": "T",
+        "highlight_row": 1,
+        "scale": 1.0,
+        "note": "At T = 0.5 the scaled logits are 4, 2 and 0, with exponentials 54.598, 7.389 and 1 summing to 62.987. At T = 2 they are 1, 0.5 and 0, with 2.718, 1.649 and 1 summing to 5.367. Temperature can only reweight what the head already produced; it cannot recover a candidate scored far below the top."
+      }
     }
   ],
-  "note": "Row w of W is a direction in d_model space; the score for that token is h . w. In a batch, B sequences give B by V logits."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1608.05859",
+      "note": "Press and Wolf, Using the Output Embedding to Improve Language Models (2016): tying W to the input embedding E makes the score for candidate w equal to h·e_w."
+    },
+    {
+      "url": "https://arxiv.org/abs/1503.02531",
+      "note": "Hinton, Vinyals and Dean, Distilling the Knowledge in a Neural Network (2015): temperature-scaled softmax and the T² factor in the distillation loss."
+    }
+  ]
 }
