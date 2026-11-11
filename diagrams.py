@@ -153,15 +153,17 @@ def render_matrix(spec):
         pad = 16
         ncol = len(cols)
         nrow = len(rows)
-        cell = min(72, max(34, (w - 2 * pad - 90) / max(1, ncol)))
+        row_head_w = text_width(row_head, size * 0.82) if row_head else 0
+        left_margin = max(78, row_head_w + 44) if row_head else 78
+        cell = min(72, max(34, (w - 2 * pad - left_margin) / max(1, ncol)))
         hcell = max(30, min(cell, 52))
-        grid_x = pad + 78
+        grid_x = pad + left_margin
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
-            note_h = nl * size * 1.2 + 12
-        grid_y = 34 + note_h
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            note_h = nl * size * 1.2 + 16
+        grid_y = 44 + note_h
         for r in range(nrow):
             for k in range(ncol):
                 val = rows[r][k] if k < len(rows[r]) else ""
@@ -905,6 +907,11 @@ def _render_spec(spec):
     if fn is None:
         print(f"unknown kind {kind!r}, falling back to flow")
         fn = render_flow
+    data = spec.get("data")
+    if isinstance(data, dict):
+        merged = dict(spec)
+        merged.update(data)
+        spec = merged
     return fn(spec)
 
 
