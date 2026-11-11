@@ -1,25 +1,146 @@
 {
   "needed": true,
-  "kind": "logaxes",
-  "title": "The roofline: a rising bandwidth roof, a flat compute roof, and where each phase sits",
-  "why": "It shows the structure the prose builds in sequence: decode at intensity near 1 sits far under the bandwidth roof, prefill at about 130,000 sits under the compute roof, and the ridge where the two meet is about 295 FLOPs per byte on an H100.",
-  "x_label": "arithmetic intensity, FLOPs per byte",
-  "y_label": "attainable performance",
-  "series": [
-    {"kind": "line", "points": [[1, 0.3], [295, 88.5]], "label": "bandwidth roof"},
-    {"kind": "hline", "y": 989, "label": "compute roof: 989 TFLOP/s dense FP16"},
-    {"kind": "point", "x": 1, "y": 59.1, "label": "decode: intensity near 1, 59.1 tok/s on this pair"},
-    {"kind": "point", "x": 130000, "y": 700, "label": "prefill: intensity near 130,000, 39,237 tok/s"}
+  "spine": "serving",
+  "figures": [
+    {
+      "id": "bandwidth-roof-loglog",
+      "title": "The 273 GB/s roof, with model ceilings on it",
+      "caption": "The bandwidth roof is 273 GB/s divided by the bytes read per token, so attainable throughput falls as the read grows. Measured single-stream decode lands at 59.1 tok/s, which bounds the read at 273 ÷ 59.1 = 4.6 GB per token. The model ceilings are the chapter's worked budget: 70B at FP16 reads 140 GB and tops out at 1.95 tok/s, at 4 bits 35 GB and 7.8; 7B at FP16 14 GB and 19.5, at 4 bits 3.5 GB and 78. All points except the measured one are computed from 273 GB/s. The roof line is sampled at 1, 2, 4, 8, 16, 32, 64, 128 and 256 GB per token, each sample 273 ÷ that read; the log-axis decades are the plot frame.",
+      "alt": "A log-log plot. The x axis is gigabytes read per token from 1 to 10,000; the y axis is tokens per second from 1 to 1,000. A descending straight line labelled 273 GB/s roof passes through 273 at 1 GB, 68.25 at 4 GB and 1.07 at 256 GB. Five points sit on or near it: measured 59.1 at 4.6 GB per token; 7B 4-bit at 3.5 GB and 78 tokens per second; 7B FP16 at 14 GB and 19.5; 70B 4-bit at 35 GB and 7.8; 70B FP16 at 140 GB and 1.95.",
+      "anchor": "the-roofline-model-and-decode-s-intensity",
+      "kind": "logaxes",
+      "data": {
+        "series": [
+          {
+            "kind": "line",
+            "label": "roof: 273 GB/s ÷ GB/token",
+            "points": [
+              [
+                1,
+                273
+              ],
+              [
+                2,
+                136.5
+              ],
+              [
+                4,
+                68.25
+              ],
+              [
+                8,
+                34.1
+              ],
+              [
+                16,
+                17.1
+              ],
+              [
+                32,
+                8.5
+              ],
+              [
+                64,
+                4.3
+              ],
+              [
+                128,
+                2.13
+              ],
+              [
+                256,
+                1.07
+              ]
+            ]
+          },
+          {
+            "kind": "point",
+            "x": 4.6,
+            "y": 59.1,
+            "label": "measured 59.1"
+          },
+          {
+            "kind": "point",
+            "x": 3.5,
+            "y": 78,
+            "label": "7B 4-bit 78"
+          },
+          {
+            "kind": "point",
+            "x": 14,
+            "y": 19.5,
+            "label": "7B FP16 19.5"
+          },
+          {
+            "kind": "point",
+            "x": 35,
+            "y": 7.8,
+            "label": "70B 4-bit 7.8"
+          },
+          {
+            "kind": "point",
+            "x": 140,
+            "y": 1.95,
+            "label": "70B FP16 1.95"
+          }
+        ],
+        "x_label": "GB read per token (log)",
+        "y_label": "tokens/s (log)",
+        "note": "The roof assumes one read of every byte per token; batching reuses each read across B rows and moves a point right, which is why four streams reach 106.2 tok/s. The measured point is an upper bound on bytes per token, not a DRAM read, because it folds in stall and non-memory time. At 4 bits, 4.6 GB per token implies about 9B active parameters; at FP16 about 2.3B. GPT-3 at FP16 would need 350 GB per token and could not exceed 0.78 tok/s, below the plotted floor. The GB10's peak FLOP/s is not in the metrics, so no compute roof is drawn for it."
+      }
+    },
+    {
+      "id": "step-budget-two-term-fit",
+      "title": "Where the decode step goes: 10.0 ms shared, 6.9 ms per stream",
+      "caption": "A two-term fit to the measured steps: 16.9 ms at one stream and 37.7 ms at four. If step time is w + B·s, then w + s = 16.9 and w + 4s = 37.7 give 3s = 20.8, s = 6.9 ms and w = 10.0 ms. The shared weight read is 10.0 ms and the unshared per-stream cost is 6.9 ms; four streams add 4 × 6.9 ms of unshared work. The fit is a two-point interpolation, not a law, and its asymptote 1/s ≈ 145 tok/s is an upper bound because s grows with context.",
+      "alt": "Four horizontal bars in milliseconds. The shared weight read w is 10.0. The per-stream unshared cost s is 6.9. The step at batch size one, w plus s, is 16.9. The step at batch size four, w plus four s, is 37.7. The four-stream bar is about 2.2 times the one-stream bar, so the shared read is amortised but does not disappear.",
+      "anchor": "what-measured-decode-reveals-about-the-step-budget",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "shared weight read w",
+            "value": 10.0,
+            "display": "10.0 ms"
+          },
+          {
+            "label": "per-stream cost s",
+            "value": 6.9,
+            "display": "6.9 ms"
+          },
+          {
+            "label": "step at B = 1: w + s",
+            "value": 16.9,
+            "display": "16.9 ms"
+          },
+          {
+            "label": "step at B = 4: w + 4s",
+            "value": 37.7,
+            "display": "37.7 ms",
+            "accent": true
+          }
+        ],
+        "group": "decode step time, measured 2026-10-31",
+        "note": "The shared part is about 27% of the four-stream step; at 106.2 aggregate the engine completes 26.6 steps per second. Step cost rose 2.2× while work rose four times. KV traffic is the first unshared cost: at 921.6 bytes per position and a 130,659-token mean prompt, one stream's cache is 120.4 MB, and four streams add 482 MB per step against a 4.6 GB weight read, roughly a tenth."
+      }
+    }
   ],
-  "note": "Log-log. On an H100 SXM the roofs meet near 295 FLOPs per byte (989 TFLOP/s over 3.35 TB/s), so prefill is compute-bound and decode is bandwidth-bound.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
+  "sources": [
+    {
+      "url": "https://docs.nvidia.com/dgx/dgx-spark/hardware.html",
+      "note": "NVIDIA DGX Spark hardware guide: 273 GB/s of LPDDR5X shared between CPU and GPU."
+    },
+    {
+      "url": "https://doi.org/10.1145/1498765.1498785",
+      "note": "Williams, Waterman and Patterson, Roofline (CACM, 2009): attainable rate is the minimum of peak FLOP/s and bandwidth times intensity."
+    },
+    {
+      "url": "https://arxiv.org/abs/2210.17323",
+      "note": "Frantar et al., GPTQ (2022): group-wise quantization with per-group scales, the 0.0156 bytes per parameter overhead."
+    },
+    {
+      "url": "https://arxiv.org/abs/2306.00978",
+      "note": "Lin et al., AWQ (2023): activation-aware weight quantization, same group-scale argument."
+    }
   ]
 }
