@@ -1,53 +1,131 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "Pre-norm and post-norm: where the normalisation sits",
-  "why": "It shows the placement the prose describes in sequence, and what it changes: in pre-norm the residual path is untouched, so the Jacobian keeps its identity term I; in post-norm the normalisation sits on the path.",
-  "nodes": [
-    "x_l",
-    "LN(x_l)",
-    "Attn(LN(x_l))",
-    "a_l = x_l + Attn(LN(x_l))",
-    "LN(a_l)",
-    "MLP(LN(a_l))",
-    "x_{l+1} = a_l + MLP(LN(a_l))",
-    "post-norm: a_l = LN(x_l + Attn(x_l))",
-    "post-norm: x_{l+1} = LN(a_l + MLP(a_l))",
-    "Jacobian: ∂y/∂x = I + J_f(LN(x)) J_LN(x)",
-    "scalar product: (1 + b s)(1 + a s)",
-    "norm recurrence: ||x_{l+1}||^2 = ||x_l||^2 + 2 x_l·f_l(x_l) + ||f_l(x_l)||^2"
-  ],
-  "notes": "Flow diagram, not axes. Left-to-right: residual stream x_l enters attention sublayer and MLP sublayer; each sublayer reads LN(x) in pre-norm and adds its output back to the stream. A parallel post-norm branch places LN after each residual addition. Label residual additions as the shared stream path. Below, show the Jacobian identity term I plus sublayer Jacobian factors, and the scalar derivative product with symbols s, a, b only, no invented values. The norm recurrence labels the three terms of the squared norm update. | Residual path: x_l plus f_l gives x_{l+1}; norm grows if f_l aligns with x_l or is orthogonal, can shrink if opposed; constant additive f_l=a gives x_N=x_0+N a. Normalization branch: LayerNorm computes per-token mean μ and variance σ over d features, then γ_i(x_i-μ)/σ+β_i; RMSNorm computes r=sqrt((1/d)Σx_i^2+ε) and outputs γ_i x_i/r, dropping mean subtraction. No axes; arrows flow from x_l/f_l to residual sum and from token vector x to either normalization pipeline. | Two parallel flows: pre-norm sends x through LN, then f, then adds the unnormalized residual x; post-norm adds x + f(x) first, then applies LN, so the residual path passes through J_LN. Label the post-norm derivative ∂y/∂x = J_LN(x + f(x))(I + J_f(x)); label the LayerNorm Jacobian entries with γ_i/σ, δ_ij, 1/d, and z_i z_j/d from the chapter. No axes; arrows show dataflow. Quantities are structural: d components, γ, σ, μ, z_i; no numeric values beyond those already in the prose. | Left-to-right residual path: embedding -> blocks -> final LN -> unembedding. Mark that no normalization occurs inside pre-norm blocks, so stream norm can drift; final LN controls only the unembedding input. Attention branch branches from x: W_Q/W_K -> reshape heads -> QK-norm over d_head -> dot product / sqrt(d_head) -> softmax. Label QK-norm site after projections and reshape, before dot product; gamma length d_head. Inset comparison from chapter: d_head=2, q=[10,0], k1=[10,0], k2=[0,10] gives scaled logits 100/sqrt(2)≈70.7 and 0, softmax ≈1 and ≈0, Jacobian max ≈6.14e-6; q=[1,0], k1=[1,0], k2=[0,1] gives scaled logits 0.707 and 0, softmax 0.669 and 0.331, Jacobian entries ≈0.197. Also note two-logit softmax example: logits 0 and 12 give probabilities ≈6.14e-6 and 0.99999386; logits 0 and 1 give 0.269 and 0.731. | Axes: horizontal = exponent range, vertical = mantissa precision. Plot bf16 and fp16 as two configurations; label exponent/fraction bit counts and fp16 max finite 65504. Mark the 640,000 dot-product value beyond fp16 range. A side annotation shows the pipeline q,k -> normalize -> dot product -> softmax, with overflow at the dot product and vanishing Jacobian at softmax saturation. All quantities come from the chapter.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  "panels": [
+  "spine": "block",
+  "sources": [
     {
-      "title": "pre-norm",
-      "items": [
-        "x_l",
-        "LN(x_l)",
-        "Attn(LN(x_l))",
-        "x_l + Attn(LN(x_l))",
-        "LN, then MLP, then add"
-      ],
-      "note": "The residual path never passes through a norm."
+      "url": "https://arxiv.org/abs/1607.06450",
+      "note": "Ba, Kiros & Hinton 2016 — LayerNorm; the panel's x, mean, variance, and output values are the chapter's worked example."
     },
     {
-      "title": "post-norm",
-      "items": [
-        "x_l",
-        "Attn(x_l)",
-        "LN(x_l + Attn(x_l))",
-        "MLP",
-        "LN(a_l + MLP(a_l))"
-      ],
-      "note": "The original 2017 placement. Most later models moved it before the sublayer."
+      "url": "https://arxiv.org/abs/1910.07467",
+      "note": "Zhang & Sennrich 2019 — RMSNorm; the panel's root-mean-square value and output are the chapter's."
+    },
+    {
+      "url": "https://arxiv.org/abs/2002.04745",
+      "note": "Xiong et al. 2020 — post-norm gradient instability and warmup; the lane's pre-norm/post-norm Jacobian comparison follows the chapter."
+    }
+  ],
+  "figures": [
+    {
+      "id": "layernorm-rmsnorm",
+      "title": "LayerNorm centers; RMSNorm only scales",
+      "caption": "LayerNorm subtracts the token's mean and divides by its standard deviation; RMSNorm divides by the root mean square and keeps the sign. On x = [2, 4, 6, 8], LayerNorm's output has mean 0 and standard deviation 1, while RMSNorm's output has mean 0.913 and is not centered.",
+      "alt": "Two aligned panels. LayerNorm: x = 2, 4, 6, 8; mean 5; centered -3, -1, 1, 3; variance 5 and standard deviation 2.236; output -1.342, -0.447, 0.447, 1.342 with mean 0 and standard deviation 1. RMSNorm: the same x; mean of squares 30; root mean square 5.477; output 0.365, 0.730, 1.095, 1.461 with mean 0.913, so it is not centered.",
+      "anchor": "layernorm-rmsnorm-and-the-invariances-that-matter",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "LayerNorm",
+            "items": [
+              "x = 2, 4, 6, 8",
+              "mean μ = 5",
+              "centered: -3, -1, 1, 3",
+              "variance 5, σ ≈ 2.236",
+              "y = -1.342, -0.447, 0.447, 1.342",
+              "mean 0, standard deviation 1",
+              "γ = 1, β = 0"
+            ],
+            "note": "Invariant to adding a constant; scale-invariant up to ε."
+          },
+          {
+            "title": "RMSNorm",
+            "items": [
+              "same x = 2, 4, 6, 8",
+              "mean of squares = 30",
+              "root mean square r ≈ 5.477",
+              "y = 0.365, 0.730, 1.095, 1.461",
+              "mean 0.913, not centered",
+              "γ = 1",
+              "drops μ, β, one reduction"
+            ],
+            "note": "Invariant to scaling, not to shifting."
+          }
+        ]
+      }
+    },
+    {
+      "id": "pre-norm-identity-path",
+      "title": "Pre-norm keeps the identity path outside the norm",
+      "caption": "In a pre-norm block the normalization sits inside each sublayer's input and the residual addition stays outside it, so the identity path above the stages is not multiplied by a normalization Jacobian. Post-norm moves the normalization after the addition, putting J_LN on that path; that is the path that needs warmup.",
+      "alt": "A lane with six stages: LN(x), attention, add x, LN(a), MLP, add a. A line above the stages marks the residual stream; both additions write to it, and in pre-norm neither addition is followed by a normalization. Labels give d_model at each normalization, 4d_model² for attention, and 8d_model² for the MLP. The note gives the pre-norm Jacobian I + J_f(LN(x)) J_LN(x) and the post-norm form J_LN (I + J_f).",
+      "anchor": "pre-norm-post-norm-and-the-jacobian-on-the-residual-path",
+      "kind": "lane",
+      "data": {
+        "stages": [
+          "LN(x)",
+          "Attn",
+          "+ x",
+          "LN(a)",
+          "MLP",
+          "+ a"
+        ],
+        "bypass": "residual stream: outside both norms",
+        "sizes": [
+          "d_model",
+          "4d_model²",
+          "residual",
+          "d_model",
+          "8d_model²",
+          "residual"
+        ],
+        "note": "Pre-norm: a = x + Attn(LN(x)); x' = a + MLP(LN(a)). The addition is outside the norm, so dy/dx = I + J_f(LN(x))·J_LN(x). Post-norm: y = LN(x + f(x)), so the identity path is multiplied by J_LN; Xiong et al. 2020 link that multiplication to the warmup requirement."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to follow the residual path through a pre-norm block.",
+        "steps": [
+          {
+            "label": "Normalize x for attention; the norm is inside the sublayer input.",
+            "highlight": [
+              "norm1"
+            ]
+          },
+          {
+            "label": "Attention mixes across positions and writes 4d_model² parameters.",
+            "highlight": [
+              "attn"
+            ]
+          },
+          {
+            "label": "Add to x. The bypass carries x past the norm.",
+            "highlight": [
+              "add1",
+              "identity"
+            ]
+          },
+          {
+            "label": "Normalize the new stream state for the MLP.",
+            "highlight": [
+              "norm2"
+            ]
+          },
+          {
+            "label": "The MLP writes 8d_model² parameters, one position at a time.",
+            "highlight": [
+              "mlp"
+            ]
+          },
+          {
+            "label": "Add again. Post-norm would put LN after this add, on the identity path.",
+            "highlight": [
+              "add2",
+              "identity"
+            ]
+          }
+        ]
+      }
     }
   ]
 }
