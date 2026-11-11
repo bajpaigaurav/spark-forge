@@ -1,28 +1,132 @@
 {
   "needed": true,
-  "kind": "grid",
-  "title": "The n x n score matrix: half of it is masked away",
-  "why": "It shows the object the cost comes from: every query scores every key, so the matrix is n x n, and the causal mask keeps only the lower triangle. At n=130,659 that is 1.71e10 pairs and 34.1 GB per head in fp16.",
-  "nodes": [
-    "query token i",
-    "key token j",
-    "score matrix n×n",
-    "dot product length d",
-    "fp16 entry: 2 bytes",
-    "34.1 GB per head per layer",
-    "on-chip SRAM: tens of MB",
-    "unified memory: 111.5 GB"
+  "spine": "attention",
+  "figures": [
+    {
+      "id": "quadratic-matrix",
+      "title": "The n × n score matrix is the quadratic term",
+      "caption": "Every query scores every key, so the score matrix is n × n; the causal mask keeps the lower triangle. At n = 130,659, n² = 1.707 × 10^10 entries. Stored as dense fp16 at 2 bytes each, one head in one layer is 34.1 GB, roughly 30.6% of the engine's 111.5 GB, and the product over heads and layers passes the budget many times over. The grid is a schematic 10 × 10; the numbers are the chapter's.",
+      "alt": "A 10 by 10 causal score grid. Filled cells are allowed query-key pairs with j ≤ i; the upper triangle is masked. Row 8 is highlighted. The note gives n = 130,659, n² = 1.707 × 10^10 entries, and 34.1 GB per head per layer in fp16.",
+      "anchor": "the-quadratic-term-in-attention",
+      "kind": "grid",
+      "data": {
+        "n": 10,
+        "highlight_row": 8,
+        "note": "Schematic 10 × 10 causal grid, not to scale. At n = 130,659 the matrix has n² = 1.707 × 10^10 entries; the causal triangle has n(n+1)/2. In fp16 at 2 bytes per entry, one head in one layer is 34.1 GB, about 30.6% of the engine's 111.5 GB; all heads and layers pass the budget many times over."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to fill the score matrix and count its cost.",
+        "steps": [
+          {
+            "label": "One query i scores every key j ≤ i.",
+            "highlight": [
+              "scores"
+            ]
+          },
+          {
+            "label": "The causal mask keeps the lower triangle: n(n+1)/2 entries.",
+            "highlight": [
+              "mask"
+            ]
+          },
+          {
+            "label": "At n = 130,659, n² = 1.707 × 10^10 entries.",
+            "highlight": [
+              "scores",
+              "memory"
+            ]
+          },
+          {
+            "label": "At 2 bytes per fp16 entry, one head in one layer is 34.1 GB.",
+            "highlight": [
+              "memory"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "quadratic-loglog",
+      "title": "Quadratic and linear attention on log-log axes",
+      "caption": "On log-log axes, quadratic attention rises with slope 2 and linear attention with slope 1. The plotted points run from n = 128 to n = 2048 and are relative costs computed from n/128, an illustrative normalization; the chapter's absolute counts at n = 130,659 are in the note. At n = 4096 the quadratic cost is 1024× the n = 128 cost and linear is 32×. The crossover at n = d = 128 is where linear attention becomes cheaper.",
+      "alt": "A log-log plot. The horizontal axis is sequence length n from 1 to 10,000; the vertical axis is cost relative to n = 128 from 1 to 1,000. The quadratic line passes through (128, 1), (256, 4), (512, 16), (1024, 64) and (2048, 256); the linear line passes through (128, 1), (256, 2), (512, 4), (1024, 8) and (2048, 16). The quadratic line is twice as steep.",
+      "anchor": "sparse-linear-and-state-space-alternatives",
+      "kind": "logaxes",
+      "data": {
+        "series": [
+          {
+            "kind": "line",
+            "label": "quadratic: (n/128)²",
+            "points": [
+              [
+                128,
+                1
+              ],
+              [
+                256,
+                4
+              ],
+              [
+                512,
+                16
+              ],
+              [
+                1024,
+                64
+              ],
+              [
+                2048,
+                256
+              ]
+            ]
+          },
+          {
+            "kind": "line",
+            "label": "linear: n/128",
+            "points": [
+              [
+                128,
+                1
+              ],
+              [
+                256,
+                2
+              ],
+              [
+                512,
+                4
+              ],
+              [
+                1024,
+                8
+              ],
+              [
+                2048,
+                16
+              ]
+            ]
+          }
+        ],
+        "x_label": "sequence length n",
+        "y_label": "cost relative to n = 128",
+        "note": "Relative cost is illustrative: quadratic attention scales as (n/128)², linear attention as n/128; the crossover is at n = d = 128, which the chapter states. At n = 4096 the quadratic ratio is 1024 and the linear ratio is 32. Absolute figures at n = 130,659: 1.707 × 10^10 score entries; 2.185 × 10^12 multiply-adds for the scores per head per layer, and the same again for value aggregation, so 4.37 × 10^12; a 4,096-token window cuts entries to 5.35 × 10^8, 32× fewer; linear attention costs 2.14 × 10^9 operations."
+      }
+    }
   ],
-  "notes": "Axes are token i (rows) and token j (columns); each cell is a dot product of length d=128. Label n=130,659, n²=1.707×10^10 entries, score computation 2.185×10^12 multiply-adds per head per layer, and value aggregation the same again. Memory bar: 1.707×10^10 entries × 2 bytes = 34.1 GB for one head in one layer; compare to SRAM in tens of MB (roughly a thousand times smaller) and to 111.5 GB unified memory (34.1/111.5 = 30.6%). | No axes; this is a dataflow/memory-layout diagram. Left path: standard attention materializes the n² score matrix in HBM and moves it through a 273 GB/s LPDDR5X bus for softmax and value multiply. Right path: Flash Attention loads Q/K tiles into SRAM, computes tile scores, updates m, l, and O with the rescale factor exp(m_old − m_new), and writes only the output; the n² matrix never exists in HBM. Label structural constants and chapter quantities: n², 273 GB/s, initial m = −∞, l = 0, example tile scores [2,4] then [6,8], running m = 4 then 8, running l = 1.135 then 1.156. | Log-log axes: x = sequence length n, y = cost (score entries for quadratic/sparse, operations for linear). Quadratic curve rises as n^2; windowed sparse is linear with constant 4,096; linear attention is linear with d=128. Label n=130,659 with quadratic 1.707×10^10 entries, windowed 5.35×10^8 entries (32-fold reduction), linear 2.14×10^9 operations vs quadratic 2.185×10^12 operations (thousand-fold). Mark linear/quadratic crossover at n=128 for d=128. All quantities are from the chapter. | Axes: asymptotic cost (quadratic vs linear in sequence length n) against exact recall/quality. Exact attention stays exact; sparse, linear and state-space families trade exactness or recall for better asymptotics. S4 uses a fixed-size state; Mamba makes A_t, B_t, C_t input-dependent but still cannot recover exact recall. KV cache is a separate linear memory cost: 921.6 bytes per position across all layers; raising the pool from 262,144 to 1,048,576 positions adds 786,432 × 921.6 bytes = 724.8 MB = 0.675 GiB, rounded to 0.68 GiB per rank. Quadratic cost remains in prefill compute. | Left panel is a dataflow: prompt prefix -> hash -> radix-tree lookup -> reuse cached KV blocks instead of recomputing. Right panel is a memory layout: per-layer KV cache has 2 × n × d values; at n = 130,659 and d = 128 that is 33.4 million values per layer, or 66.9 MB in fp16 per layer. The 262,144-position pool is shared across four streams, giving 32,750 tokens per stream after reply budget and overhead; the native window is 1,048,576 positions, and closing the gap costs 0.68 GiB per rank. Label the sampled cache hit rate 95.9% = 12,285,952 / 12,804,579 and the 313 seconds of avoided prefill at 39,237 tokens/s.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  "n": 10,
-  "highlight_row": 8,
-  "note": "n = 130,659, so n x n is 1.71e10 entries. One head of one layer at 2 bytes is 34.1 GB; all 32 heads is over a terabyte."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2205.14135",
+      "note": "Dao et al., FlashAttention; tiled softmax and the running maximum and sum."
+    },
+    {
+      "url": "https://arxiv.org/abs/2006.16236",
+      "note": "Katharopoulos et al., Transformers are RNNs; linear attention and the O(n d²) cost."
+    },
+    {
+      "url": "https://arxiv.org/abs/1904.10509",
+      "note": "Child et al., Sparse Transformer; the windowed mask that cuts the n² entries."
+    }
+  ]
 }
