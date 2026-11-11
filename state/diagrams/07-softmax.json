@@ -1,40 +1,126 @@
 {
   "needed": true,
-  "kind": "matrix",
-  "title": "Scores to shares: subtract the row max, exponentiate, normalise",
-  "why": "It shows the chapter worked example as the two rows it is: raw scores 2, 1, 0 and the shares 0.665, 0.245, 0.090 they become. The subtraction is what keeps exp from overflowing at 65,504.",
-  "nodes": [
-    "scores s_i in a row",
-    "row maximum m",
-    "shifted scores s_i - m",
-    "exp(s_i - m)",
-    "sum of exponentials",
-    "shares p_i"
+  "spine": "attention",
+  "figures": [
+    {
+      "id": "stable-softmax-row",
+      "title": "Stable softmax: shift, exponentiate, normalize",
+      "caption": "One row of three scores, 2.0, 1.0 and 0.1, passes through the stable softmax. Subtracting the row maximum 2.0 gives 0, −1.0 and −1.9; exponentiating gives 1, 0.368 and 0.150, summing to 1.518; dividing gives 0.659, 0.242 and 0.099, the same shares as the unshifted softmax. The last two columns apply temperature before exponentiating: T = 0.5 concentrates the row to 0.864 on the leader, T = 2 flattens it to 0.502. Those columns and their entropies are illustrative, computed from the chapter's scores; the chapter prints the T = 1 shares and H ≈ 0.85 nats.",
+      "alt": "A 3 by 6 matrix. Each row is one key. Columns are the raw score s, the score after subtracting the row maximum, the exponential, and the normalized share at T = 1, T = 0.5 and T = 2. Row one: 2.0, 0, 1, 0.659, 0.864, 0.502. Row two: 1.0, −1.0, 0.368, 0.242, 0.117, 0.304. Row three: 0.1, −1.9, 0.150, 0.099, 0.019, 0.194. The note prints the sum 1.518 and the entropies 0.45, 0.85 and 1.03 nats against ln 3 = 1.10.",
+      "anchor": "underflow-and-temperature",
+      "kind": "matrix",
+      "data": {
+        "rows": [
+          [
+            2.0,
+            0,
+            1.0,
+            0.659,
+            0.864,
+            0.502
+          ],
+          [
+            1.0,
+            -1.0,
+            0.368,
+            0.242,
+            0.117,
+            0.304
+          ],
+          [
+            0.1,
+            -1.9,
+            0.150,
+            0.099,
+            0.019,
+            0.194
+          ]
+        ],
+        "cols": [
+          "s",
+          "s − max",
+          "exp",
+          "T = 1",
+          "T = 0.5",
+          "T = 2"
+        ],
+        "col_head": "softmax stage",
+        "row_head": "key",
+        "corner": "key",
+        "highlight_row": 0,
+        "scale": 0.4,
+        "note": "Row max 2.0; shifted scores 0, −1.0, −1.9; exponentials 1, 0.368, 0.150; sum 1.518; T = 1 shares 0.659, 0.242, 0.099. The T = 0.5 and T = 2 columns are illustrative, computed by dividing the scores by T before exponentiating. Entropy: 0.45, 0.85, 1.03 nats; ceiling ln 3 = 1.10."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to walk one row through the stable softmax.",
+        "steps": [
+          {
+            "label": "Three scores: 2.0, 1.0, 0.1.",
+            "highlight": [
+              "scores"
+            ]
+          },
+          {
+            "label": "Find the row maximum: 2.0.",
+            "highlight": [
+              "max"
+            ]
+          },
+          {
+            "label": "Subtract it: 0, −1.0, −1.9.",
+            "highlight": [
+              "shift"
+            ]
+          },
+          {
+            "label": "Exponentiate: 1, 0.368, 0.150; sum 1.518.",
+            "highlight": [
+              "exp"
+            ]
+          },
+          {
+            "label": "Divide: 0.659, 0.242, 0.099. The shares match the unshifted softmax.",
+            "highlight": [
+              "shares"
+            ]
+          },
+          {
+            "label": "Temperature: T = 0.5 concentrates to 0.864; T = 2 flattens to 0.502.",
+            "highlight": [
+              "temperature"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "attention-sink",
+      "title": "The first token is the only key every query can see",
+      "caption": "The causal mask makes column 0 visible to every row: the first token is the one position a head can always attend to when no visible key is a good match. Softmax cannot output \"attend to nothing\", so a head with surplus mass can dump it on that token. Xiao et al. (2023) called this the attention sink; remove the first token from the window and perplexity explodes.",
+      "alt": "An 8 by 8 causal score grid. Rows are queries, columns are keys. Filled cells are allowed pairs with j ≤ i; the upper triangle is masked. Column 0 is filled in every row, so the first token is visible to every query.",
+      "anchor": "the-attention-sink-and-the-cost-of-normalization",
+      "kind": "grid",
+      "data": {
+        "n": 8,
+        "highlight_row": 7,
+        "note": "Column 0 is the first token. Under causal masking it is the only key visible to every query, so it is always available as a null key. Softmax must put its mass somewhere; many heads in pretrained models dump surplus mass there. Remove that token from the window and perplexity explodes."
+      }
+    }
   ],
-  "notes": "Flow left to right: scores enter max-reduction, then subtraction, then exponentiation, then sum, then division. Label the overflow ceiling on the exponentiation stage: fp16 tops out at 65,504 and exp(11.09)=65,536; fp32 ceiling at exp(88.7). Label underflow at exp(-20) ~ 2e-9. Temperature T is a divisor inside the exponent: exp(s_i/T), with T=1 unchanged, T=0.5 doubles scores, T=2 halves them. All quantities come from the chapter. | x-axis: relative score gap among keys in a row; y-axis: softmax share p_i and its derivative p_i(1-p_i). The share curve rises toward 1 as one key dominates; the gradient curve peaks at p_i=0.5 and falls to 0 at p_i=0 and p_i=1. Label the endpoints structurally: p_i→1 gives gradient→0; p_i=0.5 gives maximum p_i(1-p_i). Optionally annotate the chapter's three-key example with H≈0.85 nats against ln 3≈1.10, but no other numeric values are introduced.",
-  "section": 2,
-  "sections": [
-    2,
-    3
-  ],
-  "rows": [
-    [
-      2,
-      1,
-      0
-    ],
-    [
-      7.389,
-      2.718,
-      1.0
-    ]
-  ],
-  "cols": [
-    "s_1",
-    "s_2",
-    "s_3"
-  ],
-  "highlight_row": 0,
-  "note": "Subtract the row maximum first: exp(2-2), exp(1-2), exp(0-2) still sum to 11.107. fp16 tops out at 65,504; exp(11.1) is 65,536.",
-  "scale": 0.25
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1706.03762",
+      "note": "Vaswani et al.; the scaled dot-product softmax and the 1/sqrt(d_k) factor."
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.17453",
+      "note": "Xiao et al., Efficient Streaming Language Models with Attention Sinks; the first-token sink and the perplexity collapse when it is evicted."
+    },
+    {
+      "url": "https://arxiv.org/abs/1805.02867",
+      "note": "Milakov and Gimelshein, Online normalizer calculation for softmax; the incremental row maximum used by tiled kernels."
+    }
+  ]
 }
