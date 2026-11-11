@@ -1,55 +1,334 @@
 {
   "needed": true,
-  "kind": "matrix",
-  "title": "Temperature moves the mass, never the order",
-  "why": "It shows the chapter worked example as a table of shares: the same three logits at T=1, T=0.5 and T=2, with top-k k=2 renormalising the first two. The order never changes; the tail mass does.",
-  "nodes": [
-    "context ending 'the the'",
-    "next-token scores",
-    "argmax selection",
-    "append token 'the'",
-    "new context 'the the the'",
-    "scores for 'the' rise relative to alternatives"
+  "spine": "sampling",
+  "figures": [
+    {
+      "id": "greedy-self-reinforcement",
+      "title": "Greedy decoding and the degeneration loop",
+      "caption": "Greedy decoding takes the argmax, appends it, and runs the model again. When the context ends in \"the the\", the scores put \"the\" above \"cat\" and \"dog\"; taking \"the\" makes the context \"the the the\", an even stronger match for the repeated pattern, so \"the\" rises again. Each step is locally correct and the sequence still loops. The mechanism is self-reinforcement through the KV cache, not a decoding bug.",
+      "alt": "Four lanes across five steps. The context lane starts at the the, scores the next token, picks the argmax, appends it, and repeats. The scores lane shows the on top, then the gap widening after the append. The choice lane shows the selected three times. The explanation lane notes that the pattern was seen in training, becomes a stronger match, and is self-reinforcing.",
+      "anchor": "greedy-decoding-and-the-degeneration-loop",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "context",
+          "score",
+          "argmax",
+          "append",
+          "repeat"
+        ],
+        "lanes": [
+          {
+            "name": "context",
+            "cells": [
+              {
+                "label": "…the the",
+                "kind": "solid"
+              },
+              null,
+              null,
+              {
+                "label": "…the the the",
+                "kind": "solid"
+              },
+              {
+                "label": "…the the the the",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "next-token scores",
+            "cells": [
+              null,
+              {
+                "label": "the on top",
+                "kind": "solid"
+              },
+              null,
+              null,
+              {
+                "label": "the rises again",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "greedy choice",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "the",
+                "kind": "new"
+              },
+              {
+                "label": "the",
+                "kind": "new"
+              },
+              {
+                "label": "the",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "why",
+            "cells": [
+              null,
+              {
+                "label": "pattern seen in training",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "stronger match",
+                "kind": "solid"
+              },
+              {
+                "label": "self-reinforcement",
+                "kind": "solid"
+              }
+            ]
+          }
+        ],
+        "note": "Holtzman et al. documented this in 2019: maximising likelihood step by step produces text that loops, drifts and contradicts itself. The previous token's key and value sit in the cache; if attention puts weight on them and the context supplies no stronger signal, the same direction reaches the head again."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to run the loop one token at a time.",
+        "steps": [
+          {
+            "label": "The context ends in the the.",
+            "highlight": [
+              "context"
+            ]
+          },
+          {
+            "label": "Scores put the above cat and dog because the pattern appeared in training.",
+            "highlight": [
+              "scores"
+            ]
+          },
+          {
+            "label": "Greedy takes the argmax: the.",
+            "highlight": [
+              "choice"
+            ]
+          },
+          {
+            "label": "Appending it makes the the the, a stronger match for the same pattern.",
+            "highlight": [
+              "context"
+            ]
+          },
+          {
+            "label": "The score for the rises again; the loop is closed.",
+            "highlight": [
+              "scores"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "temperature-then-truncate",
+      "title": "Temperature sets the shape; the cut keeps a set",
+      "caption": "Temperature rescales logits before the cut; truncation then renormalises. On logits 4.0, 2.0 and 1.0 the T = 1 probabilities are 0.844, 0.114 and 0.042. T = 0.5 sharpens to 0.980 / 0.018 / 0.002; T = 2 flattens to 0.628 / 0.231 / 0.140. Top-k with k = 2 keeps mass 0.958 and renormalises to 0.881 / 0.119; top-p = 0.9 keeps the same two; min-p = 0.1 cuts at 0.0844 and keeps the same two.",
+      "alt": "Four lanes across six steps. The first three steps are the probability of tokens A, B and C at T = 1, T = 0.5 and T = 2. A reads 0.844, 0.980, 0.628; B reads 0.114, 0.018, 0.231; C reads 0.042, 0.002, 0.140. The last three steps apply top-k, top-p and min-p cuts: A and B survive at 0.881 and 0.119, C is cut, and the kept mass stays 0.958.",
+      "anchor": "count-based-and-mass-based-truncation",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "p at T = 1",
+          "T = 0.5",
+          "T = 2",
+          "top-k k = 2",
+          "top-p 0.9",
+          "min-p 0.1"
+        ],
+        "lanes": [
+          {
+            "name": "A: z = 4.0",
+            "cells": [
+              {
+                "label": "0.844",
+                "kind": "solid"
+              },
+              {
+                "label": "0.980",
+                "kind": "solid"
+              },
+              {
+                "label": "0.628",
+                "kind": "solid"
+              },
+              {
+                "label": "0.881",
+                "kind": "new"
+              },
+              {
+                "label": "0.881",
+                "kind": "new"
+              },
+              {
+                "label": "0.881",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "B: z = 2.0",
+            "cells": [
+              {
+                "label": "0.114",
+                "kind": "solid"
+              },
+              {
+                "label": "0.018",
+                "kind": "solid"
+              },
+              {
+                "label": "0.231",
+                "kind": "solid"
+              },
+              {
+                "label": "0.119",
+                "kind": "new"
+              },
+              {
+                "label": "0.119",
+                "kind": "new"
+              },
+              {
+                "label": "0.119",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "C: z = 1.0",
+            "cells": [
+              {
+                "label": "0.042",
+                "kind": "solid"
+              },
+              {
+                "label": "0.002",
+                "kind": "solid"
+              },
+              {
+                "label": "0.140",
+                "kind": "solid"
+              },
+              {
+                "label": "cut",
+                "kind": "waste"
+              },
+              {
+                "label": "cut",
+                "kind": "waste"
+              },
+              {
+                "label": "cut",
+                "kind": "waste"
+              }
+            ]
+          },
+          {
+            "name": "kept mass",
+            "cells": [
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              {
+                "label": "0.958",
+                "kind": "solid"
+              },
+              {
+                "label": "0.958",
+                "kind": "solid"
+              },
+              {
+                "label": "0.958",
+                "kind": "solid"
+              }
+            ]
+          }
+        ],
+        "note": "The three cuts coincide here because B clears both the cumulative target and the floor. They diverge elsewhere: ten tokens at 0.1 each are kept nine by top-p = 0.9 but five by top-k = 5; one token at 0.95 with the rest thin is kept alone by top-p but fifty by top-k = 50. Top-p admits a variable count that follows the shape; top-k fixes the count; min-p sets the floor at min_p × p_max = 0.1 × 0.844 = 0.0844."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to apply temperature, then each cut.",
+        "steps": [
+          {
+            "label": "At T = 1 the logits 4.0, 2.0, 1.0 give 0.844, 0.114, 0.042.",
+            "highlight": [
+              "temperature"
+            ]
+          },
+          {
+            "label": "T = 0.5 divides the logits by 0.5: 0.980, 0.018, 0.002.",
+            "highlight": [
+              "temperature"
+            ]
+          },
+          {
+            "label": "T = 2 flattens: 0.628, 0.231, 0.140.",
+            "highlight": [
+              "temperature"
+            ]
+          },
+          {
+            "label": "Sort descending and keep the top k = 2: mass 0.958.",
+            "highlight": [
+              "cut"
+            ]
+          },
+          {
+            "label": "Add probabilities until the running total reaches 0.9: the same two.",
+            "highlight": [
+              "cut"
+            ]
+          },
+          {
+            "label": "Drop everything below 0.0844, then renormalise: 0.881 and 0.119.",
+            "highlight": [
+              "renormalise"
+            ]
+          }
+        ]
+      }
+    }
   ],
-  "notes": "Flow is cyclic: context -> model scores -> argmax -> appended token -> new context -> model scores. Labels are the repeated token strings from the prose ('the the', 'the the the') and the qualitative relation that the score for 'the' rises relative to alternatives. No numeric quantities are invented; the diagram carries the feedback structure, not a distribution curve. | Horizontal axis: configuration (T=1, T=0.5, T=2, top-k k=2). Vertical axis: probability mass for the three tokens with logits 4.0, 2.0, 1.0. Bars show the probabilities given in the chapter; temperature panels preserve token order and change tail mass, while the top-k panel drops the third token and renormalises the first two. All labelled quantities come from the chapter's worked example. | Horizontal axis: tokens sorted descending by probability; vertical axis: probability. Bars show the three-logit case 0.844, 0.114, 0.042. Top-k k=2 keeps first two. Top-p p=0.9 admits 0.844 then 0.114 because cumulative reaches 0.958. Min-p min_p=0.1 threshold 0.0844 keeps 0.844 and 0.114, renormalised to 0.881 and 0.119. Side panels compare flat 10x0.1 case: top-p 0.9 keeps nine, top-k 5 keeps five; and peaked 0.95 case: top-p keeps one, top-k 50 keeps fifty. Temperature inset labels min-p threshold movement: T=1 p_max=0.844 threshold=0.0844 keeps two; T=0.5 p_max=0.980 threshold=0.098 keeps one; T=2 p_max=0.628 threshold=0.0628 keeps three. | Left-to-right flow, no axes. Logits enter the penalty stage: repetition penalty uses r>1 (divide positive logits, multiply negative logits), frequency penalty subtracts alpha times count, presence penalty subtracts beta once. Temperature then divides logits by T. Truncation acts on the softmax probabilities, not logits. Renormalisation follows truncation, then the token is drawn. Chapter example: logits 4.0, 2.0, 1.0 with r=1.2 become 3.333, 2.0, 1.0 and probabilities 0.735, 0.194, 0.071; with r=2 they become 2.0, 2.0, 1.0 and probabilities 0.422, 0.422, 0.155, where top-p 0.9 keeps all three, while truncating before the penalty keeps only the first two. | Diagram the live pool as four equal streams of 65,536 positions. Within one stream, show a request's admission ceiling of 32,750 tokens after reserving the 32,768-token reply budget and overhead. Then show four beam hypotheses each needing their own KV cache at that ceiling, totaling 131,000 positions, which is twice the per-stream share. Label the pool total, stream count, per-stream share, reply budget, admission ceiling, beam count, and four-beam total; all quantities come from the chapter. | Left-to-right flow: raw logits enter penalty adjustment, then temperature scaling, then a truncation stage where top-k, top-p, and min-p are alternative cuts on the same distribution, then renormalization over the surviving set, then the categorical draw. Each parameter is labelled at its intervention point; no numeric values are shown beyond the structural parameters k, p, T, and the min-p threshold. The figure carries the section's claim that the parameters cut at different places rather than forming one dial.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
-  "rows": [
-    [
-      0.844,
-      0.114,
-      0.042
-    ],
-    [
-      0.98,
-      0.018,
-      0.002
-    ],
-    [
-      0.628,
-      0.231,
-      0.14
-    ],
-    [
-      0.881,
-      0.119,
-      0
-    ]
-  ],
-  "cols": [
-    "T=1",
-    "T=0.5",
-    "T=2",
-    "top-k k=2"
-  ],
-  "row_head": "logits 4.0, 2.0, 1.0",
-  "note": "At T=0.5 the tail nearly vanishes; at T=2 it rises. Top-k k=2 drops the third token and renormalises 0.844 + 0.114 = 0.958 into 0.881 and 0.119.",
-  "scale": 1.0
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1904.09751",
+      "note": "Holtzman et al., The Curious Case of Neural Text Degeneration (2019): greedy degeneration and nucleus (top-p) sampling."
+    },
+    {
+      "url": "https://arxiv.org/abs/1805.04833",
+      "note": "Fan, Lewis and Dauphin, Hierarchical Neural Story Generation (2018): top-k sampling."
+    },
+    {
+      "url": "https://arxiv.org/abs/2407.01082",
+      "note": "Nguyen et al., Min-p sampling (2024): a floor relative to the maximum probability."
+    },
+    {
+      "url": "https://arxiv.org/abs/1909.05858",
+      "note": "Keskar et al., CTRL (2019): the repetition penalty that divides positive logits and multiplies negative ones."
+    }
+  ]
 }
