@@ -1,48 +1,111 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "The bottleneck: every source token compressed into one vector",
-  "why": "It shows what the recurrence forces, which the prose describes in sequence: intermediate encoder states exist but are never passed on, and the decoder starts from one vector of a few hundred numbers.",
-  "nodes": [
-    "source tokens",
-    "encoder RNN steps",
-    "intermediate encoder hidden states",
-    "final encoder hidden state vector",
-    "decoder RNN steps",
-    "output tokens"
-  ],
-  "notes": "No axes; this is a left-to-right dataflow. Source tokens are consumed one at a time by the encoder RNN. The encoder produces intermediate hidden states at each step, but the diagram should show them as not passed forward. Only the final hidden state vector—described in the chapter as a vector of a few hundred numbers—crosses into the decoder. The decoder starts from that vector and emits output tokens one per step, feeding each emitted token back in. Label the single final vector as the bottleneck and mark that earlier encoder states are inaccessible to the decoder. | Left-to-right flow: source tokens enter encoder steps; each step updates h_t via h_t = tanh(w h_{t-1} + x_t); the final hidden state becomes the fixed summary passed to the decoder. A backward arrow runs from h_T to h_1 through all T steps, labelled with the product of w·tanh'(a_t) factors. Example labels from the chapter: w=0.5, tanh'=0.8 gives factor 0.4; over twenty steps the product is 0.4^19 ≈ 2.7×10^-8. A capacity inset compares a 256-float summary against 5 source tokens carrying 1,280 embedding floats and 50 tokens carrying 12,800 floats; the summary has 256 slots in both cases. | Left-to-right flow: source tokens feed forward and backward RNNs; their states concatenate into annotations h_j of width 2d. At each decoder step, s_{i-1} of width d' and every h_j feed the scoring network, producing one scalar e_{ij} per encoder position. Softmax converts scores over j into weights α_{ij}; the context vector is their weighted sum of annotations and is handed to the decoder. The chapter's example scores 2.0, 1.0, 0.0 give weights 0.665, 0.245, 0.090; after raising the first score to 4.0 they become 0.936, 0.047, 0.017. Axes are not numeric; the diagram labels tensor widths d, 2d, d', and k. | Horizontal axis is source position; a window centered at predicted p_i with half-width D=2 covers 5 of 50 positions, so cost per decoder step is O((2D+1)d) instead of O(m d). The scoring comparison labels dot as requiring shared width, general as inserting learned W, and additive as Bahdanau's tanh network; no other quantities are labelled. | No axes; boxes are tensors and operations. Arrows flow from S and H into either the additive branch (two GEMM projections, then an elementwise k-vector sum for every (i,j), tanh, v-dot) or the dot-product branch (one GEMM). Label shapes n=20, m=50, k=128, d=512 where given; label the additive k×n×m intermediate as the structural bottleneck and the dot-product n×m output as contiguous GEMM output. The arithmetic counts in the prose (≈7.86M projections, 128k v-dot, ≈8M total additive vs 512k dot-product) can annotate the branches but are not axis quantities. | Rows are source positions (n), columns are target positions (m); each cell is a query-key comparison costing O(d). The example labels n=50, m=20, d=512, giving 1,000 entries and 50*20*512=512,000 multiply-adds for scores, with similar cost for the weighted sum. A second panel shows self-attention where source and target length are both L, giving an L-by-L matrix and O(L^2 d) cost. No other quantities are labelled.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
-  "panels": [
+  "spine": "attention",
+  "figures": [
     {
-      "title": "encoder: states that go nowhere",
-      "items": [
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "final h"
-      ],
-      "note": "Only the final hidden state crosses into the decoder."
+      "id": "fixed-vector-bottleneck",
+      "title": "What survives the bottleneck",
+      "caption": "A phase table for a plain encoder–decoder. The encoder writes one annotation per source token; the bottleneck keeps only the final 256-float state, so five source tokens' 1,280 floats and fifty tokens' 12,800 floats must both fit in the same 256 slots. Bahdanau's addition keeps the annotations and lets every decoder step read them, but the recurrence remains.",
+      "alt": "A three-phase table with columns encode source, bottleneck, and decode target. The source-tokens row holds five or fifty tokens during encoding, is discarded at the bottleneck, and is empty during decoding. The annotations row holds one vector per source token, is discarded in plain seq2seq, and under Bahdanau is kept and read at every decoder step. The summary row holds the last encoder state, crosses the bottleneck as 256 floats, and becomes the decoder's start state. The target row is empty until decoding, where it holds one token per step.",
+      "anchor": "the-fixed-vector-bottleneck-and-its-workarounds",
+      "kind": "timeline",
+      "data": {
+        "steps": ["encode source", "bottleneck", "decode target"],
+        "lanes": [
+          {"name": "source tokens", "cells": [
+            {"label": "5 → 1,280 floats; 50 → 12,800", "kind": "solid"},
+            {"label": "discarded", "kind": "waste"},
+            null
+          ]},
+          {"name": "annotations h_j", "cells": [
+            {"label": "one per source token", "kind": "solid"},
+            {"label": "discarded in plain seq2seq", "kind": "waste"},
+            {"label": "kept: attention reads all (Bahdanau)", "kind": "new"}
+          ]},
+          {"name": "summary h_T", "cells": [
+            {"label": "last state", "kind": "solid"},
+            {"label": "256 floats: the only crossing", "kind": "cache"},
+            {"label": "decoder start state", "kind": "solid"}
+          ]},
+          {"name": "target tokens", "cells": [
+            null,
+            null,
+            {"label": "one per step", "kind": "solid"}
+          ]}
+        ],
+        "note": "Plain seq2seq keeps only h_T, so 1,280 or 12,800 floats of embeddings compress into 256 slots. The gradient back to the first source word is a product of T−1 Jacobians: with each factor 0.4, twenty steps give 0.4^19 ≈ 2.7 × 10^-8."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to follow the encode–decode path.",
+        "steps": [
+          {"label": "The encoder reads the source one token at a time and writes an annotation per token.", "highlight": ["encode-source"]},
+          {"label": "Only the last state crosses the bottleneck; the annotations are discarded.", "highlight": ["bottleneck"]},
+          {"label": "The decoder starts from h_T and emits one token per step.", "highlight": ["decode-target"]},
+          {"label": "Bahdanau keeps the annotations so each decoder step can score all of them.", "highlight": ["annotations"]}
+        ]
+      }
     },
     {
-      "title": "decoder: one vector in, tokens out",
-      "items": [
-        "final h",
-        "step 1",
-        "step 2",
-        "step 3"
-      ],
-      "note": "Everything the decoder knows about the source is in that one vector."
+      "id": "additive-vs-dot",
+      "title": "Additive scoring versus one dot-product matrix",
+      "caption": "At n = 20 decoder steps, m = 50 source positions, k = 128 and d = 512, additive scoring costs about 7.86M multiply-adds for the projections plus 128,000 for the per-pair dot, roughly 8M. Dot-product scoring costs 20 × 50 × 1024 = 1,024,000, about 16 times less. The penalty is the shape of the work: additive evaluates a tanh per pair, dot-product is one GEMM.",
+      "alt": "Two panels. Additive attention: e equals v transpose tanh of W1 h_j plus W2 s_i; the projections are GEMMs; the tanh runs over every one of the n times m pairs; at n equals 20, m equals 50, k equals 128 and d equals 512 the cost is about 7.86M plus 0.128M, roughly 8M multiply-adds, and it materialises a k by n by m intermediate. Dot product: e equals s_i transpose h_j; one GEMM S H transpose produces all n times m scores; 20 times 50 times 1024 equals 1,024,000 multiply-adds, about 16 times less arithmetic at these lengths.",
+      "anchor": "why-dot-product-attention-won-on-hardware",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "additive (Bahdanau 2014)",
+            "items": [
+              "e = vᵀ tanh(W_1 h_j + W_2 s_i)",
+              "W_1 h_j and W_2 s_i are GEMMs",
+              "tanh over every one of the n·m pairs",
+              "n = 20, m = 50, k = 128, d = 512",
+              "≈ 7.86M + 0.128M ≈ 8M multiply-adds"
+            ],
+            "note": "Materialises a k × n × m intermediate; elementwise and memory-bound."
+          },
+          {
+            "title": "dot product (Luong 2015; Vaswani 2017)",
+            "items": [
+              "e = s_iᵀ h_j",
+              "one GEMM: S Hᵀ",
+              "all n·m scores in one operation",
+              "20 × 50 × 1024 = 1,024,000 multiply-adds",
+              "≈ 16× less arithmetic at these lengths"
+            ],
+            "note": "The win is the shape of the work, not a claim that the inner product is more expressive."
+          }
+        ]
+      }
+    },
+    {
+      "id": "alignment-weights",
+      "title": "Softmax sharpens the weights; the alignment story is ours",
+      "caption": "Three annotations scored 2.0, 1.0 and 0.0 get softmax shares 0.665, 0.245 and 0.090. Raising the first score to 4.0 gives 0.936, 0.047 and 0.017: the distribution sharpens toward a hard choice without becoming one. The weights are real numbers the model computed; reading them as word alignments is an interpretation, and Koehn and Knowles show it does not reliably hold.",
+      "alt": "Six horizontal bars in two groups. Before: h1 at score 2.0 has weight 0.665, h2 at score 1.0 has 0.245, h3 at score 0.0 has 0.090. After raising h1 to 4.0: h1 has 0.936, h2 has 0.047, h3 has 0.017.",
+      "anchor": "bahdanau-attention-scores-every-annotation",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {"label": "h_1, score 2.0", "value": 0.665, "display": "0.665"},
+          {"label": "h_2, score 1.0", "value": 0.245, "display": "0.245"},
+          {"label": "h_3, score 0.0", "value": 0.09, "display": "0.090"},
+          {"label": "h_1, score 4.0", "value": 0.936, "display": "0.936", "accent": true},
+          {"label": "h_2, score 1.0 (after)", "value": 0.047, "display": "0.047"},
+          {"label": "h_3, score 0.0 (after)", "value": 0.017, "display": "0.017"}
+        ],
+        "note": "e^2, e^1, e^0 = 7.389, 2.718, 1.000; sum 11.107. Raise h_1 to 4.0: 54.598, 2.718, 1.000; sum 58.316. The gradient through the softmax keeps a baseline, so the weights across source positions sum to zero in the score gradient. Koehn and Knowles (2017): attention weights are a poor guide to alignment."
+      }
     }
+  ],
+  "sources": [
+    {"url": "https://arxiv.org/abs/1409.0473", "note": "Bahdanau, Cho and Bengio 2014: annotations, additive scoring, and the context vector."},
+    {"url": "https://arxiv.org/abs/1508.04025", "note": "Luong, Pham and Manning 2015: dot, general and additive scoring; local attention."},
+    {"url": "https://arxiv.org/abs/1706.03762", "note": "Vaswani et al. 2017: dot-product attention with the sqrt(d_k) scaling."},
+    {"url": "https://aclanthology.org/W17-3204", "note": "Koehn and Knowles 2017: attention weights do not reliably behave like word alignments."},
+    {"url": "https://jalammar.github.io/illustrated-transformer", "note": "Pedagogical visual explanation of encoder–decoder attention and Q/K/V."}
   ]
 }
