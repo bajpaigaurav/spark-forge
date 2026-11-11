@@ -1,47 +1,266 @@
 {
   "needed": true,
-  "kind": "grid",
-  "title": "The mask: full causal versus a sliding window of W",
-  "why": "It shows the two masks as masks, which the prose describes in sequence: the full lower triangle keeps every past key, the band keeps only the W positions ending at the query. At n = 130,659 the full triangle is 8.5 billion pairs; the band is 535 million.",
-  "nodes": [
-    "full causal attention",
-    "sliding-window attention",
-    "prompt length n=130,659",
-    "window W=4,096",
-    "full causal pairs 8,535,952,470",
-    "window pairs 535,179,264",
-    "ratio about 16"
-  ],
-  "notes": "Two side-by-side query-key masks: axes are query position and key position. Left: full causal lower triangle, every query attends to all previous keys. Right: sliding-window band of width W along the diagonal, each query attends only to the W positions ending at itself. Label n on both axes, W as the band width, and the pair counts and ratio exactly as given in the chapter. | Horizontal axis: token positions from 1 to n=130,659. Vertical axis: layers 1 through L=32. A local window of W=4,096 including the current token reaches back W-1 per layer; after L layers the earliest visible position is i-L(W-1), giving receptive field L(W-1)+1=131,041. Show the chain from position 1 to the final token through 32 attention operations. Compare a dense 4,096-score window covering 4,096 positions with a dilated d=2 window covering 8,192 positions at the same score count. Show g=4 global tokens attending to all positions and attended by all positions, giving a one-hop but lossy path; label the extra dense component as about 2*g*n=1,045,272 pairs, about 0.012 percent of causal full attention. Do not label any other invented quantities. | Left side: circular buffer with W=4096 slots; token i maps to slot i mod W; position IDs remain absolute so rotary relative distance i-j is preserved after wrap; mask/gather selects valid slots in order. Right side: comparison bars for pair counts per stream and across four streams: full causal over 65,536 positions = 2,147,516,416 pairs per stream and 8,590,065,664 across four; 4,096-window over 65,536 positions = 268,435,456 pairs per stream and 1,073,741,824 across four; window cuts pairs by about 8x. Also label pool 262,144 positions, four streams, equal share 65,536, admission formula yielding 32,750 positions per stream, and 3.8 MB KV cache per 4,096-position stream from 922 bytes per position. | Left panel: layer sequence alternates local sliding-window layers and full-attention layers; label local cost 16×4,096=65,536, full cost 16×130,659=2,090,544, hybrid total 2,156,080 versus all-full 4,181,088, or 51.6 percent. Right panel: axes are query blocks and key/value blocks; live tiles are loaded from HBM into shared memory, scored, softmaxed, and multiplied by value blocks; masked tiles are not loaded, not scored, and excluded from the softmax denominator. A contiguous sliding window maps to a block mask; irregular masks may still load full blocks or use a gather. Full attention reads every key-value block; FlashAttention tiles but still reads all keys and values. | Left side: clause token at position 1 and question token at position 130,659. Middle: pure sliding-window path with W=4,096 and L=32, where the edge is indirect through 32 layers of averaging and hidden-state summaries. Right: hybrid path with one full layer, where the question token's query reads the clause token's key directly. Label the two outcomes: exact string copy when a direct edge exists, gist-only summary when no layer provides that edge. No axis quantities beyond the given token positions, W=4,096, L=32, and one full layer.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    4,
-    5,
-    6
-  ],
-  "panels": [
+  "spine": "attention",
+  "figures": [
     {
-      "title": "full causal",
-      "items": [
-        "n = 130,659",
-        "every query sees all past keys",
-        "8,535,952,470 pairs"
-      ],
-      "note": "The whole lower triangle is live."
+      "id": "sliding-window-mask",
+      "title": "The sliding window keeps only the last W keys in each row",
+      "caption": "With W = 4, each query scores only the four most recent keys including itself; earlier keys are masked out of the softmax and never read. The band slides down one row per token, so the work per token is W rather than n. At n = 130,659 and W = 4,096 the windowed path computes 535,179,264 pairs against 8,535,952,470 for full causal attention, 16x fewer.",
+      "alt": "A ten-by-ten mask grid. Row i has a 1 in columns i minus 3 through i and blank cells elsewhere, so the ones form a diagonal band that slides right as rows go down. The last row is highlighted and shows ones in columns 6 through 9. Blank cells are masked and never enter the softmax denominator.",
+      "anchor": "the-quadratic-cost-of-full-attention",
+      "kind": "matrix",
+      "data": {
+        "rows": [
+          [
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "1",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "1",
+            "1",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "1",
+            "1",
+            "1",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "1",
+            "1",
+            "1",
+            "1",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "1",
+            "1",
+            "1",
+            "1",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "1",
+            "1",
+            "1",
+            "1",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "1",
+            "1",
+            "1",
+            "1",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "1",
+            "1",
+            "1",
+            "1",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "1",
+            "1",
+            "1",
+            "1"
+          ]
+        ],
+        "cols": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "col_head": "keys j",
+        "row_head": "queries i",
+        "corner": "i, j",
+        "highlight_row": 9,
+        "note": "Schematic 10 x 10 grid with W = 4. In the deployment W = 4,096; the band has 4,096 cells per row and the mask is applied tile by tile."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Slide the window down the mask.",
+        "steps": [
+          {
+            "label": "Full causal attention scores every earlier key for every query.",
+            "highlight": [
+              "causal"
+            ]
+          },
+          {
+            "label": "The window keeps only the last W = 4 keys; everything older is masked.",
+            "highlight": [
+              "window",
+              "masked"
+            ]
+          },
+          {
+            "label": "The band slides down one row per token, so the cost per token is W, not n.",
+            "highlight": [
+              "window",
+              "slide"
+            ]
+          },
+          {
+            "label": "Global tokens and dilation add back a few long-range edges without filling the matrix.",
+            "highlight": [
+              "global",
+              "dilated"
+            ]
+          }
+        ]
+      }
     },
     {
-      "title": "sliding window, W = 4,096",
-      "items": [
-        "W = 4,096",
-        "only the W keys ending at the query",
-        "535,179,264 pairs"
-      ],
-      "note": "About 16 times fewer pairs."
+      "id": "pattern-comparison",
+      "title": "Three patterns and what each costs",
+      "caption": "Full causal attention computes 8,535,952,470 pairs at n = 130,659. A sliding window of 4,096 computes 535,179,264 pairs, 16x fewer, and after 32 layers reaches 131,041 positions. Dilation 2 covers 8,191 positions with the same 4,096 scores per query; a hybrid of 16 full and 16 local layers costs 51.6 percent of an all-full stack.",
+      "alt": "Three aligned panels. Full causal lists 8,535,952,470 pairs at n = 130,659, every query reading every earlier key, with cost growing as n squared. The sliding window with W = 4,096 lists 535,179,264 pairs, 16 times fewer, a receptive field of 131,041 after 32 layers, and a cache holding only the last W positions. Dilated and global lists dilation 2 covering 8,191 positions with 4,096 scores, global tokens attended by every token, and a 16-full-plus-16-local hybrid at 51.6 percent of full cost.",
+      "anchor": "local-dilated-and-global-sparse-patterns",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Full causal vs sliding window",
+            "items": [
+              "full: 8,535,952,470 pairs at n = 130,659",
+              "window W = 4,096: 535,179,264 pairs, 16x fewer",
+              "receptive field L(W-1)+1 = 131,041 after 32 layers"
+            ],
+            "note": "Full cost grows with n squared; the window costs W per token. The path back to position 1 is indirect, carried through 32 layers of averaging."
+          },
+          {
+            "title": "Dilated, global, hybrid",
+            "items": [
+              "dilation 2: 4,096 scores cover 8,191 positions",
+              "global tokens attend to and are attended by every token",
+              "16 full + 16 local layers = 51.6% of full cost"
+            ],
+            "note": "A full layer gives every token a direct edge; a local layer does not. That difference is what retrieval tests measure."
+          }
+        ]
+      }
+    },
+    {
+      "id": "rolling-cache-savings",
+      "title": "A rolling cache holds W positions, not the whole context",
+      "caption": "Mistral 7B's cache costs 128 KiB per token: 32 layers x 8 KV heads x 128 dimensions x 2 for K and V x 2 bytes. A 4,096-token window needs 512 MiB per stream, where holding 65,536 positions would need 8 GiB and the mean 130,659-token prompt 16 GiB. The last two bars are 128 KiB multiplied by the position count, not separately measured sizes.",
+      "alt": "Three horizontal bars of cache size per stream. The rolling window of 4,096 positions is 512 MiB. A full cache over one stream's 65,536-position share is 8 GiB. A full cache over the mean 130,659-token prompt is 16 GiB.",
+      "anchor": "rolling-kv-cache-and-position-ids",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "window W = 4,096",
+            "value": 512,
+            "display": "512 MiB per stream"
+          },
+          {
+            "label": "full, 65,536",
+            "value": 8192,
+            "display": "8 GiB = 65,536 x 128 KiB"
+          },
+          {
+            "label": "full, 130,659",
+            "value": 16384,
+            "display": "16 GiB = 130,659 x 128 KiB",
+            "accent": true
+          }
+        ],
+        "note": "128 KiB per token = 32 layers x 8 KV heads x 128 x 2 (K/V) x 2 bytes. The rolling buffer writes token i to slot i mod W; position ids stay absolute so the mask still knows the true distance."
+      }
     }
   ],
-  "n": 10,
-  "highlight_row": 8,
-  "note": "W = 4,096: each query attends only to the W keys ending at itself. The band is about 16 times fewer pairs than the full triangle."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1904.10509",
+      "note": "Child et al., Sparse Transformers: factorized and local attention patterns."
+    },
+    {
+      "url": "https://arxiv.org/abs/2004.05150",
+      "note": "Beltagy et al., Longformer: the sliding-window plus global-token pattern."
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.17453",
+      "note": "Xiao et al., StreamingLLM: attention sinks and the rolling KV cache with position ids."
+    },
+    {
+      "url": "https://arxiv.org/abs/2310.06825",
+      "note": "Jiang et al., Mistral 7B: sliding-window attention and the per-token cache arithmetic."
+    }
+  ]
 }
