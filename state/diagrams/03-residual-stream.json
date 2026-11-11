@@ -1,41 +1,129 @@
 {
   "needed": true,
-  "kind": "lane",
-  "title": "One lane, every layer writes into it",
-  "why": "It shows the architecture the chapter argues for: attention and the feed-forward block are readers and writers on one shared vector, not a stack of stages. The lane is the same width at every depth.",
-  "nodes": [
-    "x_l (input vector)",
-    "residual branch F_l(x_l)",
-    "identity skip x_l",
-    "addition F_l(x_l) + x_l",
-    "x_{l+1} (output vector)",
-    "backward gradient path through identity I",
-    "backward gradient path through J_l"
+  "spine": "residual",
+  "figures": [
+    {
+      "id": "residual-lane",
+      "title": "One lane, read and written at every block",
+      "caption": "Every sublayer reads the residual stream, computes a correction, and adds it back. The lane holds one vector per token at width d_model from the embedding lookup to the unembedding; attention and the feed-forward network never replace it, so nothing else survives the depth.",
+      "alt": "A left-to-right lane of five stages: embedding, attention, feed-forward, final norm, and unembedding, each labelled with its width, d_model except the unembedding's V. Above the stages a bypass line labelled residual stream runs the whole length, showing that the original vector is added back past every stage rather than replaced.",
+      "anchor": "residual-sublayers-and-the-persistent-stream",
+      "kind": "lane",
+      "data": {
+        "stages": [
+          "embedding",
+          "attention",
+          "feed-forward",
+          "final norm",
+          "unembedding"
+        ],
+        "bypass": "residual stream: width d_model, never replaced",
+        "sizes": [
+          "d_model",
+          "d_model",
+          "d_model",
+          "d_model",
+          "V"
+        ],
+        "note": "Attention is the only stage that moves information between positions; every other stage is per-token. Encoder layers write to the stream twice, decoder layers three times."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to add each write to the lane.",
+        "steps": [
+          {
+            "label": "The embedding lookup writes the first vector into the lane.",
+            "highlight": [
+              "embedding"
+            ]
+          },
+          {
+            "label": "Attention reads the lane at every position and adds its output back.",
+            "highlight": [
+              "attention"
+            ]
+          },
+          {
+            "label": "The feed-forward network reads and writes one position at a time.",
+            "highlight": [
+              "feed-forward"
+            ]
+          },
+          {
+            "label": "The final norm rescales the accumulated stream.",
+            "highlight": [
+              "final-norm"
+            ]
+          },
+          {
+            "label": "The unembedding scores every vocabulary item from the same lane.",
+            "highlight": [
+              "unembedding"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pre-post-norm",
+      "title": "Where the norm sits decides what the identity path carries",
+      "caption": "Post-norm puts LayerNorm after the addition, so the norm's Jacobian multiplies the identity term and rescaling sits directly in the gradient path. Pre-norm normalizes only the sublayer branch, leaving a bare identity term; that is why it trains without warmup, and why the stream's norm is never renormalized and grows with depth.",
+      "alt": "Two panels. Post-norm: y equals LayerNorm of x plus F of x; the Jacobian is J_N plus J_N J_F; the norm multiplies the identity term; the stream is renormalized every layer and practice used learning-rate warmup. Pre-norm: y equals x plus F of LayerNorm of x; the Jacobian is I plus J_F J_N; the identity term is a bare I; the stream is never renormalized, so L independent writes of variance v give variance Lv and standard deviation square root of Lv.",
+      "anchor": "pre-norm-post-norm-and-stream-growth",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "post-norm (2017 paper)",
+            "items": [
+              "y = LayerNorm(x + F(x))",
+              "Jacobian J_N + J_N J_F",
+              "the norm multiplies the identity term",
+              "stream renormalized every layer",
+              "learning-rate warmup in practice"
+            ],
+            "note": "Magnitude stays bounded, but rescaling sits directly in the identity path."
+          },
+          {
+            "title": "pre-norm (GPT-2, GPT-3, LLaMA)",
+            "items": [
+              "y = x + F(LayerNorm(x))",
+              "Jacobian I + J_F J_N",
+              "the identity term is a bare I",
+              "stream never renormalized",
+              "warmup can be dropped"
+            ],
+            "note": "The stream's norm grows with depth: L independent writes of variance v give variance Lv and standard deviation sqrt(Lv)."
+          }
+        ]
+      }
+    }
   ],
-  "notes": "Forward flow: x_l splits to F_l and to the identity skip; both meet at the addition; output is x_{l+1}=x_l+F_l(x_l). Backward flow: gradient reaches earlier layers through the identity term I and through residual Jacobians J_l; the layer Jacobian is I+J_l and the product over L layers is ∏(I+J_l). Label the identity derivative as exactly I. The chapter's spectral-norm quantities s, s^L, 0.9^56≈0.003, and 1.1^56≈208 belong to the plain-stack comparison, not to this residual-block diagram unless shown as a separate small annotation. | No axes; arrows show dataflow. The central lane is the residual stream, width d_model, unchanged across depth. Attention is the only arrow crossing positions; FFN and all other block operations are per-token. Each sublayer has a read arrow from the stream and an add arrow back into it. The figure labels d_model as the fixed stream width and notes two writes per layer; the wider FFN hidden width is shown structurally but left unnumbered because the chapter gives no value. A side annotation can show that deleting a block removes its sublayer computation and write while the identity path still carries the stream forward. | Two panels: pre-norm computes y = x + F(N(x)); post-norm computes y = N(x + F(x)). Arrows show x flowing through the identity path and the sublayer branch into the residual add. Label the pre-norm identity term I as separate from J_F J_N; label the post-norm identity path as multiplied by J_N, with Jacobian J_N + J_N J_F. A side note shows stream norm growth with depth: independent writes of variance v give standard deviation sqrt(Lv); with v=0.01 and L=40 this is about 0.63, and a final norm before unembedding must undo that growth. No axis is needed; the figure is a block/dataflow comparison. | Left side: a single fixed-width vector receives writes from every attention head and feed-forward neuron; no separate channels. Right side: a 2D plane whose axes are the two stream dimensions, with three unit feature directions spaced 120° apart. Projecting a u1 + b u2 + c u3 onto u1 gives a - 0.5b - 0.5c; label cos 120° = -0.5. No other quantities are labelled. | Horizontal axis is depth: early, middle, late layers. At each depth, the stream vector flows either through the raw logit-lens path (final layer norm then unembedding) or through the tuned-lens path (a small per-layer affine map then unembedding). The output is a next-token distribution; label early distributions as broad/high-entropy, middle as plausible continuations, late as sharpened. The tuned-lens branch is annotated as reporting lower KL divergence from the final distribution in the cited paper, without isolating basis drift from added capacity. No numeric quantities are labelled beyond the structural layer ordering. | Two memory regions: left is the transient per-token stream, existing only for tokens in flight and read/written twice by each layer; right is the persistent KV pool holding keys and values for every reserved position. Label the stream cost as 130,659 × d × 2 bytes with d=4,096 giving about 1.07 GB; label the KV pool as 262,144 positions costing about 0.225 GiB per rank; show the 111.5 GB total for scale. Annotate scaling: stream scales with tokens in flight, KV pool scales with positions reserved.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
-  "stages": [
-    "x_l",
-    "attention",
-    "add",
-    "feed-forward",
-    "add"
-  ],
-  "sizes": [
-    "width d_model",
-    "reads and writes",
-    "x + Attn(x)",
-    "reads and writes",
-    "x + FFN(x)"
-  ],
-  "bypass": "identity: x_l is added back, so the gradient has a path of exactly I",
-  "note": "Read the lane as one bus. Each sublayer reads it and adds its output back; nothing replaces it."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1512.03385",
+      "note": "He et al. 2016, ResNet: the identity path and the degradation problem."
+    },
+    {
+      "url": "https://arxiv.org/abs/2002.04745",
+      "note": "Xiong et al. 2020: pre-norm versus post-norm gradients and the warmup argument."
+    },
+    {
+      "url": "https://arxiv.org/abs/2203.00555",
+      "note": "Wang et al. 2022, DeepNet/DeepNorm: scaling the residual and sublayer initialization for post-norm depth."
+    },
+    {
+      "url": "https://transformer-circuits.pub/2022/toy_model",
+      "note": "Elhage et al. 2022, Toy Models of Superposition: fixed-width interference between features."
+    },
+    {
+      "url": "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt",
+      "note": "nostalgebraist 2020: applying the final norm and unembedding to intermediate streams."
+    },
+    {
+      "url": "https://arxiv.org/abs/2303.08112",
+      "note": "Belrose et al. 2023, the tuned lens: per-layer affine maps before the unembedding."
+    }
+  ]
 }

@@ -237,9 +237,9 @@ def render_timeline(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
-            note_h = nl * size * 1.2 + 10
-        top = 30 + note_h
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            note_h = nl * size * 1.2 + 16
+        top = 40 + note_h
         rh = max(38, min(58, 340 / max(1, len(lanes))))
         # step labels along the top
         for i, s in enumerate(steps):
@@ -618,9 +618,9 @@ def render_lane(spec):
         note_h = 0
         if note:
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
-            c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad))
-            note_h = nl * size * 1.2 + 10
-        top = 30 + note_h
+            c.add(c.note(pad, 24, note, size * 0.86, w - 2 * pad))
+            note_h = nl * size * 1.2 + 16
+        top = 40 + note_h
         gap = 26
         bw = (w - 2 * pad - (len(stages) - 1) * gap) / len(stages)
         bh = 54
