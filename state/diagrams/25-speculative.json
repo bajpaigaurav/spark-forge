@@ -1,66 +1,183 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "Tokens per weight read: decode, batching, speculation",
-  "why": "It shows the quantity the prose builds in sequence: a decode step buys one token per weight read, four streams amortise the read over four rows for 1.80x, and a draft model with 67.6% acceptance lifts the yield toward 1 + a + a^2 + ... = 3.09.",
-  "nodes": [
-    "Unified memory 111.5 GB",
-    "Memory bus 273 GB/s",
-    "Per-layer weight matrix",
-    "Activation vector",
-    "KV cache",
-    "SM clock 2,197 / 3,003 MHz",
-    "Prefill: many rows, 39,237 tok/s",
-    "Decode: 1 row per stream, packed up to 16 (ROUND_ROWS=16)",
-    "Throughput: 59.1 single vs 106.2 at 4 streams (1.80x)"
-  ],
-  "notes": "Unified memory (111.5 GB) feeds the memory bus (273 GB/s) into the SM; each layer's weight matrix is streamed and multiplied by an activation vector. The KV cache stores key/value vectors per layer per past token, read during decode and appended one token at a time. Prefill processes many prompt tokens at once (39,237 tok/s over 98 sampled requests). Decode processes one token per stream per step, with the kernel packing up to 16 rows per weight load (ROUND_ROWS=16). Measured throughput: 59.1 tok/s single-stream vs 106.2 tok/s aggregate at four concurrent streams (1.80x). SM clock is 2,197 MHz observed against a 3,003 MHz silicon ceiling. | Left-to-right flow: prompt enters both drafter and target; drafter emits k candidate tokens; target consumes prompt plus all k candidates in one pass. Label the verification pass as a batched GEMM with k-row activation matrix: weight traffic same as one-token decode, arithmetic grows roughly k, attention and KV writes grow by k. Annotate the context-attention term using the chapter's mean prompt length 130,659 tokens and example k=4. Optionally show a cost bar comparing one decode step vs k=4 verification: one weight stream plus four rows of attention over 130,659 keys per layer plus four KV writes. Do not invent per-kernel timings; the chapter only gives aggregate prefill 3.33 s, decode 8.38 s, TTFT 3.46 s over 98 requests. | Flow is left to right: q samples x; p supplies the ratio; the accept test splits into accept or reject. For the numeric example, x=A has accept probability min(1,0.2/0.5)=0.4; reject residual is (0,0.2,0.1) with Z=0.3, normalized to (0,2/3,1/3). Labelled outputs: A=0.2, B=0.5, C=0.3. The diagram should label accepted mass min(q,p), residual mass max(0,p-q), and the final sum to p. | Flow is left to right. Labels on the flow: k draft tokens, acceptance probability α, draft time per token t_d, verification time for k tokens t_v, baseline target decode time per token t_t. Expected output tokens per round E = (1 - α^{k+1}) / (1 - α); round time = k t_d + t_v; speedup = E t_t / (k t_d + t_v). Prose examples: k=4, α=0.7, t_d=0.2 t_t, t_v=1.0 t_t gives E=2.7731, round time 1.8 t_t, speedup 1.54; α=0.3, t_d=0.05 t_t gives E=1.4251, round time 1.2 t_t, speedup 1.19; t_v=1.2 t_t, α=0.1 gives E=1.1111, round time 1.24 t_t, speedup 0.896. | Draw the draft tree with prompt as root and A,B,C,D as four draft positions. Beside each draft position show its attention-mask row over the four draft positions; every row also attends the prompt. Annotate that A's KV entry is shared by the B and C branches. After verification, mark prompt, A, and B as kept and C and D as freed. No axes; the labelled quantities are the four draft positions and the mask bits given in the chapter. | Arrows: h_t feeds all three heads; head 1 predicts t+1 from h_t; head 2 predicts t+2 from h_t plus embedding of t+1; head 3 predicts t+3 from h_t plus embeddings of t+1 and t+2. The heads share the embedding and output head. Training adds cross-entropy at offsets 1, 2, and 3 to the main next-token loss. At inference the heads produce a draft chain that the target verifies. Label the operational acceptance rate 67.6% as 42,181 accepted tokens out of 62,390 drafted from /metrics, aggregated over mixed traffic, and the 1.80x concurrency ratio as the other bounding number.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
-  "bars": [
+  "spine": "sampling",
+  "figures": [
     {
-      "label": "decode, one stream",
-      "value": 1,
-      "display": "1 token"
+      "id": "draft-verify-round",
+      "title": "One speculative round: draft, verify, accept, emit",
+      "caption": "Speculative decoding drafts k tokens cheaply, then verifies all k in one batched target forward pass. Accept token i left to right with probability min(1, p_i/q_i); at the first rejection, sample from the residual max(0, p − q) and stop. The accepted prefix plus that sample is exact for the target distribution, so the output distribution is unchanged. With k = 4, α = 0.7, t_d = 0.2 t_t and t_v = 1.0 t_t, E = 2.7731 over a 1.8 t_t round, a 1.54× speedup.",
+      "alt": "Five lanes across five steps. The drafter proposes four tokens at cheap cost. The target scores all four positions plus a bonus position in one forward pass. The acceptance lane applies min(1, p over q) left to right, then samples the residual max(0, p minus q) at the first rejection. The KV cache lane keeps the accepted prefix, truncates the rest and keeps the bonus token. The output lane emits between one and k plus one tokens.",
+      "anchor": "how-speculative-decoding-works",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "draft k = 4",
+          "verify one pass",
+          "accept left to right",
+          "reject → residual",
+          "emit"
+        ],
+        "lanes": [
+          {
+            "name": "drafter (cheap)",
+            "cells": [
+              {
+                "label": "x₁ x₂ x₃ x₄",
+                "kind": "solid"
+              },
+              null,
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "name": "target (one pass)",
+            "cells": [
+              null,
+              {
+                "label": "p₁ p₂ p₃ p₄ + bonus",
+                "kind": "solid"
+              },
+              null,
+              null,
+              null
+            ]
+          },
+          {
+            "name": "acceptance",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "min(1, p/q)",
+                "kind": "new"
+              },
+              {
+                "label": "sample ∝ max(0, p−q)",
+                "kind": "new"
+              },
+              null
+            ]
+          },
+          {
+            "name": "KV cache",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "keep accepted",
+                "kind": "solid"
+              },
+              {
+                "label": "truncate the rest",
+                "kind": "waste"
+              },
+              {
+                "label": "bonus kept",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "output",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "accepted prefix",
+                "kind": "solid"
+              },
+              {
+                "label": "stop at first reject",
+                "kind": "solid"
+              },
+              {
+                "label": "1 to k+1 tokens",
+                "kind": "new"
+              }
+            ]
+          }
+        ],
+        "note": "Exactness: a token drafted with probability q and target probability p is emitted with q·min(1, p/q) + (1 − accept)·max(0, p − q)/Z = p. Example: q = (0.5, 0.3, 0.2), p = (0.2, 0.5, 0.3); A is accepted with probability 0.4, and on rejection the residual (0, 0.2, 0.1)/0.3 samples B with 2/3 or C with 1/3. The output probabilities are 0.2, 0.5 and 0.3."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to walk one draft-and-verify round.",
+        "steps": [
+          {
+            "label": "The drafter proposes k = 4 tokens at t_d each.",
+            "highlight": [
+              "draft"
+            ]
+          },
+          {
+            "label": "The target scores all four positions in one batched forward pass.",
+            "highlight": [
+              "verify"
+            ]
+          },
+          {
+            "label": "Accept left to right with probability min(1, p/q).",
+            "highlight": [
+              "accept"
+            ]
+          },
+          {
+            "label": "At the first rejection, sample the residual max(0, p − q).",
+            "highlight": [
+              "residual"
+            ]
+          },
+          {
+            "label": "Keep the accepted prefix plus the bonus token; drop the rest of the draft's KV.",
+            "highlight": [
+              "emit"
+            ]
+          }
+        ]
+      }
     },
     {
-      "label": "four streams",
-      "value": 1.8,
-      "display": "1.80x, 106.2 tok/s"
-    },
-    {
-      "label": "speculation, a = 0.676",
-      "value": 3.09,
-      "display": "approaches 3.09",
-      "accent": true
+      "id": "speculation-speedup-bars",
+      "title": "Acceptance alone does not decide the speedup",
+      "caption": "Speedup depends on acceptance and drafter cost, not acceptance alone. With k = 4, a drafter at α = 0.7, t_d = 0.2 t_t and t_v = 1.0 t_t gives E = 2.7731 over a 1.8 t_t round, or 1.54×. A faster drafter at α = 0.3 and t_d = 0.05 t_t gives E = 1.4251 over 1.2 t_t, or 1.19×. At α = 0.1 and t_v = 1.2 t_t, E = 1.1111 over 1.24 t_t, or 0.896× — slower than not speculating.",
+      "alt": "Three horizontal bars, all relative to baseline target decode at 1.0. The first is 1.54 times, from acceptance 0.7 and a drafter costing 0.2 of a target step. The second is 1.19 times, from acceptance 0.3 and a drafter costing 0.05 of a target step. The third is 0.896 times, below break-even, from acceptance 0.1 and verification costing 1.2 target steps.",
+      "anchor": "the-arithmetic-of-the-speedup",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "α = 0.7, t_d = 0.2 t_t: E = 2.7731",
+            "value": 1.54,
+            "display": "1.54×",
+            "accent": true
+          },
+          {
+            "label": "α = 0.3, t_d = 0.05 t_t: E = 1.4251",
+            "value": 1.19,
+            "display": "1.19×"
+          },
+          {
+            "label": "α = 0.1, t_v = 1.2 t_t: E = 1.1111",
+            "value": 0.896,
+            "display": "0.896×"
+          }
+        ],
+        "group": "speedup over target decode, k = 4",
+        "note": "The engine's counters report 67.6% acceptance: 42,181 accepted out of 62,390 drafted, from mtp_accepted_total / mtp_drafted_total. That is an operational rate over mixed traffic, not a controlled α: the counters do not record k, temperature, top-p, dataset or per-request breakdown, so it cannot be dropped into the formula above without matching settings. A faster drafter accepted less often can lose ground, as the middle bar shows."
+      }
     }
   ],
-  "note": "Acceptance 67.6% (42,181 / 62,390). a = 0.676, a^2 = 45.7%, a^3 = 30.9%, so the cumulative yield approaches 1 / (1 - a) = 3.09 tokens per weight read.",
-  "panels": [
+  "sources": [
     {
-      "title": "what one weight read buys",
-      "items": [
-        "decode, one stream: 1 token",
-        "four streams: 1.80x, 106.2 tok/s",
-        "59.1 tok/s single stream"
-      ],
-      "note": "Batching amortises the read across rows."
+      "url": "https://arxiv.org/abs/2211.17192",
+      "note": "Leviathan et al., Fast Inference from Transformers via Speculative Decoding (2023): draft-then-verify and the acceptance rule."
     },
     {
-      "title": "what a draft model buys",
-      "items": [
-        "acceptance a = 0.676",
-        "a^2 = 45.7%, a^3 = 30.9%",
-        "yield approaches 1/(1-a) = 3.09"
-      ],
-      "note": "42,181 of 62,390 drafted tokens were accepted."
+      "url": "https://arxiv.org/abs/2302.01318",
+      "note": "Chen et al., Accelerating Large Language Model Decoding with Speculative Sampling (2023): the residual distribution that makes the output exact."
     }
   ]
 }
