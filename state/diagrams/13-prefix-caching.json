@@ -1,67 +1,183 @@
 {
   "needed": true,
-  "kind": "timeline",
-  "title": "Two requests, one prefix: the same blocks are read twice",
-  "why": "It shows the reuse the prose describes in sequence: request B starts at position 0 and finds the prefix already in the pool, so only its new tokens need a prefill pass. The hash chain is what decides whether the match is real.",
-  "nodes": [
-    "Request A token sequence",
-    "Request B token sequence",
-    "shared prefix starting at position 0",
-    "prefill through each layer",
-    "query/key/value per token",
-    "KV cache blocks for shared prefix",
-    "cache key: model weights/version, tokenizer, adapter or LoRA identity, dtype, block size, starting position or block index",
-    "decode attends to cached K/V"
-  ],
-  "notes": "Left-to-right token positions; shared prefix occupies the same absolute positions in both requests. Per layer, token i produces Q/K/V depending on tokens 1..i; only K and V are stored. The cache key is drawn as a metadata box gating reuse of the shared KV blocks. Labels are structural: position 0, token i, layer, block index, and the listed cache-key fields; no numeric values beyond these structural constants. | Left-to-right flow: a request's logical blocks are mapped by its block table to physical KV blocks; a physical block ID refers to the same offset across every layer and head's K/V arrays, with vectors of dimension d_head. The hash for each block combines its token IDs with the previous block's hash and namespace fields, so identical tokens after different prefixes do not collide. The hash table returns candidate physical blocks; stored token IDs or a strong fingerprint are checked before reuse. The worked example uses block size 2 tokens: A=[A1,A2][B1,B2], B=[C1,C2][B1,B2] gives different second-block hashes, while C matching A reuses both blocks. No other quantities are labelled. | Flow is left-to-right: request tokens enter the radix-tree walk; matched complete blocks flow to reused physical blocks, while the block-aligned remainder flows to new allocation and K/V writes. The block table maps logical blocks to physical block IDs and carries reference counts; shared blocks are counted per block-table reference, e.g. two requests holding one physical block give count two, dropping to one when one finishes. Label the block-size trade-off with the chapter's common choice of 16 tokens, noting it is not universal; label divergence-inside-a-block as forcing recomputation of the entire block. | Horizontal axis is request lifecycle stages; rows are cache blocks S1, S2, UA, UB. Labels are refcounts 1, 2, and 0 exactly as in the chapter. The tree panel shows parent-child order: S1 parent of S2, S2 parent of UA and UB; only zero-reference leaf nodes are eviction candidates, and a parent with a live child remains. No other quantities are labelled. | The figure is a tree/layout diagram, not a plot with axes. Tree nodes represent token spans; KV cache blocks are attached to shared nodes. Request A flows into the tree first and populates the shared path; Request B traverses the same shared nodes, then branches at the first divergent token. Labels mark where reuse occurs and where new KV computation begins. No numeric quantities are invented; any hit-rate or throughput numbers would come from the chapter's reported measurements, not the diagram.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    6
-  ],
-  "steps": [
-    "positions 0 to k",
-    "new tokens",
-    "decode"
-  ],
-  "lanes": [
+  "spine": "cache",
+  "figures": [
     {
-      "name": "request A",
-      "cells": [
-        {
-          "kind": "solid",
-          "label": "prefill"
-        },
-        {
-          "kind": "done",
-          "label": "-"
-        },
-        {
-          "kind": "cache",
-          "label": "attends to cache"
-        }
-      ]
+      "id": "prefix-reuse-refcount",
+      "title": "Shared prefix blocks are reused and kept alive by refcount",
+      "caption": "A's prefill builds the system-prompt blocks S1 and S2 with refcount 1. B's lookup matches both, raises them to 2, and prefills only its own suffix. When A finishes, S1 and S2 drop to 1 and U_A becomes evictable; only when B finishes do the shared blocks reach 0. Block-level refcounts keep the prefix alive across the gap between the two requests.",
+      "alt": "A four-column timeline: A arrives, B arrives, A finishes, B finishes. The shared-prefix lane is built at A's arrival, reused at B's arrival, held when A finishes, and empty when B finishes. The suffix lane builds U_A, builds U_B, frees U_A, and frees U_B. The refcount lane reads 1, 2, 1, 0 for the shared blocks.",
+      "anchor": "when-a-shared-prefix-is-actually-reusable",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "A arrives",
+          "B arrives",
+          "A finishes",
+          "B finishes"
+        ],
+        "lanes": [
+          {
+            "name": "prefix",
+            "cells": [
+              {
+                "kind": "new",
+                "label": "built"
+              },
+              {
+                "kind": "cache",
+                "label": "reused"
+              },
+              {
+                "kind": "cache",
+                "label": "held"
+              },
+              null
+            ]
+          },
+          {
+            "name": "suffix",
+            "cells": [
+              {
+                "kind": "new",
+                "label": "U_A built"
+              },
+              {
+                "kind": "new",
+                "label": "U_B built"
+              },
+              {
+                "kind": "done",
+                "label": "U_A freed"
+              },
+              {
+                "kind": "done",
+                "label": "U_B freed"
+              }
+            ]
+          },
+          {
+            "name": "refcount",
+            "cells": [
+              {
+                "kind": "solid",
+                "label": "1"
+              },
+              {
+                "kind": "solid",
+                "label": "2"
+              },
+              {
+                "kind": "solid",
+                "label": "1"
+              },
+              {
+                "kind": "solid",
+                "label": "0"
+              }
+            ]
+          }
+        ],
+        "note": "A request-level LRU would evict S1 and S2 when A finishes and destroy the prefix B is still using; block-level LRU with refcounts keeps them until both requests are done."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Follow two requests through one shared system prompt.",
+        "steps": [
+          {
+            "label": "A's prefill computes the system-prompt blocks S1 and S2; each has refcount 1.",
+            "highlight": [
+              "prefix",
+              "refcount"
+            ]
+          },
+          {
+            "label": "B's lookup matches S1 and S2, raises both to refcount 2, and prefills only its suffix.",
+            "highlight": [
+              "reuse",
+              "refcount"
+            ]
+          },
+          {
+            "label": "A finishes: S1 and S2 drop to 1 and U_A becomes an eviction candidate.",
+            "highlight": [
+              "evict",
+              "refcount"
+            ]
+          },
+          {
+            "label": "B finishes: the shared blocks drop to 0 and can be evicted.",
+            "highlight": [
+              "evict"
+            ]
+          }
+        ]
+      }
     },
     {
-      "name": "request B",
-      "cells": [
-        {
-          "kind": "cache",
-          "label": "hash hit"
-        },
-        {
-          "kind": "solid",
-          "label": "prefill"
-        },
-        {
-          "kind": "cache",
-          "label": "attends to cache"
-        }
-      ]
+      "id": "hash-and-radix-lookup",
+      "title": "Two lookup structures that bind a block to its exact prefix",
+      "caption": "A block is reusable only if every token before it matches. vLLM chains hashes, folding the previous block's hash into the next so the same tokens after a different prefix hash differently. SGLang walks a radix tree, splitting an edge where tokens diverge; both reuse whole blocks only.",
+      "alt": "Two aligned panels. The chained-hash panel defines h1 as the hash of S1's tokens plus the namespace and h2 as the hash of S2's tokens plus h1, and notes that identical tokens after a different prefix produce a different h2. The radix-tree panel shows a root, an edge for S1, a node, an edge for S2, and the rule that an edge splits where tokens diverge; only full blocks are reused and a partial tail is recomputed.",
+      "anchor": "how-block-hashes-bind-a-block-to-its-prefix",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Chained block hash",
+            "items": [
+              "h1 = H(S1 tokens | namespace)",
+              "h2 = H(S2 tokens | h1)",
+              "same tokens after a different prefix hash differently"
+            ],
+            "note": "Namespace: weights, tokenizer, adapter, dtype, block size, and starting position. Two requests share a block only if the whole chain matches."
+          },
+          {
+            "title": "Radix-tree walk",
+            "items": [
+              "root to edge S1 to node to edge S2",
+              "split the edge where tokens diverge",
+              "reuse full blocks only; a partial tail is recomputed"
+            ],
+            "note": "Divergence inside a block recomputes the whole block, so block size trades lookup metadata against recomputation; 16 is the common default."
+          }
+        ]
+      }
+    },
+    {
+      "id": "hit-rate-metrics",
+      "title": "Token-level hit rate is the one that tracks prefill work",
+      "caption": "In the worked example 90 of 110 prompt tokens are cached, a token-level rate of 81.8 percent, while only 1 of 2 requests hits, 50 percent. A request with one cached token counts as a request-level hit but saves almost no compute, which is why the token-level rate is the one that tracks prefill work.",
+      "alt": "Two horizontal bars. The token-level hit rate is 81.8 percent, 90 of 110 tokens. The request-level hit rate is 50 percent, 1 of 2 requests.",
+      "anchor": "measuring-token-level-hit-rate-and-uncached-prefill-throughput",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "token-level, example",
+            "value": 81.8,
+            "display": "81.8%, 90 of 110",
+            "accent": true
+          },
+          {
+            "label": "request-level, example",
+            "value": 50,
+            "display": "50%, 1 of 2"
+          }
+        ],
+        "note": "The counters are per prompt token: increment the query counter for every token considered for matching and the hit counter for every reused KV block. Request-level counts a request as a hit even when one token matched."
+      }
     }
   ],
-  "note": "Each block hash is chained to the hash of the block before it, so a hit requires the whole prefix to match. Only full blocks are cached."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2309.06180",
+      "note": "Kwon et al., PagedAttention: block-level prefix sharing and copy-on-write."
+    },
+    {
+      "url": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/724be4472168f31ba1c9ac630f15dec8-Abstract.html",
+      "note": "Zheng et al., SGLang: RadixAttention's radix-tree lookup and block reuse."
+    }
+  ]
 }
