@@ -1,33 +1,120 @@
 {
   "needed": true,
-  "kind": "bits",
-  "title": "One float, three layouts: sign, exponent, mantissa",
-  "why": "It shows the actual bit fields the prose names in sequence, drawn to scale, so the trade is visible: bf16 keeps fp32's exponent range and gives up mantissa bits, which is why it replaces fp32 without a scaling factor.",
-  "label": "",
-  "fields": [
+  "spine": "precision",
+  "figures": [
     {
-      "name": "sign",
-      "bits": 1
+      "id": "precision-bit-budget",
+      "title": "One fp32 number: 1 sign, 8 exponent, 23 mantissa",
+      "caption": "fp32 spends 1 sign bit, 8 exponent bits, and 23 mantissa bits. fp16 spends 1 + 5 + 10, bf16 1 + 8 + 7, e4m3 1 + 4 + 3, and e5m2 1 + 5 + 2. The exponent sets range: fp16 tops out at 65,504, bf16 at 3.39 × 10^38, e4m3 at 448, and e5m2 at 57,344. The mantissa sets resolution near 1.0, where the gap is 2^−23 ≈ 1.19 × 10^−7 in fp32, 2^−10 ≈ 9.8 × 10^−4 in fp16, and 2^−7 = 0.0078125 in bf16.",
+      "alt": "A horizontal bar split into three fields labelled sign, exponent, and mantissa, with widths 1, 8, and 23 bits. The exponent field is shaded and outlined in the accent; the bit count is printed under each field, and the bar runs from most significant on the left to least significant on the right. The caption gives the corresponding splits for fp16, bf16, e4m3, and e5m2, their largest finite values, and the gap between representable values near 1.0.",
+      "anchor": "exponent-for-range-mantissa-for-resolution",
+      "kind": "bits",
+      "data": {
+        "label": "fp32",
+        "caption": "fp16: 1 + 5 + 10; bf16: 1 + 8 + 7; e4m3: 1 + 4 + 3; e5m2: 1 + 5 + 2.",
+        "fields": [
+          {
+            "name": "sign",
+            "bits": 1
+          },
+          {
+            "name": "exponent",
+            "bits": 8,
+            "accent": true
+          },
+          {
+            "name": "mantissa",
+            "bits": 23
+          }
+        ]
+      }
     },
     {
-      "name": "exponent",
-      "bits": 8,
-      "accent": true
-    },
-    {
-      "name": "mantissa",
-      "bits": 23
+      "id": "mixed-precision-policy",
+      "title": "Mixed precision: fp32 state and reductions, low-precision matmuls",
+      "caption": "A mixed-precision step keeps master weights, optimizer state, gradient accumulation, the loss and its scale, softmax, layer norm, batch norm, reductions, and post-unscale gradient clipping in fp32. Matrix multiplies go low precision: bf16, or e4m3 for the fp8 forward pass and e5m2 for the fp8 backward pass. fp8's range is small, so each cast needs a per-tensor scale: 448/amax for e4m3 and 57,344/amax for e5m2. The multiply still accumulates in fp32.",
+      "alt": "Two aligned panels. The left, fp32 state and reductions, lists master weights, optimizer state, gradient accumulation, the loss and its scale, softmax, layer norm, batch norm, reductions, and gradient clipping after unscaling, all in fp32. The right, low-precision matmuls, lists the forward matrix multiply in e4m3 for fp8 or bf16, the backward matrix multiply in e5m2 for fp8 or bf16, the fp8 weight and activation casts, and the per-tensor scales 448/amax for e4m3 and 57,344/amax for e5m2. A note on the left gives the gap at 1.0 as 1.19 × 10^−7 in fp32 against 9.8 × 10^−4 in fp16 and 0.0078125 in bf16.",
+      "anchor": "the-mixed-precision-policy-and-the-ordering-of-precision-loss",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "fp32: state and reductions",
+            "items": [
+              "master weights",
+              "optimizer state",
+              "gradient accumulation",
+              "loss and loss scale",
+              "softmax, layer norm, batch norm",
+              "reductions",
+              "gradient clipping after unscale"
+            ],
+            "note": "The update 1.0 + 1 × 10^−5 needs fp32: the gap at 1.0 is 1.19 × 10^−7 in fp32, 9.8 × 10^−4 in fp16, 0.0078125 in bf16."
+          },
+          {
+            "title": "low-precision matmuls",
+            "items": [
+              "forward matmul: e4m3 (fp8) or bf16",
+              "backward matmul: e5m2 (fp8) or bf16",
+              "fp8 weight and activation casts",
+              "e4m3 scale: 448/amax",
+              "e5m2 scale: 57,344/amax"
+            ],
+            "note": "Only the casts and the multiply inputs are low precision; the accumulation stays fp32."
+          }
+        ]
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to follow one mixed-precision step.",
+        "steps": [
+          {
+            "label": "Start from the fp32 master weights and optimizer state.",
+            "highlight": [
+              "fp32-master"
+            ]
+          },
+          {
+            "label": "Cast weights and activations to e4m3 for the fp8 forward matmul, or use bf16.",
+            "highlight": [
+              "low-precision"
+            ]
+          },
+          {
+            "label": "Cast gradients to e5m2 for the fp8 backward matmul, or use bf16.",
+            "highlight": [
+              "low-precision"
+            ]
+          },
+          {
+            "label": "Keep softmax, layer norm, batch norm, reductions, and the loss in fp32.",
+            "highlight": [
+              "fp32-master"
+            ]
+          },
+          {
+            "label": "Unscale the gradients, clip, and apply the fp32 update to the master copy.",
+            "highlight": [
+              "fp32-master"
+            ]
+          }
+        ]
+      }
     }
   ],
-  "caption": "fp16: sign 1, exponent 5, mantissa 10. bf16: sign 1, exponent 8, mantissa 7. fp16 tops out at 65,504; bf16 reaches fp32’s range with fewer mantissa bits.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1710.03740",
+      "note": "Micikevicius et al., Mixed Precision Training (ICLR 2018): fp32 master weights, loss scaling, and fp16 compute."
+    },
+    {
+      "url": "https://arxiv.org/abs/2209.05433",
+      "note": "Micikevicius et al., FP8 Formats for Deep Learning: e4m3 and e5m2 field widths, largest finite values, and per-tensor scaling."
+    },
+    {
+      "url": "https://arxiv.org/abs/1905.12322",
+      "note": "Kalamkar et al., A Study of BFLOAT16 for Deep Learning Training: bf16 keeps fp32's exponent range and spends the mantissa."
+    }
   ]
 }
