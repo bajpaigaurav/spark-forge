@@ -1,44 +1,173 @@
 {
   "needed": true,
-  "kind": "lane",
-  "title": "Column-parallel f, then row-parallel g, one all-reduce",
-  "why": "It shows the pair the prose describes in sequence: x is multiplied by column slices with no collective, the slices concatenate, then row-parallel slices produce partial sums and one all-reduce finishes the layer.",
-  "nodes": [
-    "x: B×H",
-    "W split by columns into N slices W_i: H×(K/N)",
-    "rank i computes y_i = xW_i: B×(K/N)",
-    "concatenate y_i along features -> y: B×K",
-    "V split by rows into N slices V_i: (K/N)×M",
-    "rank i computes z_i = y_i V_i: B×M",
-    "all-reduce sum across ranks -> z: B×M",
-    "transformer block: QKV f + attention-output g, MLP-up f + MLP-down g => two all-reduces per block"
+  "spine": "serving",
+  "figures": [
+    {
+      "id": "column-then-row-parallel",
+      "title": "f splits columns, g splits rows, one all-reduce closes the block",
+      "caption": "A tensor-parallel linear layer in two steps. f splits W by columns, so rank i computes y_i = xW_i with shape B×(K/N) and no collective. g splits V by rows, so each rank produces a partial sum z_i of shape B×M and an all-reduce sums them. The count is fixed at two collectives per block, 64 per forward for a 32-block model; the volume per collective is 2(N−1)/N × B×H per rank, which is B×H at N = 2 and 1.75 B×H at N = 8.",
+      "alt": "Three lanes across five steps. Rank 0 and rank 1 both start from the same x of shape B by H. In the f step each multiplies x by its own column slice of W, giving y-zero and y-one of shape B by K over N. In the g step each multiplies its y by its row slice of V, giving partial sums z-zero and z-one of shape B by M. The all-reduce step sums the partials on rank 0 while rank 1 waits; the link lane carries 2 times N minus 1 over N times B by H elements per rank. The next block repeats the pair.",
+      "anchor": "column-parallel-f-and-row-parallel-g",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "x (B×H)",
+          "f: xW_i",
+          "g: y_iV_i",
+          "all-reduce",
+          "next block"
+        ],
+        "lanes": [
+          {
+            "name": "rank 0",
+            "cells": [
+              {
+                "label": "x",
+                "kind": "solid"
+              },
+              {
+                "label": "y₀ (B×K/N)",
+                "kind": "solid"
+              },
+              {
+                "label": "z₀ (B×M)",
+                "kind": "solid"
+              },
+              {
+                "label": "z₀ + z₁",
+                "kind": "new"
+              },
+              {
+                "label": "layer 2",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "rank 1",
+            "cells": [
+              {
+                "label": "x",
+                "kind": "solid"
+              },
+              {
+                "label": "y₁ (B×K/N)",
+                "kind": "solid"
+              },
+              {
+                "label": "z₁ (B×M)",
+                "kind": "solid"
+              },
+              {
+                "label": "waits",
+                "kind": "waste"
+              },
+              {
+                "label": "layer 2",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "link",
+            "cells": [
+              null,
+              null,
+              null,
+              {
+                "label": "2(N−1)/N × B×H",
+                "kind": "new"
+              },
+              null
+            ]
+          }
+        ],
+        "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. The pair decodes at 59.1 tok/s, so one forward pass takes 1000/59.1 = 16.9 ms; over 32 blocks and two collectives that is 64 collectives and a budget of 16.9/64 = 0.264 ms, or 264 µs, per collective. Above that round trip the schedule cannot hit 59.1 tok/s."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to follow the split through one block.",
+        "steps": [
+          {
+            "label": "x is replicated on both ranks: B×H.",
+            "highlight": [
+              "input"
+            ]
+          },
+          {
+            "label": "f: each rank multiplies x by its column slice W_i; no collective.",
+            "highlight": [
+              "column-parallel"
+            ]
+          },
+          {
+            "label": "g: each rank multiplies its y_i by its row slice V_i.",
+            "highlight": [
+              "row-parallel"
+            ]
+          },
+          {
+            "label": "all-reduce sums the partials; rank 1 waits for the round trip.",
+            "highlight": [
+              "all-reduce"
+            ]
+          },
+          {
+            "label": "The next block repeats the pair; 64 collectives per forward.",
+            "highlight": [
+              "next-block"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tensor-versus-pipeline-budget",
+      "title": "Tensor parallelism pays per collective; pipeline pays per bubble",
+      "caption": "Tensor parallelism splits each layer's matrices and needs an all-reduce after every g: two collectives per block, 64 per forward for 32 blocks, which leaves 264 µs of the 16.9 ms forward pass per collective. Pipeline parallelism splits layers across ranks and needs a point-to-point send per micro-batch boundary; with P stages and M micro-batches the idle fraction is (P−1)/(M+P−1), 3/11 = 27.3% at P = 4, M = 8 and 3/19 = 15.8% at M = 16.",
+      "alt": "Two panels. The tensor-parallel panel lists: f computes y-i equals x W-i with W-i of shape H by K over N; g computes partial sums; an all-reduce follows each g; two collectives per block and 64 per 32-block forward; the per-collective budget is 264 microseconds; the ring moves 2 times N minus 1 over N times B by H. The pipeline panel lists: each rank holds whole layers; one send per micro-batch boundary; M times P minus 1 sends per direction; the bubble is P minus 1 over M plus P minus 1; 27.3 percent idle at four stages and eight micro-batches, 15.8 percent at sixteen.",
+      "anchor": "pipeline-stages-and-the-micro-batch-bubble",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Tensor parallel: per-collective latency",
+            "items": [
+              "f: y_i = xW_i, W_i is H×(K/N)",
+              "g: z_i = y_iV_i, partial sums of shape B×M",
+              "one all-reduce after each g",
+              "2 collectives per block; 64 per 32-block forward",
+              "16.9 ms ÷ 64 = 264 µs per collective",
+              "ring volume 2(N−1)/N × B×H"
+            ],
+            "note": "Volume grows with N: B×H at N = 2, 1.75 B×H at N = 8. A tree all-reduce trades volume for log N latency."
+          },
+          {
+            "title": "Pipeline parallel: per-bubble idle",
+            "items": [
+              "each rank holds whole layers",
+              "one send per micro-batch boundary",
+              "2M(P−1) sends per step",
+              "bubble (P−1)/(M+P−1)",
+              "P = 4, M = 8: 3/11 = 27.3% idle",
+              "M = 16: 3/19 = 15.8% idle"
+            ],
+            "note": "Doubling M cuts the bubble from 27% to 16%, a factor of about 1.7, not half. With P = 2 and L = 32, tensor parallelism issues 64 collective operations for every pipeline send."
+          }
+        ],
+        "note": "The 264 µs cutoff is specific to this model, batch and collective size, not a general link threshold. The measured pair stall is 120,000 ms cumulative against 98 × 8.38 = 821 s of decode, about 15%; halving compute but doubling stall pays only while stall is below half the compute time."
+      }
+    }
   ],
-  "notes": "Flow runs left to right: x enters column-parallel f, each rank produces a feature slice with no collective, slices concatenate to y; y enters row-parallel g, each rank produces a partial B×M sum, and one all-reduce sums them. Shapes B, H, K, M, N are labelled at each stage. The block annotation shows the two f/g pairs and the resulting two all-reduces per block; no volume numbers are drawn. | Left panel: a 16.9 ms forward-pass bar divided into 64 collective slots, each labelled 264 µs; this is the latency budget a tensor-parallel all-reduce must fit under. Right panel: a grid with stages 0–3 as rows and pipeline slots 1–11 as columns for M=8 micro-batches; active micro-batch cells fill the middle, with P−1=3 bubble slots at fill and drain, annotated 3/11=27.3%. A second annotation gives M=16: 3/19=15.8%, showing the bubble shrinks by about 1.7×, not half. Quantities come from the chapter: 59.1 tokens/s, 16.9 ms, 32 blocks, 64 collectives, 264 µs, P=4, M=8 and 16. | Left-to-right dataflow. Labels: B batch, S sequence length, H hidden width, N tensor-parallel device count. The figure carries only structural shapes and collective order from the chapter; no new quantities. It can also annotate that pipeline sends M(P−1) messages per step and tensor parallelism issues 2L collectives per micro-batch, i.e. 2LM per step, with P=2 and L=32 giving 64 tensor collectives per pipeline send. | Flow is left-to-right: each token is routed to a few experts; devices exchange tokens via all-to-all; traffic matrix is asymmetric because routing counts vary by expert and batch. Label capacity factor c and average tokens per expert at the capacity stage. Overflow branch shows dropped or second-expert routing. The final stage highlights one device becoming the bottleneck while others idle. No numeric values beyond structural constants c and 'few experts' are invented. | x-axis: stall S as a fraction of compute C, from 0 to 1. y-axis: total time in units of C. Baseline line is 1 + s; split line is 0.5 + 2s. They cross at s = 0.5. Mark the measured point at S ≈ 15% of decode, which the chapter places below C/2, so the split still pays. Quantities: C compute, S stall, 15% from the sampled window; crossover S=C/2 is structural.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  "stages": [
-    "x: B x H",
-    "W split by columns",
-    "rank i: y_i = x W_i",
-    "concatenate",
-    "V split by rows",
-    "rank i: z_i = y_i V_i",
-    "all-reduce"
-  ],
-  "sizes": [
-    "B x H",
-    "H x (K/N)",
-    "B x (K/N)",
-    "y: B x K",
-    "(K/N) x M",
-    "partial B x M",
-    "sum to B x M"
-  ],
-  "note": "A transformer block has two f/g pairs (QKV then output, MLP up then down), so two all-reduces per block."
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1909.08053",
+      "note": "Shoeybi et al., Megatron-LM (2019): the column-parallel f and row-parallel g split with one all-reduce per block."
+    },
+    {
+      "url": "https://arxiv.org/abs/2104.04473",
+      "note": "Narayanan et al., Efficient Large-Scale Language Model Training on GPU Clusters (2021): pipeline bubble arithmetic and the tensor-inside-node, pipeline-across-node hybrid."
+    }
+  ]
 }
