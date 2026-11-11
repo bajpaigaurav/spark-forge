@@ -7,6 +7,7 @@ set -u
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 python3 live_figures.py >/dev/null 2>&1
+python3 diagrams.py || { echo "DIAGRAMS FAILED"; exit 1; }
 python3 build.py || { echo "BUILD FAILED"; exit 1; }
 
 fail=0
@@ -39,6 +40,57 @@ for f in site/chapters/*.html; do
   grep -q 'src="../site.js"' "$f" || { echo "BAD SCRIPT PATH in $f"; fail=1; }
 done
 grep -q 'src="site.js"' site/index.html || { echo "BAD SCRIPT PATH in index"; fail=1; }
+[ -f site/figures.js ] || { echo "figures.js missing"; fail=1; }
+grep -q 'src="figures.js"' site/index.html || { echo "BAD FIGURES SCRIPT in index"; fail=1; }
+for f in site/chapters/*.html; do
+  grep -q 'src="../figures.js"' "$f" || { echo "BAD FIGURES SCRIPT in $f"; fail=1; }
+done
+python3 - <<'EOF' || fail=1
+import glob, os, sys
+import review
+bad = 0
+for cid in review.published_ids():
+    spec = review.load_diagram(cid)
+    if not spec or not spec.get("needed"):
+        continue
+    page = open(f'site/chapters/{cid}.html', encoding='utf-8').read()
+    if 'class="chapter-figure"' not in page:
+        print('FIGURE: no figure in', cid)
+        bad = 1
+    figs = spec.get("figures")
+    if figs:
+        for fig in figs:
+            fid = fig.get("id")
+            if not fid:
+                print('FIGURE: missing id in', cid)
+                bad = 1
+                continue
+            p = f'site/figures/{cid}-{fid}.svg'
+            if not os.path.exists(p):
+                print('FIGURE: missing svg', p)
+                bad = 1
+            if f'data-fig-id="{fid}"' not in page:
+                print('FIGURE: not placed', cid, fid)
+                bad = 1
+            anchor = fig.get("anchor")
+            if anchor and f'id="{anchor}"' not in page:
+                print('FIGURE: bad anchor', cid, fid, anchor)
+                bad = 1
+    else:
+        p = f'site/figures/{cid}.svg'
+        if not os.path.exists(p):
+            print('FIGURE: missing svg', p)
+            bad = 1
+        if f'data-fig-id="{cid}"' not in page:
+            print('FIGURE: not placed', cid)
+            bad = 1
+for p in glob.glob('site/figures/*.svg'):
+    svg = open(p, encoding='utf-8').read()
+    if '<title' not in svg or '<desc' not in svg:
+        print('FIGURE: missing title/desc', p)
+        bad = 1
+sys.exit(bad)
+EOF
 [ -f site/about.html ] || { echo "about page missing"; fail=1; }
 grep -q 'src="site.js"' site/about.html || { echo "BAD SCRIPT PATH in about"; fail=1; }
 

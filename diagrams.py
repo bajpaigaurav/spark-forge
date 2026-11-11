@@ -35,8 +35,9 @@ import os
 import sys
 
 import review
-from svgkit import (ACCENT, INK, MUTED, RULE, SHEET, WASH, WASH_2, WASH_3,
-                    Canvas, arrow_between, size_for, text_width, widest, wrap_px)
+from svgkit import (ACCENT, FONT_MONO, INK, MUTED, RULE, SHEET, WASH, WASH_2,
+                    WASH_3, Canvas, arrow_between, size_for, text_width, widest,
+                    wrap_px)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "site", "figures")
@@ -77,7 +78,8 @@ def render_tokens(spec):
     note = spec.get("note")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         cell = min(96, max(56, (w - 2 * pad) / max(1, len(tokens)) - 8))
         gap = 8
@@ -146,7 +148,8 @@ def render_matrix(spec):
     scale = spec.get("scale") or 1.0       # 0..1, how much of the cell is inked
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         ncol = len(cols)
         nrow = len(rows)
@@ -222,7 +225,8 @@ def render_timeline(spec):
     note = spec.get("note")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         label_w = 104
         plot_x = pad + label_w
@@ -285,7 +289,8 @@ def render_memory(spec):
     note = spec.get("note")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         bar_x = pad
         bar_w = w - 2 * pad
@@ -363,7 +368,8 @@ def render_bits(spec):
     caption = spec.get("caption")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         total_bits = sum(int(f["bits"]) for f in fields)
         bar_x = pad + (64 if label else 0)
@@ -427,7 +433,8 @@ def render_bars(spec):
     note = spec.get("note")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         label_w = 172
         plot_x = pad + label_w
@@ -474,7 +481,8 @@ def render_logaxes(spec):
     note = spec.get("note")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         note_h = 0
         if note:
@@ -558,7 +566,8 @@ def render_panels(spec):
         return None
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         gap = 28
         pw = (w - 2 * pad - gap) / len(panels)
@@ -601,7 +610,8 @@ def render_lane(spec):
     sizes = spec.get("sizes") or []       # structural shape labels under each stage
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         note_h = 0
         if note:
@@ -651,7 +661,8 @@ def render_flow(spec):
         return None
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         per_row = min(4, max(2, -(-len(nodes) // 2))) if len(nodes) > 3 else len(nodes)
         gap = 34
@@ -688,7 +699,8 @@ def render_grid(spec):
     highlight_row = spec.get("highlight_row")
 
     def build(w, size):
-        c = Canvas(w, 0, spec.get("title", "Figure"))
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         gutter = 54
         cell = min(46, max(24, (w - 2 * pad - gutter) / n))
@@ -724,6 +736,152 @@ def render_grid(spec):
     return _fit(spec, 760, build).render()
 
 
+def _apply_merge(forms, pair):
+    """Rewrite each space-separated form by merging one adjacent pair."""
+    a, b = pair.split()
+    out = []
+    for form in forms:
+        syms = form.split()
+        merged = []
+        i = 0
+        while i < len(syms):
+            if i + 1 < len(syms) and syms[i] == a and syms[i + 1] == b:
+                merged.append(a + b)
+                i += 2
+            else:
+                merged.append(syms[i])
+                i += 1
+        out.append(" ".join(merged))
+    return out
+
+
+def render_bpe_trace(spec):
+    data = spec.get("data") or {}
+    corpus = data.get("corpus") or []
+    initial = data.get("initial") or []
+    ranks = data.get("ranks") or []
+    final = data.get("final") or ""
+    pairs = data.get("pairs") or []
+    if not initial or not ranks:
+        return None
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("alt") or spec.get("caption") or "")
+        pad = 20
+        left_w = min(220, max(170, w * 0.30))
+        right_x = pad + left_w + 28
+        right_w = w - right_x - pad
+
+        corpus_note = "Corpus: " + ", ".join(
+            f"{word} x{count}" for word, count in corpus)
+        c.add(c.note(pad, 18, corpus_note, size * 0.86, w - 2 * pad))
+        y = 18 + c.note_lines(corpus_note, size * 0.86, w - 2 * pad) * size * 1.2 + 12
+
+        initial_lines = [wrap_px(form, size * 0.9, left_w - 16) for form in initial]
+        panel_h = size * 1.4 + 14 + sum(
+            len(lines) * size * 1.2 + 8 for lines in initial_lines)
+        c.add(c.rect(pad, y, left_w, panel_h, fill=WASH, stroke=RULE, rx=3,
+                     part="corpus"))
+        c.add(c.text(pad + 8, y + size * 1.1, "Initial symbols", size * 0.9,
+                     anchor="start", fill=MUTED, weight="600", part="corpus"))
+        yy = y + size * 1.4 + 12
+        for lines in initial_lines:
+            c.add(c.block(pad + 8, yy, lines, size * 0.9, anchor="start",
+                          family=FONT_MONO, part="corpus"))
+            yy += len(lines) * size * 1.2 + 8
+
+        pairs_y = y + panel_h + 16
+        pair_note = "Pair counts: " + ", ".join(
+            f"{pair} x{count}" for pair, count in pairs)
+        c.add(c.note(pad, pairs_y, pair_note, size * 0.82, left_w, part="pairs"))
+        pair_h = c.note_lines(pair_note, size * 0.82, left_w) * size * 1.2
+
+        ry = y
+        forms = list(initial)
+        for i, (rank, pair_label, count) in enumerate(ranks):
+            merge = pair_label.split("->")[0].strip()
+            forms = _apply_merge(forms, merge)
+            label = f"{pair_label}  x{count}"
+            c.add(c.text(right_x, ry + size * 1.0, rank, size * 0.9,
+                         anchor="start", fill=ACCENT, weight="600",
+                         part=f"rank{i}"))
+            c.add(c.text(right_x + 70, ry + size * 1.0, label, size * 0.9,
+                         anchor="start", fill=INK, family=FONT_MONO,
+                         part=f"rank{i}"))
+            rule_x = right_x + 70 + text_width(label, size * 0.9) + 8
+            c.add(c.line(rule_x, ry + size * 0.8, right_x + right_w - 8,
+                         ry + size * 0.8, stroke=MUTED, sw=1, dash="3 3",
+                         part=f"rank{i}"))
+            yy = ry + size * 1.2 + 12
+            for form in forms:
+                lines = wrap_px(form, size * 0.86, right_w - 16)
+                c.add(c.block(right_x + 12, yy, lines, size * 0.86,
+                              anchor="start", family=FONT_MONO,
+                              part=f"rank{i}"))
+                yy += len(lines) * size * 1.2
+            ry = yy + 10
+            c.add(c.line(pad, ry - 6, w - pad, ry - 6, stroke=RULE, sw=0.8,
+                         part=f"rank{i}"))
+
+        final_y = max(pairs_y + pair_h, ry) + 16
+        c.add(c.text(pad, final_y + size * 1.0, "Final pieces", size * 0.9,
+                     anchor="start", fill=MUTED, weight="600", part="final"))
+        final_lines = wrap_px(final, size * 0.95, w - 2 * pad)
+        c.add(c.block(pad, final_y + size * 2.3, final_lines, size * 0.95,
+                      anchor="start", family=FONT_MONO, part="final"))
+        c.h = final_y + size * 2.3 + len(final_lines) * size * 1.2 + 20
+        return c
+
+    return _fit(spec, 760, build).render()
+
+
+def render_vocab_stack(spec):
+    data = spec.get("data") or {}
+    parts = data.get("parts") or []
+    total = data.get("total")
+    if not parts or total is None:
+        return None
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("alt") or spec.get("caption") or "")
+        pad = 24
+        label_w = 210
+        bar_x = pad + label_w
+        bar_w = w - bar_x - pad - 180
+        row_h = 42
+        gap = 8
+        y = 18
+        total_h = len(parts) * row_h + (len(parts) - 1) * gap
+        for i, (label, count) in enumerate(parts):
+            yy = y + i * (row_h + gap)
+            c.add(c.rect(bar_x, yy, bar_w, row_h,
+                         fill=WASH_2 if i == 1 else WASH, stroke=RULE, rx=2))
+            c.add(c.text(pad, yy + row_h / 2 + size * 0.35, label, size,
+                         anchor="start", fill=INK, weight="500"))
+            c.add(c.text(bar_x + bar_w + 10, yy + row_h / 2 + size * 0.35,
+                         f"{count:,}", size, anchor="start", fill=ACCENT,
+                         family=FONT_MONO, weight="600"))
+        bx = bar_x + bar_w + 82
+        c.add(c.line(bx, y, bx, y + total_h, stroke=MUTED, sw=1))
+        c.add(c.line(bx - 5, y, bx + 5, y, stroke=MUTED, sw=1))
+        c.add(c.line(bx - 5, y + total_h, bx + 5, y + total_h, stroke=MUTED, sw=1))
+        c.add(c.text(bx + 10, y + total_h / 2, f"{total:,} total", size,
+                     anchor="start", fill=INK, weight="600"))
+        arith = " + ".join(f"{count:,}" for _, count in parts) + f" = {total:,}"
+        arith_y = y + total_h + 24
+        c.add(c.note(pad, arith_y, arith, size * 0.9, w - 2 * pad))
+        note = ("Rows are schematic: 256 and 1 would be invisible beside 50,000. "
+                "Counts are exact.")
+        note_y = arith_y + size * 1.5
+        c.add(c.note(pad, note_y, note, size * 0.82, w - 2 * pad))
+        c.h = note_y + c.note_lines(note, size * 0.82, w - 2 * pad) * size * 1.2 + 14
+        return c
+
+    return _fit(spec, 760, build).render()
+
+
 RENDER = {
     "tokens": render_tokens,
     "matrix": render_matrix,
@@ -736,25 +894,50 @@ RENDER = {
     "lane": render_lane,
     "flow": render_flow,
     "grid": render_grid,
+    "bpe_trace": render_bpe_trace,
+    "vocab_stack": render_vocab_stack,
 }
+
+
+def _render_spec(spec):
+    kind = spec.get("kind") or "flow"
+    fn = RENDER.get(kind)
+    if fn is None:
+        print(f"unknown kind {kind!r}, falling back to flow")
+        fn = render_flow
+    return fn(spec)
 
 
 def build(cid):
     spec = review.load_diagram(cid)
     if not spec or not spec.get("needed"):
-        return None
-    kind = spec.get("kind") or "flow"
-    fn = RENDER.get(kind)
-    if fn is None:
-        print(f"{cid}: unknown kind {kind!r}, falling back to flow")
-        fn = render_flow
-    svg = fn(spec)
-    if not svg:
-        return None
+        return []
     os.makedirs(OUT, exist_ok=True)
+
+    # Drop the chapter's previous figures so a renamed or removed figure does
+    # not linger in the site directory.
+    for name in os.listdir(OUT):
+        if name == cid + ".svg" or (
+                name.startswith(cid + "-") and name.endswith(".svg")):
+            os.remove(os.path.join(OUT, name))
+
+    if spec.get("figures"):
+        paths = []
+        for fig in spec["figures"]:
+            svg = _render_spec(fig)
+            if not svg:
+                continue
+            p = os.path.join(OUT, f"{cid}-{fig['id']}.svg")
+            open(p, "w", encoding="utf-8").write(svg)
+            paths.append(p)
+        return paths
+
+    svg = _render_spec(spec)
+    if not svg:
+        return []
     p = os.path.join(OUT, cid + ".svg")
     open(p, "w", encoding="utf-8").write(svg)
-    return p
+    return [p]
 
 
 def main():
@@ -762,13 +945,14 @@ def main():
     n = 0
     for cid in ids:
         try:
-            p = build(cid)
+            paths = build(cid)
         except Exception as e:
             print(f"{cid}: ERROR {type(e).__name__}: {e}")
             continue
-        if p:
-            n += 1
-            print(f"{cid}: {os.path.getsize(p)} bytes")
+        if paths:
+            n += len(paths)
+            for p in paths:
+                print(f"{cid}: {os.path.basename(p)} {os.path.getsize(p)} bytes")
         else:
             print(f"{cid}: no figure")
     print(f"{n} figures written to {OUT}")

@@ -18,6 +18,7 @@ Two rules shaped the module:
    per shape kind. A wide flow figure and a narrow one then land at the same on-screen
    size, which is what makes the set look like one set.
 """
+import hashlib
 import html
 
 # The prose column a figure lands in. Font sizes are authored in viewBox units and
@@ -93,15 +94,19 @@ def widest(lines, size):
 class Canvas:
     """Accumulates SVG marks and knows the box they fit in."""
 
-    def __init__(self, width, height, title):
+    def __init__(self, width, height, title, desc=""):
         self.w = width
         self.h = height
         self.title = title
+        self.desc = desc
+        self.uid = hashlib.sha1((title + "|" + desc).encode("utf-8")).hexdigest()[:8]
+        self.arrow_id = f"arrow-{self.uid}"
+        self.arrow_accent_id = f"arrow-accent-{self.uid}"
         self.parts = []
         self.defs = [
-            '<marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" '
+            f'<marker id="{self.arrow_id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" '
             f'markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="{MUTED}"/></marker>',
-            '<marker id="arrow-accent" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" '
+            f'<marker id="{self.arrow_accent_id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" '
             f'markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="{ACCENT}"/></marker>',
         ]
 
@@ -109,21 +114,23 @@ class Canvas:
         self.parts.append(markup)
 
     def text(self, x, y, s, size, anchor="middle", fill=INK, weight="400",
-             family=FONT_DISPLAY, cls="", rotate=None):
+             family=FONT_DISPLAY, cls="", rotate=None, part=None):
         attrs = f'x="{x:.2f}" y="{y:.2f}"'
         if rotate is not None:
             attrs += f' transform="rotate({rotate} {x:.2f} {y:.2f})"'
         c = f' class="{cls}"' if cls else ""
+        p = f' data-part="{part}"' if part else ""
         return (f'<text {attrs} font-family="{family}" font-size="{size}" '
-                f'font-weight="{weight}" fill="{fill}" text-anchor="{anchor}"{c}>'
+                f'font-weight="{weight}" fill="{fill}" text-anchor="{anchor}"{c}{p}>'
                 f'{esc(s)}</text>')
 
     def block(self, x, y, lines, size, anchor="middle", fill=INK, weight="400",
-              family=FONT_DISPLAY, lh=None, cls="", rotate=None):
+              family=FONT_DISPLAY, lh=None, cls="", rotate=None, part=None):
         """A wrapped block; y is the baseline of its first line."""
         lh = lh or round(size * 1.2)
         return "".join(self.text(x, y + i * lh, ln, size, anchor=anchor, fill=fill,
-                                 weight=weight, family=family, cls=cls, rotate=rotate)
+                                 weight=weight, family=family, cls=cls, rotate=rotate,
+                                 part=part)
                        for i, ln in enumerate(lines))
 
     def note_lines(self, s, size, max_px):
@@ -136,33 +143,40 @@ class Canvas:
         first = y_mid - total / 2 + size * 0.72
         return self.block(x, first, lines, size, **kw)
 
-    def rect(self, x, y, w, h, fill="none", stroke=INK, sw=1.2, rx=0, cls="", dash=None):
+    def rect(self, x, y, w, h, fill="none", stroke=INK, sw=1.2, rx=0, cls="", dash=None,
+             part=None):
         d = f' stroke-dasharray="{dash}"' if dash else ""
         c = f' class="{cls}"' if cls else ""
+        p = f' data-part="{part}"' if part else ""
         return (f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" '
-                f'rx="{rx}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{d}{c}/>')
+                f'rx="{rx}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{d}{c}{p}/>')
 
     def line(self, x1, y1, x2, y2, stroke=MUTED, sw=1.2, dash=None, arrow=False,
-             accent=False):
+             accent=False, part=None):
         d = f' stroke-dasharray="{dash}"' if dash else ""
         marker = ""
         if arrow:
-            marker = ' marker-end="url(#arrow-accent)"' if accent else ' marker-end="url(#arrow)"'
+            marker = (f' marker-end="url(#{self.arrow_accent_id})"' if accent
+                      else f' marker-end="url(#{self.arrow_id})"')
+        p = f' data-part="{part}"' if part else ""
         return (f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
-                f'stroke="{stroke}" stroke-width="{sw}"{d}{marker}/>')
+                f'stroke="{stroke}" stroke-width="{sw}"{d}{marker}{p}/>')
 
     def path(self, d, stroke=MUTED, sw=1.2, fill="none", dash=None, arrow=False,
-             accent=False):
+             accent=False, part=None):
         ds = f' stroke-dasharray="{dash}"' if dash else ""
         marker = ""
         if arrow:
-            marker = ' marker-end="url(#arrow-accent)"' if accent else ' marker-end="url(#arrow)"'
+            marker = (f' marker-end="url(#{self.arrow_accent_id})"' if accent
+                      else f' marker-end="url(#{self.arrow_id})"')
+        p = f' data-part="{part}"' if part else ""
         return (f'<path d="{d}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"'
-                f'{ds}{marker}/>')
+                f'{ds}{marker}{p}/>')
 
-    def circle(self, cx, cy, r, fill=ACCENT, stroke="none", sw=0):
+    def circle(self, cx, cy, r, fill=ACCENT, stroke="none", sw=0, part=None):
+        p = f' data-part="{part}"' if part else ""
         return (f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="{fill}" '
-                f'stroke="{stroke}" stroke-width="{sw}"/>')
+                f'stroke="{stroke}" stroke-width="{sw}"{p}/>')
 
     def bracket(self, x1, x2, y, tick=6, label=None, size=11, above=True):
         """A measure bracket: a line with end ticks, label above or below its middle."""
@@ -177,17 +191,26 @@ class Canvas:
     def caption(self, x, y, s, size=11, fill=MUTED, anchor="start"):
         return self.text(x, y, s, size, anchor=anchor, fill=fill)
 
-    def note(self, x, y, s, size, max_px):
+    def note(self, x, y, s, size, max_px, part=None):
         """A one- or two-line note wrapped to the figure's measure, so it never
         runs past the viewBox the way a fixed caption did."""
         lines = wrap_px(s, size, max_px)
-        return self.block(x, y, lines, size, anchor="start", fill=MUTED)
+        return self.block(x, y, lines, size, anchor="start", fill=MUTED, part=part)
+
+    def group(self, part, inner):
+        """Wrap marks in a logical group the animation runtime can highlight."""
+        return f'<g data-part="{part}">{inner}</g>'
 
     def render(self):
         w, h = int(-(-self.w // 1)), int(-(-self.h // 1))
         head = (f'<svg class="fig-svg" viewBox="0 0 {w} {h}" width="100%" role="img" '
-                f'aria-label="{esc(self.title)}" xmlns="http://www.w3.org/2000/svg">'
-                f'<defs>{"".join(self.defs)}</defs><title>{esc(self.title)}</title>')
+                f'aria-labelledby="fig-title-{self.uid}" '
+                f'aria-describedby="fig-desc-{self.uid}" '
+                f'xmlns="http://www.w3.org/2000/svg">'
+                f'<defs>{"".join(self.defs)}</defs>'
+                f'<rect x="0" y="0" width="{w}" height="{h}" fill="{SHEET}"/>'
+                f'<title id="fig-title-{self.uid}">{esc(self.title)}</title>'
+                f'<desc id="fig-desc-{self.uid}">{esc(self.desc)}</desc>')
         return head + "".join(self.parts) + "</svg>"
 
 

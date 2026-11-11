@@ -759,6 +759,17 @@ button, input, select, textarea { font: inherit; }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
+.fig-controls { display: none; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-top: var(--space-sm); }
+.chapter-figure.is-animated .fig-controls { display: flex; }
+.fig-controls button { min-height: 44px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; }
+.fig-controls button:hover { border-color: var(--color-accent); }
+.fig-controls button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.fig-label { flex: 1 1 18rem; min-width: 12rem; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.chapter-figure .fig-svg [data-part] { transition: opacity .2s ease; }
+.chapter-figure.is-animated .fig-svg [data-part].is-dim { opacity: .22; }
+.chapter-figure.is-animated .fig-svg [data-part].is-active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .chapter-figure .fig-svg [data-part] { transition: none; } }
+@media print { .fig-controls { display: none !important; } .chapter-figure .fig-scroll { overflow: visible; } .chapter-figure .fig-scroll .fig-svg { min-width: 0; } }
 
 /* ---- data figures ---- */
 .figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
@@ -1135,6 +1146,7 @@ def page(title, body, depth=0, description="", canonical=""):
 </div>
 {SEARCH_UI}
 <script>window.__SEARCH_INDEX__ = "{search_href}";</script>
+<script src="{prefix}figures.js"></script>
 <script src="{prefix}site.js"></script>
 </body>
 </html>
@@ -1265,82 +1277,129 @@ def interactive_for(cid):
     return ""
 
 
-def figure_for(cid):
-    """Inline the chapter's SVG figure, rendered by diagrams.py from the planner's spec.
+def legacy_figure(cid, spec):
+    """Adapt a one-figure spec to the v2 figure shape."""
+    return {
+        "id": cid,
+        "title": spec.get("title", "Figure"),
+        "caption": spec.get("why") or spec.get("title", ""),
+        "alt": spec.get("why") or spec.get("title", ""),
+        "anchor": None,
+        "kind": spec.get("kind") or "flow",
+        "legacy": True,
+        "section": spec.get("section"),
+        "data": spec,
+    }
 
-    Inlined rather than referenced so the figure inherits the page's CSS variables
-    (--ink, --accent) and prints with the page. The spec's `why` becomes the caption:
-    it says what the figure carries, which is more useful than a bare title.
-    """
-    p = os.path.join(SITE, "figures", cid + ".svg")
+
+def figures_for(cid):
+    spec = review.load_diagram(cid)
+    if not spec or not spec.get("needed"):
+        return []
+    if spec.get("figures"):
+        return spec["figures"]
+    return [legacy_figure(cid, spec)]
+
+
+def figure_svg_path(cid, fig):
+    if fig.get("legacy"):
+        return os.path.join(SITE, "figures", cid + ".svg")
+    return os.path.join(SITE, "figures", f"{cid}-{fig['id']}.svg")
+
+
+def figure_html(cid, fig):
+    p = figure_svg_path(cid, fig)
     if not os.path.exists(p):
         return ""
-    spec = review.load_diagram(cid)
-    if not spec:
-        return ""
     svg = open(p, encoding="utf-8").read()
-    caption = esc(spec.get("why") or spec.get("title") or "")
-    title = esc(spec.get("title") or "")
+    title = esc(fig.get("title", "Figure"))
+    caption = esc(fig.get("caption") or fig.get("why") or "")
+    fid = esc(fig.get("id") or cid)
+    anim = fig.get("anim")
+    controls = ""
+    anim_json = ""
+    if anim:
+        controls = '''<div class="fig-controls" data-fig-controls>
+<button type="button" data-play>Play</button>
+<button type="button" data-pause>Pause</button>
+<button type="button" data-prev aria-label="Previous step">Previous</button>
+<button type="button" data-next aria-label="Next step">Next</button>
+<button type="button" data-reset>Reset</button>
+<span class="fig-label" aria-live="polite"></span>
+</div>'''
+        raw = json.dumps(anim, ensure_ascii=False).replace("</", "<\\/")
+        anim_json = f'<script type="application/json" class="fig-anim">{raw}</script>'
+    wide = " fig-wide" if fig.get("wide") else ""
     return f'''
-<figure class="chapter-figure">
-<div class="fig-scroll">{svg}</div>
+<figure class="chapter-figure" data-fig-id="{fid}">
+<div class="fig-scroll{wide}" tabindex="0" role="group" aria-label="{title}">
+{svg}
+</div>
 <figcaption><strong>{title}</strong> {caption}</figcaption>
+{controls}
+{anim_json}
 </figure>
 '''
 
 
-def figure_anchor(spec, headings):
-    """Slug of the heading after which this chapter's figure belongs.
+def figure_anchor(fig, headings):
+    """Resolve a figure's anchor to a heading slug.
 
-    The spec's `section` is a 1-based index into the chapter's headings (the same
-    order `paragraphs()` returns). Anything outside that range -- several specs
-    carry a 7 in a chapter with six headings, because the planner numbered review
-    chunks rather than headings -- clamps to the last heading instead of dropping
-    the figure.
-
-    `section` wins over `sections`: `sections` is every chunk the planner was shown,
-    so its last entry is usually the closing paragraph, and anchoring there puts the
-    figure after the conclusion. The single `section` is the chunk that first
-    proposed a figure, which is the one the caption's `why` describes.
+    A v2 figure names an `anchor` heading. A legacy spec carries a 1-based
+    `section` index; that is clamped to the last heading, as before. A missing
+    v2 anchor returns "" so verification can report it instead of silently
+    dropping the figure at the end.
     """
     if not headings:
         return ""
-    n = len(headings)
-    idx = spec.get("section")
+    if fig.get("anchor"):
+        return fig["anchor"] if any(sid == fig["anchor"] for _, sid in headings) else ""
+    idx = fig.get("section")
     if not isinstance(idx, int) or idx < 1:
         idx = 1
-    idx = min(idx, n)
+    idx = min(idx, len(headings))
     return headings[idx - 1][1]
 
 
-def place_figure(prose_html, cid, headings):
-    """Return prose_html with the chapter figure spliced in after one paragraph.
+def place_figures(prose_html, cid, headings):
+    """Splice every figure after the first paragraph under its anchor heading.
 
-    The figure lands after the first paragraph that follows the anchor heading, so
-    the reader meets the drawing while the prose is still introducing it rather
-    than after the article has ended. A heading with no paragraph under it (or a
-    chapter that lost its anchor) falls back to the end of the prose, which is the
-    old behaviour and never loses the figure.
+    Figures sharing an anchor are inserted together in spec order. A missing
+    anchor falls back to the end of the prose; verification reports it.
     """
-    fig = figure_for(cid)
-    if not fig:
-        return prose_html, ""
-    spec = review.load_diagram(cid) or {}
-    anchor = figure_anchor(spec, headings)
-    if not anchor:
-        return prose_html + fig, "end of chapter"
+    figs = figures_for(cid)
+    if not figs:
+        return prose_html
     blocks = prose_html.split("\n")
-    for i, b in enumerate(blocks):
-        if b.startswith(f'<h3 id="{anchor}">'):
-            # Walk forward to the first paragraph the heading introduces.
-            for j in range(i + 1, len(blocks)):
-                if blocks[j].startswith("<p>"):
-                    blocks.insert(j + 1, fig.strip())
-                    return "\n".join(blocks), anchor
-            # Heading with nothing after it: append before the next heading.
-            blocks.insert(i + 1, fig.strip())
-            return "\n".join(blocks), anchor
-    return prose_html + fig, "end of chapter"
+    by_anchor = {}
+    fallback = []
+    for fig in figs:
+        html_fig = figure_html(cid, fig)
+        if not html_fig:
+            continue
+        anchor = figure_anchor(fig, headings)
+        if not anchor:
+            fallback.append(html_fig)
+            continue
+        by_anchor.setdefault(anchor, []).append(html_fig)
+    for anchor, htmls in by_anchor.items():
+        idx = next((i for i, b in enumerate(blocks)
+                    if b.startswith(f'<h3 id="{anchor}">')), None)
+        if idx is None:
+            fallback.extend(htmls)
+            continue
+        j = idx + 1
+        while j < len(blocks) and not blocks[j].startswith("<p>"):
+            if blocks[j].startswith("<h3"):
+                break
+            j += 1
+        if j < len(blocks) and blocks[j].startswith("<p>"):
+            blocks[j + 1:j + 1] = htmls
+        else:
+            blocks[idx + 1:idx + 1] = htmls
+    if fallback:
+        blocks.append("".join(fallback))
+    return "\n".join(blocks)
 
 
 def provenance_for(text):
@@ -1974,7 +2033,7 @@ the model's. The shape of the thing is not.</p>
         prose_html, headings = paragraphs(txt)
         # Splice the figure in next to the prose that introduces it, instead of
         # leaving it stranded after the article.
-        prose_html, figure_anchor_slug = place_figure(prose_html, c["id"], headings)
+        prose_html = place_figures(prose_html, c["id"], headings)
         BOOK["current"] = c["id"]
         chapter_rail = ""
         if len(headings) >= 3:
@@ -2021,6 +2080,9 @@ the model's. The shape of the thing is not.</p>
     js = os.path.join(ROOT, "site.js")
     if os.path.exists(js):
         shutil.copy2(js, os.path.join(SITE, "site.js"))
+    figjs = os.path.join(ROOT, "figures.js")
+    if os.path.exists(figjs):
+        shutil.copy2(figjs, os.path.join(SITE, "figures.js"))
     print(f"built: {len(published)} chapters, {total_words:,} words -> {SITE}")
     n_paths = paths_page(paths)
     if n_paths:
