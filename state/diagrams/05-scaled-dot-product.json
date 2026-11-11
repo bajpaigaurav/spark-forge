@@ -1,35 +1,205 @@
 {
   "needed": true,
-  "kind": "lane",
-  "title": "One transformer layer: Q/K/V projections, attention, and the residual lane",
-  "why": "It shows the layer's dataflow and the one thing a box sequence hides: the residual stream bypasses every sublayer and is added back, so information from earlier layers survives.",
-  "stages": [
-    "x, the residual stream",
-    "W_Q, W_K, W_V",
-    "q, k, v",
-    "attention",
-    "W_O",
-    "norm",
-    "feed-forward",
-    "+ x, the add back"
+  "spine": "attention",
+  "figures": [
+    {
+      "id": "qkv-score-softmax",
+      "title": "One query's row: score, softmax, weighted sum",
+      "caption": "A query scores three keys with dot products 2, 1 and 0. Softmax turns those scores into shares 0.665, 0.245 and 0.090, and the shares weight the values into the output (0.755, 0.335). The row is a differentiable lookup: the query is the lookup key, the keys are the indices, the values are the contents.",
+      "alt": "A four-column table. The columns are: project x into q, k and v; score the query against each key; softmax the row; and sum the weighted values. Three value rows show v1 equals (1, 0) scoring 2 and taking share 0.665, v2 equals (0, 1) scoring 1 and taking 0.245, and v3 equals (1, 1) scoring 0 and taking 0.090. The output row shows the weighted sum (0.755, 0.335).",
+      "anchor": "scores-softmax-and-the-lookup-table-view",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "project x → q, k, v",
+          "s_j = q · k_j",
+          "softmax row",
+          "Σ a_j v_j"
+        ],
+        "lanes": [
+          {
+            "name": "v_1 = (1, 0)",
+            "cells": [
+              {
+                "label": "v_1",
+                "kind": "solid"
+              },
+              {
+                "label": "2",
+                "kind": "solid"
+              },
+              {
+                "label": "0.665",
+                "kind": "solid"
+              },
+              {
+                "label": "0.665 · v_1",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "v_2 = (0, 1)",
+            "cells": [
+              {
+                "label": "v_2",
+                "kind": "solid"
+              },
+              {
+                "label": "1",
+                "kind": "solid"
+              },
+              {
+                "label": "0.245",
+                "kind": "solid"
+              },
+              {
+                "label": "0.245 · v_2",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "v_3 = (1, 1)",
+            "cells": [
+              {
+                "label": "v_3",
+                "kind": "solid"
+              },
+              {
+                "label": "0",
+                "kind": "solid"
+              },
+              {
+                "label": "0.090",
+                "kind": "solid"
+              },
+              {
+                "label": "0.090 · v_3",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "output o",
+            "cells": [
+              null,
+              null,
+              null,
+              {
+                "label": "(0.755, 0.335)",
+                "kind": "new"
+              }
+            ]
+          }
+        ],
+        "note": "exp(2), exp(1), exp(0) = 7.389, 2.718, 1.000, sum 11.107; shares 0.665, 0.245, 0.090. The output is the share-weighted sum of the values. Scaling by 1/sqrt(d_k) is the next figure."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to score one query and mix the values.",
+        "steps": [
+          {
+            "label": "Each token's x is projected into q, k and v.",
+            "highlight": [
+              "project"
+            ]
+          },
+          {
+            "label": "The query scores every key with a dot product.",
+            "highlight": [
+              "scores"
+            ]
+          },
+          {
+            "label": "Softmax turns the row of scores into shares.",
+            "highlight": [
+              "shares"
+            ]
+          },
+          {
+            "label": "The shares weight the values and sum to the output.",
+            "highlight": [
+              "output"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scaling-variance",
+      "title": "Why divide by sqrt(d_k)",
+      "caption": "Score standard deviation against d_k under the paper's unit-variance assumption: the raw curve is sqrt(d_k), and the horizontal line is the scaled result, standard deviation 1. At d_k = 64 the raw standard deviation is 8, so a two-sigma gap between the top two scores gives an exponential ratio of about 8.9 million; dividing by sqrt(d_k) shrinks the gap by 8. The curve is computed from sqrt(d_k), not measured.",
+      "alt": "A log-log plot. The rising line is score standard deviation equal to square root of d_k, passing through d_k equals 1 with standard deviation 1, d_k equals 16 with 4, d_k equals 64 with 8, and d_k equals 4096 with 64. A horizontal line at standard deviation 1 is labelled after dividing by square root of d_k. A point at d_k equals 64, standard deviation 8 is labelled.",
+      "anchor": "multi-head-attention-and-the-scaling-factor",
+      "kind": "logaxes",
+      "data": {
+        "x_label": "d_k (log scale)",
+        "y_label": "score standard deviation",
+        "series": [
+          {
+            "kind": "line",
+            "points": [
+              [
+                1,
+                1
+              ],
+              [
+                4,
+                2
+              ],
+              [
+                16,
+                4
+              ],
+              [
+                64,
+                8
+              ],
+              [
+                256,
+                16
+              ],
+              [
+                1024,
+                32
+              ],
+              [
+                4096,
+                64
+              ]
+            ],
+            "label": "std = sqrt(d_k)"
+          },
+          {
+            "kind": "hline",
+            "y": 1,
+            "label": "after ÷ sqrt(d_k): std = 1"
+          },
+          {
+            "kind": "point",
+            "x": 64,
+            "y": 8,
+            "label": "d_k = 64 → std 8"
+          }
+        ],
+        "note": "Under the assumption each product q_a k_a has variance 1, and the sum of d_k products has variance d_k, so the raw score standard deviation is sqrt(d_k). A gap of two standard deviations gives e^16 ≈ 8.9 million; at a = 0.999 the softmax gradient is 0.000999, against 0.223 in the unsaturated example. Dividing by sqrt(d_k) restores standard deviation 1."
+      }
+    }
   ],
-  "sizes": [
-    "d_model",
-    "d_model by d_k",
-    "d_k each",
-    "n by n scores",
-    "d_model",
-    "d_model",
-    "inner width 4 x d_model",
-    "d_model"
-  ],
-  "bypass": "residual lane: x is added back, never replaced",
-  "note": "Every token runs this lane. Attention mixes positions; the feed-forward layer transforms each one alone.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    4,
-    5
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1706.03762",
+      "note": "Vaswani et al. 2017: scaled dot-product attention, the sqrt(d_k) variance argument, and causal masking."
+    },
+    {
+      "url": "https://jalammar.github.io/illustrated-transformer",
+      "note": "Pedagogical visual explanation of Q/K/V, score rows, softmax weights, and the weighted sum."
+    },
+    {
+      "url": "https://arxiv.org/abs/1409.0473",
+      "note": "Bahdanau et al. 2014: the additive predecessor whose alignment weights motivated the lookup-table reading."
+    }
   ]
 }
