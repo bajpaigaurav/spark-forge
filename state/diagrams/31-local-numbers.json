@@ -1,89 +1,217 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "One shared pool, and the guard that kills a rank",
-  "why": "It shows the budget as one quantity and the guard as a sequence, which the prose describes in that order: weights, KV caches and live streams share 111.5 GB at 273 GB/s, and when MemAvailable falls below 2.5 GiB the guard kills a rank rather than let the box swap.",
-  "nodes": [
-    "Shared LPDDR5X pool: 111.5 GB / 111,515,771,428 bytes covering weights, KV caches, live streams",
-    "MemAvailable read from /proc/meminfo on a timer",
-    "Threshold: below 2.5 GiB",
-    "SIGKILL to rank PID",
-    "Kernel closes sockets; in-flight requests get connection reset",
-    "Launcher restarts rank",
-    "Rank reloads its shard from disk",
-    "Client retries failed request"
-  ],
-  "notes": "No axes; this is a dataflow/control loop. The pool is a single shared budget at 273 GB/s, not separate VRAM plus host memory. The guard reads MemAvailable on a timer and branches at the 2.5 GiB threshold; the kill path is uncatchable, so socket cleanup is done by the kernel and recovery flows through launcher restart, shard reload, and client retry. All labelled quantities come from the chapter. | Flow runs layer by layer across two ranks; each layer has two cross-rank boundaries, so L layers give 2L all-reduces per forward pass. The payload at each boundary is the batch activation matrix in bf16: decode is 16 × H × 2 bytes, prefill is 130,659 × H × 2 bytes, and prefill is 130,659/16 = 8,166 times larger. The all-reduce is issued after the local matmul and before the next layer's matmul; overlap with next-layer compute requires independent scheduler work, usually absent at decode. Label the pair stall counter as 120,000 ms cumulative, not decomposed by collective or rank. | x-axis: number of concurrent streams (1 and 4). y-axis: aggregate decode tok/s. Plot the single-stream point at 59.1, the linear extrapolation to 236.4 at 4 streams, and the measured 106.2 at 4 streams; annotate the 45% shortfall and the 1.80x multiplier. Mark the 16-row kernel width and the 2,197/3,003 MHz clock as candidate constraints, not as isolated causes. All quantities come from the section. | No axes; two parallel dataflows. Prefix-cache flow labels 12,804,579 prompt tokens looked up, 12,285,952 served from cache (95.9%), prefill rate 39,237, and 313 seconds of prefill work removed; workload context: 98 requests, mean prompt length 130,659 tokens. Speculative flow labels mtp_drafted_total = 62,390, mtp_accepted_total = 42,181, acceptance 67.6%, and notes that drafts become extra rows in the 16-row verify kernel, drawing on the same concurrency budget. | Draw the shared pool as a horizontal bar partitioned into four equal stream segments at 65,536 positions each. Inside one segment, mark the reservation block of 32,786 positions and the remaining admission ceiling of 32,750. Show a second bar for the native 1,048,576-position window split into four 262,144-position segments, with reservation 32,786 and ceiling 229,358. Label the KV bytes-per-position constant 921.6 and the extra 0.68 GiB per rank. Add a small scheduler inset: free pool = total minus active reservations; one active stream leaves 229,358 free, four active streams leave 32,750 per stream; idle slots hold no reservation. All quantities come from the chapter's arithmetic.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  "total": 111.5,
-  "spans": [
+  "spine": "measurement",
+  "figures": [
     {
-      "from": 0,
-      "to": 35,
-      "label": "70B at 4 bits: 35 GB",
-      "kind": "used"
+      "id": "memguard-kill-restart-loop",
+      "title": "The memguard loop: floor, SIGKILL, reload, retry",
+      "caption": "Unified memory makes the footprint one shared number: 111.5 GB across the pair, roughly 55.8 GB per rank, and no separate VRAM to spill into. memguard.sh polls MemAvailable; below 2.5 GiB it sends SIGKILL, which cannot be caught, so the rank does not flush caches or close sockets. The kernel closes the sockets, in-flight requests get a connection reset, the launcher restarts the rank, and the shard reloads from disk before the client's retry can succeed.",
+      "alt": "Five lanes across six steps. The footprint lane starts at 111.5 GB, grows with the KV pool, then reloads a 55.8 GB shard after the kill. The MemAvailable lane starts above 2.5 GiB, falls, is sampled, crosses below the floor and recovers. The memguard lane reads a timer, decides, and sends SIGKILL. The rank lane serves, allocates, dies and restarts. The client lane sees a connection reset and retries.",
+      "anchor": "the-shared-memory-budget-and-the-memguard-kill-switch",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "steady state",
+          "KV grows",
+          "sample MemAvailable",
+          "below floor",
+          "SIGKILL",
+          "restart"
+        ],
+        "lanes": [
+          {
+            "name": "footprint",
+            "cells": [
+              {
+                "label": "111.5 GB",
+                "kind": "solid"
+              },
+              {
+                "label": "+ KV pool",
+                "kind": "solid"
+              },
+              null,
+              null,
+              null,
+              {
+                "label": "reload 55.8 GB shard",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "MemAvailable",
+            "cells": [
+              {
+                "label": "above 2.5 GiB",
+                "kind": "solid"
+              },
+              {
+                "label": "falling",
+                "kind": "solid"
+              },
+              {
+                "label": "sampled",
+                "kind": "solid"
+              },
+              {
+                "label": "< 2.5 GiB",
+                "kind": "new"
+              },
+              null,
+              {
+                "label": "recovers",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "memguard.sh",
+            "cells": [
+              null,
+              null,
+              {
+                "label": "timer",
+                "kind": "solid"
+              },
+              {
+                "label": "decides",
+                "kind": "solid"
+              },
+              {
+                "label": "SIGKILL",
+                "kind": "new"
+              },
+              null
+            ]
+          },
+          {
+            "name": "rank",
+            "cells": [
+              {
+                "label": "serving",
+                "kind": "solid"
+              },
+              {
+                "label": "allocating",
+                "kind": "solid"
+              },
+              null,
+              null,
+              {
+                "label": "dies",
+                "kind": "waste"
+              },
+              {
+                "label": "restarts",
+                "kind": "new"
+              }
+            ]
+          },
+          {
+            "name": "client",
+            "cells": [
+              null,
+              null,
+              null,
+              null,
+              {
+                "label": "connection reset",
+                "kind": "waste"
+              },
+              {
+                "label": "retries",
+                "kind": "new"
+              }
+            ]
+          }
+        ],
+        "note": "The engine's device_memory_bytes gauge reads 111,515,771,428 bytes, about 55.8 GB per rank, covering weights, caches and live streams. The KV pool is 262,144 positions at 921.6 bytes per position, so the pool is not what crosses the floor; growth in live streams and the page cache is. SIGKILL is the point: a graceful stop would let the rank release the pool, and the floor exists to keep the host from thrashing before that can happen."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to run the kill-and-restart loop.",
+        "steps": [
+          {
+            "label": "Steady state: the pair's footprint is 111.5 GB, about 55.8 GB per rank.",
+            "highlight": [
+              "footprint"
+            ]
+          },
+          {
+            "label": "The KV pool grows as streams hold context.",
+            "highlight": [
+              "kv"
+            ]
+          },
+          {
+            "label": "memguard.sh reads MemAvailable on a timer.",
+            "highlight": [
+              "memguard"
+            ]
+          },
+          {
+            "label": "MemAvailable crosses below 2.5 GiB.",
+            "highlight": [
+              "floor"
+            ]
+          },
+          {
+            "label": "SIGKILL: the rank cannot catch it or flush its caches.",
+            "highlight": [
+              "kill"
+            ]
+          },
+          {
+            "label": "The launcher restarts the rank, reloads the shard, and the client retries.",
+            "highlight": [
+              "restart"
+            ]
+          }
+        ]
+      }
     },
     {
-      "from": 35,
-      "to": 70,
-      "label": "70B at 8 bits: 70 GB",
-      "kind": "used"
-    },
-    {
-      "from": 70,
-      "to": 111.5,
-      "label": "headroom for KV and streams",
-      "kind": "reserved"
+      "id": "concurrency-scaling-measured",
+      "title": "Four streams: 1.80× aggregate, 45% of the linear ceiling",
+      "caption": "Measured decode on the pair: one stream 59.1 tok/s, four streams 106.2 tok/s aggregate, a 1.80× multiplier, and 26.55 tok/s per stream. The linear prediction is 4 × 59.1 = 236.4 tok/s; the measured aggregate reaches 45% of it, so batching is sublinear. The per-stream rate is also 45% of the single-stream rate, which is the same shortfall seen from the other side.",
+      "alt": "Four horizontal bars in tokens per second. One stream is 59.1. Per stream at four streams is 26.55. Aggregate at four streams is 106.2, marked 1.80 times. The linear prediction of four times 59.1 is 236.4. The aggregate bar is less than half the linear bar.",
+      "anchor": "decode-throughput-and-concurrency-scaling",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "single stream",
+            "value": 59.1,
+            "display": "59.1 tok/s"
+          },
+          {
+            "label": "per stream, 4 streams",
+            "value": 26.55,
+            "display": "26.55 tok/s"
+          },
+          {
+            "label": "aggregate, 4 streams",
+            "value": 106.2,
+            "display": "106.2 tok/s (1.80×)",
+            "accent": true
+          },
+          {
+            "label": "linear prediction, 4 × 59.1",
+            "value": 236.4,
+            "display": "236.4 tok/s"
+          }
+        ],
+        "group": "decode throughput, same four prompts",
+        "note": "The shortfall has several candidate causes and the run does not separate them: the bandwidth ceiling N·B/(W+K), the 16-row decode kernel (ROUND_ROWS=16), the SM clock observed at 2,197 MHz against a 3,003 MHz silicon maximum, and the 120,000 ms cumulative pair stall. A roofline calculation can test bandwidth; the rest needs profiling or controlled experiments."
+      }
     }
   ],
-  "axis": [
+  "sources": [
     {
-      "at": 0,
-      "label": "0"
-    },
-    {
-      "at": 35,
-      "label": "35 GB"
-    },
-    {
-      "at": 70,
-      "label": "70 GB"
-    },
-    {
-      "at": 111.5,
-      "label": "111.5 GB"
-    }
-  ],
-  "note": "A 70B model at FP16 is 140 GB and does not fit. At 8 bits it is 70 GB and leaves about 41.5 GB. The guard reads MemAvailable on a timer and kills below 2.5 GiB.",
-  "panels": [
-    {
-      "title": "the pool: 111.5 GB",
-      "items": [
-        "70B at 4 bits: 35 GB",
-        "70B at 8 bits: 70 GB",
-        "70B at FP16: 140 GB, does not fit",
-        "273 GB/s shared by CPU and GPU"
-      ],
-      "note": "Not separate VRAM plus host memory: one budget."
-    },
-    {
-      "title": "the guard",
-      "items": [
-        "read MemAvailable on a timer",
-        "below 2.5 GiB: SIGKILL",
-        "kernel closes the sockets",
-        "launcher restarts the rank",
-        "rank reloads its shard",
-        "client retries"
-      ],
-      "note": "The kill cannot be caught, so cleanup is the kernel’s job."
+      "url": "https://docs.nvidia.com/dgx/dgx-spark/hardware.html",
+      "note": "NVIDIA DGX Spark hardware guide: 273 GB/s LPDDR5X shared between CPU and GPU, and the GB10's 3,003 MHz maximum clock."
     }
   ]
 }
