@@ -1,55 +1,123 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "Aligned errors add up; independent errors cancel",
-  "why": "It shows the two regimes the prose contrasts in sequence: if every term errs the same way, 4,096 terms each bounded by 0.0335 reach 137.2; if the errors are independent, they add in quadrature to 2.14, a ratio of sqrt(N).",
-  "nodes": [
-    "N = 4,096 terms",
-    "per-term bound = 0.067 × 0.5 = 0.0335",
-    "aligned total = 4,096 × 0.0335 = 137.2",
-    "independent std = sqrt(4,096) × 0.0335 = 2.14",
-    "ratio = 64 = sqrt(N)"
-  ],
-  "notes": "Two bars or columns compare the aligned worst case and the independent-error standard deviation. The horizontal axis is accumulation regime; the vertical axis is output error magnitude. Labels come directly from the chapter: half-step 0.067, input RMS 0.5, per-term bound 0.0335, N=4,096, totals 137.2 and 2.14, ratio 64. No other quantities are labelled. | Left-to-right flow: embedding enters residual stream; each block reads the stream through layer norm, computes an output, and adds it back. At layer norm, perturbation δ is decomposed: first term removes mean δ; second term removes the component along z; remaining perturbation is orthogonal to the constant vector and z, with norm at most ||δ||/σ. Labels μ, σ, δ, Δz, and ||δ||/σ come from the chapter. The figure does not label quantization error magnitudes or GPTQ/AWQ parameters. | Two side-by-side block layouts. Left: one group containing the outlier 4.0 sets m=4.0 and step 2*4/15=0.533, so 0.1, 0.2, 0.3 all collapse to 0.2667. Right: the outlier is its own block; the other three weights get m=0.3 and step 0.04, giving finer resolution. Labels are the weights, group scale m, and step from the chapter; no axis is needed. | Left panel is a flow: activation channel j and weight column j are rescaled by s=0.1 and 1/s=10, becoming ≈1 and ≈1 while the product stays 1; per-token scaling gives each token its own activation scale. Right panel is a comparison: keys are quantized per-channel, values per-token, because the axis you can average over decides the format. All labelled quantities (10, 0.1, s=0.1, 1/s=10, product 1) appear in the chapter.",
-  "section": 2,
-  "sections": [
-    2,
-    3,
-    4,
-    5
-  ],
-  "bars": [
+  "spine": "precision",
+  "figures": [
     {
-      "label": "aligned worst case",
-      "value": 137.2,
-      "display": "137.2"
+      "id": "dot-product-error-cancellation",
+      "title": "Aligned rounding errors add linearly; independent errors add in quadrature",
+      "caption": "With N = 4,096 terms, a half-step of 0.067, and an input RMS of 0.5, aligned errors would add to 4,096 × 0.0335 = 137.2. Independent errors add in quadrature: the worst case is √4,096 × 0.0335 = 2.14, and uniform rounding gives a per-term standard deviation of (step/√12) × x_rms ≈ 0.0192, so √4,096 × 0.0192 ≈ 1.23. The ratio between the linear and quadrature totals is 64, the square root of N.",
+      "alt": "Three horizontal bars. The aligned-error bar is 137.2 and fills the plot. The independent worst case is 2.14, and the uniform-rounding estimate is 1.23; both are short bars, roughly one sixty-fourth of the first. The caption gives the arithmetic: 4,096 × 0.0335, √4,096 × 0.0335, and √4,096 × 0.0192.",
+      "anchor": "why-independent-rounding-errors-add-in-quadrature",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "aligned: 4,096 × 0.0335",
+            "value": 137.2,
+            "display": "137.2",
+            "accent": true
+          },
+          {
+            "label": "independent worst case: √4,096 × 0.0335",
+            "value": 2.14,
+            "display": "2.14"
+          },
+          {
+            "label": "uniform rounding: √4,096 × 0.0192",
+            "value": 1.23,
+            "display": "1.23"
+          }
+        ],
+        "note": "The ratio is 64 = √4,096. Aligned errors share a sign; independent errors cancel in quadrature."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to compare the two error sums.",
+        "steps": [
+          {
+            "label": "Aligned errors all push the same way: 4,096 × 0.0335 = 137.2.",
+            "highlight": [
+              "aligned"
+            ]
+          },
+          {
+            "label": "Independent errors add in quadrature: √4,096 × 0.0335 = 2.14.",
+            "highlight": [
+              "independent"
+            ]
+          },
+          {
+            "label": "Uniform rounding gives a per-term std of 0.0192, so √4,096 × 0.0192 ≈ 1.23.",
+            "highlight": [
+              "uniform"
+            ]
+          },
+          {
+            "label": "The ratio is 64, the square root of N.",
+            "highlight": [
+              "aligned",
+              "independent"
+            ]
+          }
+        ]
+      }
     },
     {
-      "label": "independent, std",
-      "value": 2.14,
-      "display": "2.14",
-      "accent": true
+      "id": "group-size-outlier",
+      "title": "Group size and bit width set the rounding floor",
+      "caption": "A symmetric four-bit group with m = 4.0 has step 2·4/15 ≈ 0.533, so 0.1, 0.2, and 0.3 all round to 0.2667. Put 4.0 in its own group and the remaining weights get m = 0.3 and step 0.04, so 0.1, 0.2, and 0.3 land on distinct levels. The floor is set by the bit width: at four bits the step is m/7 and the half-step ≈ 0.2σ; at three bits the step is m/3 and the half-step ≈ 0.43σ; at two bits the step is m and the half-step ≈ 1σ. Smaller groups isolate outliers, at the cost of more scale metadata.",
+      "alt": "Three aligned panels. The first has one group containing 0.1, 0.2, 0.3, and 4.0, with m = 4.0 and step 0.533; the three small weights all round to 0.2667. The second puts 4.0 alone and gives the remaining group m = 0.3 and step 0.04, so 0.1, 0.2, and 0.3 land on distinct levels. The third gives the step and half-step at four, three, and two bits: step m/7 with half-step ≈ 0.2σ, step m/3 with half-step ≈ 0.43σ, and step m with half-step ≈ 1σ, so four bits is close to the floor.",
+      "anchor": "why-four-bits-is-near-the-floor-and-where-outliers-break-it",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "one scale for the group",
+            "items": [
+              "weights: 0.1, 0.2, 0.3, 4.0",
+              "m = 4.0",
+              "step = 2·4/15 ≈ 0.533",
+              "0.1, 0.2, 0.3 → 0.2667"
+            ],
+            "note": "The outlier sets the grid; the three ordinary weights collapse to one level."
+          },
+          {
+            "title": "outlier in its own group",
+            "items": [
+              "4.0 alone",
+              "remaining m = 0.3",
+              "step = 0.04",
+              "0.1, 0.2, 0.3 → distinct levels"
+            ],
+            "note": "The other three weights keep a scale set by their own range."
+          },
+          {
+            "title": "bit width sets the floor",
+            "items": [
+              "4 bits: step m/7\nhalf-step ≈ 0.2σ",
+              "3 bits: step m/3\nhalf-step ≈ 0.43σ",
+              "2 bits: step m\nhalf-step ≈ 1σ",
+              "at half-step ≈ σ, rounding is a different function"
+            ],
+            "note": "Four bits is an empirical default, not a theorem; quality depends on group size and model."
+          }
+        ]
+      }
     }
   ],
-  "note": "Half-step 0.067 times input RMS 0.5 gives 0.0335 per term. Over N = 4,096 the aligned total is 137.2 and the independent standard deviation is sqrt(4096) x 0.0335 = 2.14.",
-  "panels": [
+  "sources": [
     {
-      "title": "aligned: the worst case",
-      "items": [
-        "per-term bound 0.067 x 0.5 = 0.0335",
-        "N = 4,096 terms",
-        "total 4,096 x 0.0335 = 137.2"
-      ],
-      "note": "Every term errs in the same direction."
+      "url": "https://arxiv.org/abs/2208.07339",
+      "note": "Dettmers et al., LLM.int8(): activation outlier dimensions and mixed-precision decomposition."
     },
     {
-      "title": "independent: what actually happens",
-      "items": [
-        "per-term bound 0.0335",
-        "errors add in quadrature",
-        "sqrt(4,096) x 0.0335 = 2.14"
-      ],
-      "note": "The ratio is 64, which is sqrt(N)."
+      "url": "https://arxiv.org/abs/2211.10438",
+      "note": "Xiao et al., SmoothQuant: migrating activation outliers into weights."
+    },
+    {
+      "url": "https://arxiv.org/abs/2210.17323",
+      "note": "Frantar et al., GPTQ: correlated inputs and second-order compensation of quantization error."
     }
   ]
 }
