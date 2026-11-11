@@ -1,85 +1,193 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "The KV pool as four shares, and what a reservation leaves unused",
-  "why": "It shows the pool as one quantity divided up, which the prose describes in sequence: 262,144 positions split into four equal shares of 65,536, each trimmed by the reply budget and decode margin to an admitted ceiling of 32,750, with the rest reserved but idle.",
-  "total": 262144,
-  "spans": [
+  "spine": "cache",
+  "figures": [
     {
-      "from": 0,
-      "to": 65536,
-      "label": "share 1: 65,536",
-      "kind": "share"
+      "id": "reservation-versus-paging",
+      "title": "Contiguous reservation wastes the tail; paged blocks waste only the last block",
+      "caption": "Orca-style contiguous allocation holds the worst-case share for a sequence's whole life, so a 100-token reply reserves 65,536 positions and leaves 65,436 idle. PagedAttention allocates 16-position blocks on demand: the same request takes seven blocks, 112 positions, with 12 positions of tail waste.",
+      "alt": "Two aligned panels. The contiguous panel reserves 65,536 positions per stream from admission, so a 100-token reply leaves 65,436 positions idle for its whole life; the note records that only 20 to 40 percent of reserved KV memory held token state in the vLLM measurements. The paged panel allocates 16-position physical blocks: 100 tokens need seven blocks, 112 positions, and only the last block's 12 positions are wasted.",
+      "anchor": "the-worst-case-reservation-and-its-arithmetic",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Contiguous reservation",
+            "items": [
+              "65,536 positions per stream, held from admission",
+              "a 100-token reply still holds the full share",
+              "65,436 positions idle for its whole life"
+            ],
+            "note": "Internal fragmentation. Between 20 and 40 percent of reserved KV memory actually held token state in the vLLM measurements."
+          },
+          {
+            "title": "Paged blocks",
+            "items": [
+              "16-position physical blocks, allocated on demand",
+              "100 tokens take 7 blocks: six full, one with 4 tokens",
+              "12 positions of tail waste"
+            ],
+            "note": "External fragmentation collapses to the unused tail of the last block; a growing sequence allocates one more block and writes one more pointer."
+          }
+        ]
+      }
     },
     {
-      "from": 65536,
-      "to": 131072,
-      "label": "share 2: 65,536",
-      "kind": "share"
+      "id": "block-table-cow",
+      "title": "A block table is the indirection that makes sharing and copy-on-write cheap",
+      "caption": "A 100-token prompt fills seven 16-position blocks whose physical ids are 7, 12, 3, 19, 22, 8, and 41. After B forks, both block tables point at the same blocks with refcount 2; when B writes into logical block 6, the engine copies physical block 41 into free block 55 and drops 41 to refcount 1.",
+      "alt": "A memory strip showing eight occupied physical block ids scattered across a 64-block window: 7, 12, 3, 19, 22, 8, 41 for request A, and 55 as B's copy. Below it a table maps logical blocks 0 through 6 to those physical blocks with refcount 2, plus logical block 6 for B mapped to physical block 55 with refcount 1.",
+      "anchor": "from-page-tables-to-pagedattention",
+      "kind": "memory",
+      "data": {
+        "total": 64,
+        "spans": [
+          {
+            "from": 3,
+            "to": 4,
+            "kind": "used"
+          },
+          {
+            "from": 7,
+            "to": 8,
+            "kind": "used"
+          },
+          {
+            "from": 8,
+            "to": 9,
+            "kind": "used"
+          },
+          {
+            "from": 12,
+            "to": 13,
+            "kind": "used"
+          },
+          {
+            "from": 19,
+            "to": 20,
+            "kind": "used"
+          },
+          {
+            "from": 22,
+            "to": 23,
+            "kind": "used"
+          },
+          {
+            "from": 41,
+            "to": 42,
+            "kind": "used"
+          },
+          {
+            "from": 55,
+            "to": 56,
+            "kind": "share"
+          }
+        ],
+        "axis": [
+          {
+            "at": 0,
+            "label": "0"
+          },
+          {
+            "at": 32,
+            "label": "32"
+          },
+          {
+            "at": 64,
+            "label": "64"
+          }
+        ],
+        "table": {
+          "title": "A's block table: logical to physical to refcount",
+          "rows": [
+            [
+              "0",
+              "7",
+              "2"
+            ],
+            [
+              "1",
+              "12",
+              "2"
+            ],
+            [
+              "2",
+              "3",
+              "2"
+            ],
+            [
+              "3",
+              "19",
+              "2"
+            ],
+            [
+              "4",
+              "22",
+              "2"
+            ],
+            [
+              "5",
+              "8",
+              "2"
+            ],
+            [
+              "6",
+              "41",
+              "2"
+            ],
+            [
+              "6 (B)",
+              "55",
+              "1"
+            ]
+          ]
+        },
+        "note": "The strip is a 64-block window of a pool that holds 262,144 positions, 16 per block. Scattered physical blocks are free placement; the table is what turns them back into a contiguous logical sequence."
+      }
     },
     {
-      "from": 131072,
-      "to": 196608,
-      "label": "share 3: 65,536",
-      "kind": "share"
-    },
-    {
-      "from": 196608,
-      "to": 262144,
-      "label": "share 4: 65,536",
-      "kind": "share"
+      "id": "block-size-tradeoff",
+      "title": "Block size trades tail waste against table entries",
+      "caption": "On the same 100-token sequence, smaller blocks cut waste and multiply table entries: 8-position blocks waste 4 positions and need 13 entries, 16-position blocks waste 12 and need 7, and 64-position blocks waste 28 and need 2. The kernel walks every entry to gather a sequence's blocks, so 16 is the common default.",
+      "alt": "Four horizontal bars of tail waste for a 100-token sequence. Block size 8 wastes 4 positions and needs 13 table entries. Block size 16 wastes 12 positions and needs 7 entries. Block size 32 wastes 28 positions and needs 4 entries. Block size 64 wastes 28 positions and needs 2 entries.",
+      "anchor": "admission-block-size-and-where-paging-stops-paying",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "B = 8",
+            "value": 4,
+            "display": "4 wasted, 13 entries"
+          },
+          {
+            "label": "B = 16",
+            "value": 12,
+            "display": "12 wasted, 7 entries",
+            "accent": true
+          },
+          {
+            "label": "B = 32",
+            "value": 28,
+            "display": "28 wasted, 4 entries"
+          },
+          {
+            "label": "B = 64",
+            "value": 28,
+            "display": "28 wasted, 2 entries"
+          }
+        ],
+        "note": "Tail waste is the unused tail of the last block; entries are the block-table rows the gather walks. Sixteen positions is the common default."
+      }
     }
   ],
-  "axis": [
+  "sources": [
     {
-      "at": 0,
-      "label": "0"
+      "url": "https://arxiv.org/abs/2309.06180",
+      "note": "Kwon et al., PagedAttention: the 20-40 percent reservation figure, block tables, copy-on-write sharing, and the 2-4x throughput result."
     },
     {
-      "at": 65536,
-      "label": "65,536"
-    },
-    {
-      "at": 131072,
-      "label": "131,072"
-    },
-    {
-      "at": 196608,
-      "label": "196,608"
-    },
-    {
-      "at": 262144,
-      "label": "262,144 positions"
-    }
-  ],
-  "note": "One stream's reservation: 65,536 - 32,768 reply budget - 16 decode rows - 2 alignment = 32,750 admitted. The rest sits reserved until the stream ends.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4
-  ],
-  "panels": [
-    {
-      "title": "the pool, divided",
-      "items": [
-        "262,144 positions total",
-        "four streams",
-        "65,536 positions each"
-      ],
-      "note": "Equal shares, fixed at admission."
-    },
-    {
-      "title": "one share, trimmed",
-      "items": [
-        "65,536 reserved",
-        "- 32,768 reply budget",
-        "- 16 decode rows",
-        "- 2 alignment",
-        "= 32,750 admitted"
-      ],
-      "note": "A request that finishes early still held its whole share: internal fragmentation."
+      "url": "https://arxiv.org/abs/2211.05102",
+      "note": "Yu et al., Orca: the contiguous worst-case reservation this chapter replaces."
     }
   ]
 }
