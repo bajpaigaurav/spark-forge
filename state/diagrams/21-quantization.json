@@ -1,63 +1,158 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "One group of weights onto sixteen levels",
-  "why": "It shows the mapping the prose describes in sequence: a contiguous run of 128 entries gets one min and one max, a scale of (max-min)/15, and a zero point, so each weight lands on an integer from 0 to 15 and decodes as (q - z) times s.",
-  "nodes": [
-    "W: d_out × d_in",
-    "row-major rows",
-    "contiguous 128 entries = 128 input features of one output channel",
-    "min, max per group",
-    "scale s = (max − min)/15",
-    "zero point z = round(−min/s)",
-    "q = clamp(round(w/s)+z, 0, 15)",
-    "decode ŵ = (q − z)·s"
-  ],
-  "notes": "Grid axes: rows are output features d_out, columns are input features d_in. Highlight one row and a contiguous run of 128 entries along it. Beside it, show a number line from min to max mapped onto integer levels 0 through 15, labelled with s and z. All quantities come from the chapter: d_out, d_in, 128, 0..15, s, z. | Left: W as a d_out-by-d_in grid, with a highlighted 128-entry contiguous run along the input dimension in one row. Middle: byte strip showing 3 metadata bytes beside 64 payload bytes, with two 4-bit codes per byte and low nibble first. Right: kernel stages from 32-bit load through shifts/masks, zero-point subtraction, scale multiply, fp16 conversion, to tensor-core multiply. Bottom: comparison across group sizes 64, 128, 256 with payload bytes, metadata bytes, overhead percentages, bits per weight where given, and outlier reach; all quantities are those stated in the section. | Flow runs left to right: X feeds H; w and H⁻¹ feed the column loop. H is estimated once per layer from 128 C4 sequences of 2048 tokens, with damping on the diagonal. Labels: d_in input dimension, n calibration examples, indices k and j. The loop holds ŵ_j at its rounded value while adjusting only columns not yet quantized; no axes, arrows show X→H and w,H⁻¹→column loop. | No axes; left-to-right dataflow. Quantities labelled where they appear in the chapter: d_in columns, block size 128, about 1% higher-precision channels, per-channel scale s_j. The worked example's error 0.2 and objective 0.16→0.12 can be shown as a small inset on the column-update stage, but the main figure carries the pipeline structure. | No axes; this is a memory layout. The super-block contains 8 sub-blocks; each sub-block has its own 6-bit scale s_k and 6-bit minimum m_k. Dequantization is w = d·s_k·q − m·m_k, where q is the 4-bit code for the weight and s_k, m_k belong to its 32-weight sub-block. Byte counts: d and m are 2 bytes each (4 bytes total); the 16 six-bit sub-block values pack into 12 bytes; the 256 four-bit codes are 128 bytes; total 144 bytes, giving 4.5 bits per weight. | Horizontal axis: feature dimension index. Vertical axis: activation magnitude, with one outlier bar at 1000 and a cluster near 1. Overlay the symmetric 8-bit grid with spacing ≈7.8, showing the cluster collapsing onto 0 or 7.8. Annotate the scale as set by the 1000 maximum and the output-error example as 0.01 × 1000 = 10; all quantities come from the chapter. | Two side-by-side panels. Left panel: prefill stage, labelled with 130,659 prompt tokens and mean 3.33 s; arrow from prompt tokens into a batched matmul block. Right panel: decode stage, labelled with 607 tokens and mean 8.38 s; sequence of single-token steps, with the limiting quantity 4.19 bits per weight pulled from memory. No invented numbers; all labelled quantities come from the section.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-  ],
-  "bars": [
+  "spine": "precision",
+  "figures": [
     {
-      "label": "fp16 weight",
-      "value": 16,
-      "display": "16 bits"
+      "id": "affine-quantization-map",
+      "title": "Affine quantization: encode 0.05 and 0.2, decode them back",
+      "caption": "Affine quantization maps a group interval onto 16 unsigned codes with a scale s and a zero point z. For the group [−1, 1], s = 2/15 and z = 8: 0.05 encodes to code 8 and decodes to 0; 0.2 encodes to code 10 and decodes to 0.2667, an error of 0.0667. Every weight in the group pays at most half a step, and the bound is set by the group, not by the loudest number in the matrix.",
+      "alt": "Two aligned panels. The encode panel gives the group range −1 to 1, scale s = 2/15, zero point 8, and the two encodings: 0.05 to code 8 and 0.2 to code 10. The decode panel reverses the map: code 8 to 0 and code 10 to 0.2667, so the 0.2 weight pays 0.0667, exactly the half-step bound. A note explains that the zero point lets the interval sit off zero and that only storage is four bits.",
+      "anchor": "how-a-linear-layer-is-laid-out-and-quantized",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Encode: w → q",
+            "items": [
+              "group range: [−1, 1]",
+              "scale s = 2/15",
+              "zero point z = 8",
+              "q = clamp(round(w/s) + z, 0, 15)",
+              "0.05 → round(0.375) + 8 = 8",
+              "0.2 → round(1.5) + 8 = 10"
+            ]
+          },
+          {
+            "title": "Decode: q → ŵ",
+            "items": [
+              "ŵ = (q − z)·s",
+              "8 → (8 − 8)·s = 0",
+              "10 → (10 − 8)·s = 0.2667",
+              "0.2 pays 0.2667 − 0.2 = 0.0667",
+              "bound: half a step = 0.0667"
+            ],
+            "note": "The zero point keeps zero representable and spends levels where the values are. Only storage is four bits; the kernel subtracts z, multiplies by s, and converts to fp16 for the tensor-core multiply."
+          }
+        ]
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to encode and decode one group.",
+        "steps": [
+          {
+            "label": "Fix the group interval [−1, 1].",
+            "highlight": [
+              "encode"
+            ]
+          },
+          {
+            "label": "Compute the scale s = 2/15 and the zero point z = 8.",
+            "highlight": [
+              "encode"
+            ]
+          },
+          {
+            "label": "Encode 0.05 to code 8 and 0.2 to code 10.",
+            "highlight": [
+              "encode"
+            ]
+          },
+          {
+            "label": "Decode code 8 to 0 and code 10 to 0.2667.",
+            "highlight": [
+              "decode"
+            ]
+          },
+          {
+            "label": "The 0.2 weight pays 0.0667, under the half-step bound.",
+            "highlight": [
+              "decode"
+            ]
+          }
+        ]
+      }
     },
     {
-      "label": "4-bit weight",
-      "value": 4,
-      "display": "4 bits, levels 0 to 15",
-      "accent": true
+      "id": "group-layout-outlier",
+      "title": "Groups run along the input dimension, so an outlier contaminates one group",
+      "caption": "W is d_out × d_in, stored row-major, so 128 consecutive input features in one row form a contiguous 64-byte read. Each cell here is one such group of 128 weights, and the ink is the group's largest absolute weight. A group carries 3 bytes of metadata against 64 bytes of payload: 4.7 percent overhead, or 4.19 bits per weight. The 4.0 outlier in group g3 of the first row sets that group's scale, so the other 127 entries round toward level 0. Isolating the outlier in its own group lets the remaining 127 resolve 0.1 to within 0.013.",
+      "alt": "A grid with four rows, one per output channel, and eight columns, one per group of 128 input features. Most cells hold 0.1 and draw a short bar; the cell in column g3 of the first row holds 4.0 and draws a full bar, marking the outlier group. The note explains that groups run along d_in because that is the contiguous 64-byte read, that 3 bytes of metadata cost 4.7 percent against 64 bytes of payload, and that the outlier sets the scale for its 127 neighbours.",
+      "anchor": "why-groups-run-along-the-input-dimension",
+      "kind": "matrix",
+      "data": {
+        "rows": [
+          [
+            0.1,
+            0.1,
+            0.1,
+            4.0,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ],
+          [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ],
+          [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ],
+          [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ]
+        ],
+        "cols": [
+          "g0",
+          "g1",
+          "g2",
+          "g3",
+          "g4",
+          "g5",
+          "g6",
+          "g7"
+        ],
+        "highlight_col": 3,
+        "corner": "output channel",
+        "row_head": "d_out rows",
+        "col_head": "groups along d_in (128 weights each)",
+        "note": "Each cell is a group of 128 consecutive input features in one row of W; the ink is the group's largest |w|. Groups run along d_in so a group is a contiguous 64-byte read. A group carries 3 bytes of metadata against 64 bytes of payload, 4.7 percent overhead. The 4.0 outlier in the first row's g3 sets that group's scale; the other 127 entries collapse toward level 0."
+      }
     }
   ],
-  "note": "Per group of 128 input features: s = (max - min)/15, z = round(-min/s), q = clamp(round(w/s)+z, 0, 15), and the decode is (q - z) * s.",
-  "panels": [
+  "sources": [
     {
-      "title": "what is stored per group",
-      "items": [
-        "128 input features",
-        "one min, one max",
-        "scale s = (max - min)/15",
-        "zero point z = round(-min/s)",
-        "4-bit codes, 0 to 15"
-      ],
-      "note": "Per-group scales are what make 4-bit weights usable."
+      "url": "https://arxiv.org/abs/1712.05877",
+      "note": "Jacob et al., Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference: the affine scale and zero-point formulation."
     },
     {
-      "title": "what each weight costs",
-      "items": [
-        "fp16: 16 bits per weight",
-        "4-bit: 4 bits plus a share of s and z",
-        "decode: w_hat = (q - z) * s"
-      ],
-      "note": "The decode is one multiply-add per weight."
+      "url": "https://arxiv.org/abs/2210.17323",
+      "note": "Frantar et al., GPTQ: layer-wise reconstruction and Hessian-guided error compensation."
+    },
+    {
+      "url": "https://arxiv.org/abs/2306.00978",
+      "note": "Lin et al., AWQ: activation-aware per-channel scaling for salient channels."
     }
   ]
 }
