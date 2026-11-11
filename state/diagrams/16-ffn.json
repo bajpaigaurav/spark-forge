@@ -1,62 +1,113 @@
 {
   "needed": true,
-  "kind": "panels",
-  "title": "Where the parameters live, per layer",
-  "why": "It shows the split the prose makes in sequence: attention holds four d-by-d matrices, the feed-forward block holds two d-by-m matrices, and with m = 4d the second is twice the first.",
-  "nodes": [
-    "residual stream (width d)",
-    "attention: Q,K,V,O projections d×d → 4d²",
-    "attention output added back to stream",
-    "feed-forward: d×m then m×d → 2dm",
-    "with m = 4d: 8d²",
-    "feed-forward output added back to stream",
-    "final stream × unembedding d×V"
-  ],
-  "notes": "Vertical flow down the residual stream; each sublayer branches off, computes, and adds back. Label each matrix with its shape (d×d, d×m, m×d, d×V) and parameter count (4d², 2dm=8d², cVd). Mark that m=4d is the standard expansion, so feed-forward holds twice attention per layer; across L layers the ratio is 8Ld² / (12Ld² + cVd). No numeric values beyond the symbolic d, m, L, V and the counts stated in the chapter. | Horizontal stacked bars: x-axis is parameter count; each bar is one configuration. Untied bar segments: attention 2,147,483,648; feed-forward 4,294,967,296; embeddings 1,048,576,000; total 7,491,026,944; feed-forward share 57.3%. Tied bar segments: attention 2,147,483,648; feed-forward 4,294,967,296; shared embedding 524,288,000; total 6,966,738,944; feed-forward share 61.7%. All quantities are from the chapter; no additional labels. | Left-to-right dataflow. x enters and is dotted with each of m key rows to produce m scalar scores; φ acts per scalar; each φ(s_i) multiplies value vector v_i; sum yields d-dimensional output added to residual stream. Label dimensions d and m, and note a 32-layer model with m = 16,384 has 524,288 slots. Under ReLU roughly half slots silent; under GELU almost all contribute tiny amounts. No axis quantities beyond these structural constants. | Heatmap axes: layers (vertical) and token positions (horizontal). Recovery concentrates at the last token of the subject and peaks in middle layers; feed-forward block carries most recovery, attention recovers less and sits at earlier layers and final token position. No numeric values are labelled; only structural axes and qualitative peak locations from the prose. | x-axis: group size G, the run of consecutive weights sharing one scale s. y-axis: effective bits per weight = b + 16/G, with b = 4 and a 16-bit scale. Points are the chapter's three configurations: G=32 gives 4.5, G=128 gives 4.125, G=256 gives 4.0625 bits per weight. The curve shows finer groups track local range better but pay more scale overhead. | Two columns: dense vs MoE. Left column labels total FFN parameters (134,217,728 vs 1,073,741,824) and per-token multiply-adds (134,217,728 vs 268,435,456). Arrows show a token entering the router and being dispatched to 2 of 8 expert boxes; each expert box labelled 8d² = 134,217,728. All quantities come from the chapter's arithmetic with d=4096.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    7
-  ],
-  "bars": [
+  "spine": "block",
+  "sources": [
     {
-      "label": "attention, per layer",
-      "value": 4,
-      "display": "4d^2"
+      "url": "https://arxiv.org/abs/2012.14913",
+      "note": "Geva et al., 'Transformer Feed-Forward Layers Are Key-Value Memories' — the chapter's framing; the figures restate the chapter's parameter arithmetic, not the paper's."
     },
     {
-      "label": "feed-forward, per layer",
-      "value": 8,
-      "display": "2dm = 8d^2",
-      "accent": true
+      "url": "https://arxiv.org/abs/1706.03762",
+      "note": "Vaswani et al. 2017 — the four-times inner width the chapter traces."
+    },
+    {
+      "url": "https://arxiv.org/abs/2002.05202",
+      "note": "Shazeer 2020 — the gated variant and the 8d_model/3 width that holds the 8d_model² budget."
     }
   ],
-  "note": "With m = 4d the feed-forward block holds twice the attention parameters. Across L layers the ratio is 8Ld^2 / (12Ld^2 + cVd).",
-  "panels": [
+  "figures": [
     {
-      "title": "attention: 4d^2 per layer",
-      "items": [
-        "W_Q: d x d",
-        "W_K: d x d",
-        "W_V: d x d",
-        "W_O: d x d",
-        "total 4d^2"
-      ],
-      "note": "Four square matrices per layer."
+      "id": "ffn-d-to-4d-to-d",
+      "title": "d_model → 4d_model → d_model, with the residual running past",
+      "caption": "The feed-forward sublayer reads one position's residual vector, widens it to four times d_model, bends each coordinate, and contracts back to d_model. The bypass is the residual addition that attention also leaves intact. At d_model = 4,096 and m = 16,384 the pair holds 8d_model² = 134,217,728 parameters per layer.",
+      "alt": "A horizontal lane starts at x, a vector of width d_model = 4,096. Five stages follow: W1 projects d_model up to m = 4d_model = 16,384; a bend applies an elementwise nonlinearity; W2 projects m back down to d_model; the result is added to x. A separate line above the stages carries the residual stream straight from x to the addition. Labels under the stages give the width at each stage and the 8d_model² = 134,217,728 parameter count.",
+      "anchor": "counting-the-matrices-in-a-block",
+      "kind": "lane",
+      "data": {
+        "stages": [
+          "x, width d_model",
+          "W1: d_model × 4d_model",
+          "bend",
+          "W2: 4d_model × d_model",
+          "add to x"
+        ],
+        "bypass": "residual stream: x",
+        "sizes": [
+          "d_model = 4,096",
+          "m = 4d_model = 16,384",
+          "per element",
+          "pair: 8d_model² = 134,217,728",
+          "residual"
+        ],
+        "note": "Per layer the pair holds 2·d_model·m = 8d_model² = 134,217,728 parameters at d_model = 4,096, twice attention's 4d_model². A gated variant replaces the single up-projection with W_g and W_v and sets m = 8d_model/3, so 3·d_model·m stays 8d_model²."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to walk the feed-forward sublayer.",
+        "steps": [
+          {
+            "label": "Read one position's residual vector x, width d_model.",
+            "highlight": [
+              "input"
+            ]
+          },
+          {
+            "label": "Project up: d_model → m = 4d_model.",
+            "highlight": [
+              "up"
+            ]
+          },
+          {
+            "label": "Bend each coordinate; no mixing across positions.",
+            "highlight": [
+              "bend"
+            ]
+          },
+          {
+            "label": "Project back down: m → d_model.",
+            "highlight": [
+              "down"
+            ]
+          },
+          {
+            "label": "Add the result to x; the identity path is unbroken.",
+            "highlight": [
+              "residual",
+              "add"
+            ]
+          }
+        ]
+      }
     },
     {
-      "title": "feed-forward: 2dm = 8d^2",
-      "items": [
-        "W1: d x m",
-        "W2: m x d",
-        "m = 4d",
-        "total 2dm = 8d^2"
-      ],
-      "note": "Twice the attention parameters. Across L layers: 8Ld^2 / (12Ld^2 + cVd)."
+      "id": "ffn-parameter-share",
+      "title": "Feed-forward is 57.3 percent of untied parameters",
+      "caption": "At d_model = 4,096, L = 32, and V = 128,000, the feed-forward pair holds 4,294,967,296 of the 7,491,026,944 parameters with untied embeddings, a 57.3 percent share. Attention holds 2,147,483,648 and the embeddings 1,048,576,000; tying the embeddings lifts the feed-forward share to 61.7 percent.",
+      "alt": "Three horizontal bars. Feed-forward is longest at 4,294,967,296; attention is half that at 2,147,483,648; untied embeddings are 1,048,576,000. The note gives the untied total 7,491,026,944 and the 57.3 percent share, and the tied total 6,966,738,944 with a 61.7 percent share.",
+      "anchor": "counting-the-matrices-in-a-block",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "feed-forward: 8L·d_model²",
+            "value": 4294967296,
+            "display": "4,294,967,296",
+            "accent": true
+          },
+          {
+            "label": "attention: 4L·d_model²",
+            "value": 2147483648,
+            "display": "2,147,483,648"
+          },
+          {
+            "label": "untied embeddings: 2V·d_model",
+            "value": 1048576000,
+            "display": "1,048,576,000"
+          }
+        ],
+        "note": "d_model = 4,096, L = 32, V = 128,000. Untied total 7,491,026,944, feed-forward share 57.3%. Tied embeddings halve the embedding term to 524,288,000: total 6,966,738,944, share 61.7%. A gated FFN keeps the same 8L·d_model² by setting m = 8d_model/3, so 3·d_model·m = 8d_model²."
+      }
     }
   ]
 }
