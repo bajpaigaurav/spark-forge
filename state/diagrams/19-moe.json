@@ -1,51 +1,122 @@
 {
   "needed": true,
-  "kind": "matrix",
-  "title": "The router: four scores, one softmax, two experts kept",
-  "why": "It shows the chapter worked example as the numbers it is: the scores, the exponentials, the shares, and the two that survive the top-2 cut and are renormalised.",
-  "nodes": [
-    "x = [1, 2, 0, 0], d_model = 4",
-    "Router W: d_model × E, E = 4 rows w₁…w₄",
-    "scores s = x·W = [1, 2, 3, -1]",
-    "exponentiate: [2.718, 7.389, 20.086, 0.368]",
-    "sum = 30.561",
-    "softmax probabilities: [0.089, 0.242, 0.657, 0.012]",
-    "top-2 selects experts 3 and 2",
-    "renormalize selected pair: 0.657/0.899 = 0.731, 0.242/0.899 = 0.269",
-    "output = 0.731·E₃(x) + 0.269·E₂(x)"
+  "spine": "block",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/1701.06538",
+      "note": "Shazeer et al. 2017 — the sparsely-gated MoE layer, the router, top-k selection, capacity, and the auxiliary loss."
+    },
+    {
+      "url": "https://arxiv.org/abs/2101.03961",
+      "note": "Fedus et al. 2021 — Switch Transformer; top-1 routing and the auxiliary loss form the chapter uses."
+    },
+    {
+      "url": "https://arxiv.org/abs/2006.16668",
+      "note": "Lepikhin et al. 2020 — GShard; top-2 routing and capacity-factor batching."
+    }
   ],
-  "notes": "No axes; it is a left-to-right dataflow. The input vector width is d_model = 4; the router has E = 4 expert rows; each token visits k = 2 experts. Labels are the chapter's worked scores, exponentials, sum 30.561, probabilities, selected experts, renormalized weights 0.731 and 0.269, and final weighted sum. The figure should also indicate that setting unselected scores to negative infinity before softmax gives the same two weights. | Flow: token x enters router, produces scores s; top-k selects k=2 experts; selected experts compute E_a(x), E_b(x); gates combine them into y. Label router cost d_model×E = 262,144 multiply-adds and expert cost k×2×d_model×d_ff = 235 million for d_model=4096, d_ff=14336, E=64, k=2, about 0.1% router share. Show doubling E to 128 doubles router term and parameter count 64×2×4096×14336 to twice that, while expert arithmetic per token is unchanged. All-to-all is separate and grows with token count, hidden width, bytes per element, not E. Gradient path: backprop treats top-k as fixed mask; for selected pair, ∂g_a/∂s_a = g_a(1−g_a), ∂g_a/∂s_b = −g_a·g_b; unselected experts get no router-row update from that token. No axes; quantities are labelled on the flow edges/blocks and come from the chapter's accounting. | Horizontal axis: eight experts E=8. Vertical axis: rows per expert buffer, capacity 640. Each bar shows actual router count, kept rows up to 640, dropped rows above 640, and padded zero rows below 640. Labelled quantities from the chapter: T=4096, cf=1.25, capacity 640, counts 900/700/500/500/400/400/400/296, drops 260+60=320 (7.8%), padding 140+140+240+240+240+344=1344 of 5120 (26%). Arrows show router counts flowing into capacity buffers, kept rows into dense expert blocks, dropped rows into residual bypass with zero gate. | Two parallel branches: top-1 dispatch moves 4096 × 4096 × 2 = 33.6 MB per layer and combine moves the same; top-2 doubles each direction to 67.1 MB. Metadata adds 32 KB, described as noise. The figure labels the dispatch and combine volumes per layer and notes that multiplying by layer count makes the top-1/top-2 difference gigabytes per forward pass. Router precision contrast can be a side note: router in fp32, experts in bf16, because bf16 logit steps near 1.0 are about 0.0078 while fp32 resolves about 1e-7. | No axes; arrows show token flow across devices. Label the dispatch and return all-to-all each with volume T·k·d_model·bytes per direction. Mark the remote fraction as 1 − 1/D, with the chapter's examples D=2 → 50%, D=8 → 87.5%, D=64 → 98.4%. Show chunked dispatch pipelined against expert compute so network and SMs overlap. Optionally note E=8 and gate probability ≈0.125 as the residual multiplier, but the main structure is the two collectives and the overlap. | Left side: a 16-row batch, each row pointing to k experts; the union is drawn as a set whose size ranges from k (full sharing) to 16k (disjoint), giving the 16/k variation in bytes per round. Right side: two configurations side by side, labelled with measured tokens/s and GB/token; the 1.80× multiplier sits between them. Structural constants labelled: 16 rows, k experts, 16/k factor. Measured quantities labelled where they come from: 111.5 GB resident set (upper bound, includes KV pool and live streams), 273 GB/s LPDDR5X bus, 59.1 tok/s single stream, 106.2 aggregate at four streams, 4.62 and 2.57 GB/token, 1.80×, SM clock 2,197 MHz against 3,003 MHz ceiling held steady. No axes; it is a memory/dataflow layout plus a two-configuration comparison. | Flow is token -> router -> two parallel branches: the shared expert computes the token-agnostic part unconditionally, while the router selects routed experts that model only the residual token-specific part. Each routed expert is split into m smaller experts with d_ff/m, so any single routed contribution is smaller by m. The figure labels m as the segmentation factor and marks the shared branch as always active. Routing error can be annotated as roughly misroute probability times missed contribution magnitude: segmentation reduces the magnitude factor by m, and the shared expert reduces the probability factor because the common component no longer depends on the routing choice. No memory-budget numbers are placed in the figure; those are arithmetic in the prose.",
-  "section": 1,
-  "sections": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-  ],
-  "rows": [
-    [
-      1,
-      2,
-      3,
-      -1
-    ],
-    [
-      0.089,
-      0.242,
-      0.657,
-      0.012
-    ]
-  ],
-  "cols": [
-    "w_1",
-    "w_2",
-    "w_3",
-    "w_4"
-  ],
-  "highlight_row": 0,
-  "note": "sum = 30.561. Top-2 keeps experts 3 and 2; renormalised to 0.731 and 0.269. Setting the others to -inf before softmax gives the same pair.",
-  "scale": 0.25
+  "figures": [
+    {
+      "id": "moe-router-top2",
+      "title": "Four experts, one token, top-2",
+      "caption": "The chapter's four-expert example: x = [1, 2, 0, 0] scores [1, 2, 3, -1] against four router rows, softmax gives [0.089, 0.242, 0.657, 0.012], top-2 picks experts 3 and 2, and renormalizing over the pair gives 0.731 and 0.269. In production, d_model × E = 4,096 × 64 = 262,144 router multiply-adds sit beside 235 million for the selected experts.",
+      "alt": "A six-stage flow: the input x = [1, 2, 0, 0]; the router matrix W of shape 4 by 4; the scores s = [1, 2, 3, -1]; softmax probabilities [0.089, 0.242, 0.657, 0.012]; top-2 selecting experts 3 and 2; and the weighted sum 0.731 E3 plus 0.269 E2. The note gives the renormalization arithmetic and the production router cost of 262,144 multiply-adds.",
+      "anchor": "the-expert-block-the-router-and-the-arithmetic",
+      "kind": "flow",
+      "data": {
+        "nodes": [
+          "x = [1, 2, 0, 0]",
+          "router W: d_model × E = 4 × 4",
+          "s = x·W = [1, 2, 3, -1]",
+          "softmax: [0.089, 0.242, 0.657, 0.012]",
+          "top-2: experts 3 and 2",
+          "0.731·E3 + 0.269·E2"
+        ],
+        "note": "Renormalizing over the selected pair gives 0.657/0.899 = 0.731 and 0.242/0.899 = 0.269. At d_model = 4,096, E = 64, k = 2, the router costs d_model × E = 262,144 multiply-adds per token against 235 million for the two experts, about a tenth of a percent."
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to route one token.",
+        "steps": [
+          {
+            "label": "Read x, the token's hidden vector.",
+            "highlight": [
+              "input"
+            ]
+          },
+          {
+            "label": "Multiply by the router W: one score per expert.",
+            "highlight": [
+              "router"
+            ]
+          },
+          {
+            "label": "Scores [1, 2, 3, -1]; expert 3 is highest.",
+            "highlight": [
+              "scores"
+            ]
+          },
+          {
+            "label": "Softmax over all E experts.",
+            "highlight": [
+              "softmax"
+            ]
+          },
+          {
+            "label": "Top-2 selects experts 3 and 2.",
+            "highlight": [
+              "topk"
+            ]
+          },
+          {
+            "label": "Renormalize over the pair: 0.731 and 0.269.",
+            "highlight": [
+              "weights"
+            ]
+          },
+          {
+            "label": "Combine the two expert outputs and add to the residual.",
+            "highlight": [
+              "combine"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "moe-active-vs-total",
+      "title": "Capacity grows with E; per-token compute grows with k",
+      "caption": "Per token, the dense FFN costs 2 × 4,096 × 14,336 = 117,440,512 multiply-adds; top-2 routing costs 2 × 2 × 4,096 × 14,336 = 234,881,024. The layer holds 64 × 2 × 4,096 × 14,336 = 7,516,192,768 expert parameters, and 128 experts double that to 15,032,385,536. Capacity grows with E; per-token expert compute grows with k.",
+      "alt": "Four horizontal bars on a linear scale. Dense FFN 117,440,512; MoE active at k = 2 234,881,024; MoE total at E = 64 7,516,192,768; MoE total at E = 128 15,032,385,536. The active bars are thin slivers beside the totals, and the labels carry the exact counts. The note gives the router's 262,144 multiply-adds and a load example with capacity 640 and 320 dropped assignments.",
+      "anchor": "the-expert-block-the-router-and-the-arithmetic",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "dense FFN: 2·d_model·d_ff",
+            "value": 117440512,
+            "display": "117,440,512"
+          },
+          {
+            "label": "MoE active: k = 2",
+            "value": 234881024,
+            "display": "234,881,024",
+            "accent": true
+          },
+          {
+            "label": "MoE total: E = 64",
+            "value": 7516192768,
+            "display": "7,516,192,768"
+          },
+          {
+            "label": "MoE total: E = 128",
+            "value": 15032385536,
+            "display": "15,032,385,536"
+          }
+        ],
+        "note": "d_model = 4,096, d_ff = 14,336, k = 2. Router: 4,096 × 64 = 262,144 multiply-adds, about 0.1% of 235 million. Load example: T = 4,096, E = 8, capacity 640; counts 900, 700, 500, 500, 400, 400, 400, 296 drop 320 assignments (7.8%), and padding is 1,344 of 5,120 expert rows (26%)."
+      }
+    }
+  ]
 }
