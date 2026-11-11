@@ -356,7 +356,11 @@
     var links = document.querySelectorAll(".chapter-nav a");
     if (!links.length) return;
     document.addEventListener("keydown", function (e) {
-      if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey) return;
+      var t = e.target;
+      if (t && (t.tagName === "BUTTON" || t.tagName === "INPUT" ||
+                t.tagName === "TEXTAREA" || t.tagName === "SELECT" ||
+                t.isContentEditable || t.closest(".chapter-figure"))) return;
       if (e.key === "ArrowLeft" && links[0]) location.href = links[0].href;
       if (e.key === "ArrowRight" && links[links.length - 1])
         location.href = links[links.length - 1].href;
