@@ -352,7 +352,17 @@ button, input, select, textarea { font: inherit; }
 .interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
 .interactive button:hover { background: var(--color-accent-2); }
 .bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#bpe-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.bpe-svg text.mono { font-family: var(--font-outlier); }
+.bpe-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.bpe-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.bpe-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.bpe-rankline .pair { color: var(--color-ink); }
+.bpe-rankline .merged { color: var(--color-accent); font-weight: 600; }
+#bpe-pairs tr.is-current td { color: var(--color-accent); font-weight: 600; }
+#bpe-pairs tr.is-past td { color: var(--color-muted); }
+#bpe-pairs tr.is-past td:first-child { opacity: 0.7; }
 .interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
 .interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
 .interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
@@ -498,6 +508,9 @@ button, input, select, textarea { font: inherit; }
   .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch; max-width: 100%; }
   .chapter-figure .fig-svg { min-width: 46rem; }
+  /* the token strip carries 11-12px labels; below this width it scrolls
+     instead of shrinking them, same floor as the static figures */
+  #bpe-host .bpe-svg { min-width: 46rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -545,7 +558,7 @@ button, input, select, textarea { font: inherit; }
   can guess the next piece of text.</p>
 
   <div class="cover-actions">
-    <a class="btn-primary" href="chapters/01-tokens.html">Start reading<span class="sub">Chapter 01 &middot; 12 min</span></a>
+    <a class="btn-primary" href="chapters/01-tokens.html">Start reading<span class="sub">Chapter 01 &middot; 11 min</span></a>
     <a class="btn-quiet" href="#contents">Contents<span class="sub">31 chapters in 8 parts</span></a>
     <button class="btn-quiet" type="button" data-open-search><span class="sub">Search</span>Press /</button>
   </div>
@@ -553,13 +566,13 @@ button, input, select, textarea { font: inherit; }
   <dl class="cover-facts">
     <div><dt>Chapters</dt><dd>31</dd></div>
     <div><dt>Parts</dt><dd>8</dd></div>
-    <div><dt>Words</dt><dd>70,439</dd></div>
+    <div><dt>Words</dt><dd>70,348</dd></div>
     <div><dt>Straight through</dt><dd>about 5 and a half hours</dd></div>
   </dl>
 </section>
 
 <section class="contents" id="contents"><h2>Contents</h2><section class="part"><div class="part-head"><h3>I. The raw material</h3><span class="count">3 of 3</span></div><ol>
-<li><a class="" href="chapters/01-tokens.html" title="A tokenizer is a compression scheme wearing a linguistic costume, and every downstream oddity of language models starts here."><span class="n">01</span><span><span class="t">Text is not numbers yet</span></span><span class="m">12 min</span></a></li>
+<li><a class="" href="chapters/01-tokens.html" title="A tokenizer is a compression scheme wearing a linguistic costume, and every downstream oddity of language models starts here."><span class="n">01</span><span><span class="t">Text is not numbers yet</span></span><span class="m">11 min</span></a></li>
 <li><a class="" href="chapters/02-embeddings.html" title="An embedding table is a lookup, and the geometry that makes it useful was discovered before transformers existed."><span class="n">02</span><span><span class="t">A vector is a coordinate, not a meaning</span></span><span class="m">11 min</span></a></li>
 <li><a class="" href="chapters/03-residual-stream.html" title="Every layer reads from and writes to a single shared vector; once you see that, the architecture stops looking like a stack of blocks."><span class="n">03</span><span><span class="t">The one lane everything writes into</span></span><span class="m">11 min</span></a></li>
 </ol></section>

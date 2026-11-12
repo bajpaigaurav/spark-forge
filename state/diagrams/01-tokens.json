@@ -3,76 +3,6 @@
   "spine": "tokens",
   "figures": [
     {
-      "id": "bpe-merge-trace",
-      "title": "BPE merge trace: lowest",
-      "caption": "Pair counts and rank order decide the merge. Rank 0 merges l o, rank 1 merges lo w, rank 2 merges low with the end-of-word marker, and rank 3 merges low e. The final pieces for lowest are lowe, s, t, and the end-of-word marker.",
-      "alt": "A corpus of low, lower, and lowest starts as individual symbols. Pair counts show l o and o w at 8 occurrences, then lo w at 8, low with the end marker at 5, and low e at 3. Four merge ranks rewrite the corpus in order; after rank 3 the final pieces are lowe, s, t, and the end-of-word marker.",
-      "anchor": "the-merge-loop-and-rank-order",
-      "kind": "bpe_trace",
-      "data": {
-        "heading": "BPE merge trace: lowest",
-        "corpus": [
-          ["low", 5],
-          ["lower", 2],
-          ["lowest", 1]
-        ],
-        "initial": [
-          "l o w </w>",
-          "l o w e r </w>",
-          "l o w e s t </w>"
-        ],
-        "pairs": [
-          ["l o", 8],
-          ["o w", 8],
-          ["lo w", 8],
-          ["low </w>", 5],
-          ["low e", 3]
-        ],
-        "ranks": [
-          ["rank 0", "l o -> lo", 8],
-          ["rank 1", "lo w -> low", 8],
-          ["rank 2", "low </w> -> low</w>", 5],
-          ["rank 3", "low e -> lowe", 3]
-        ],
-        "final": "lowe  s  t  </w>"
-      },
-      "anim": {
-        "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to trace the merge.",
-        "steps": [
-          {
-            "label": "Start with the corpus and its initial symbols.",
-            "highlight": ["corpus"]
-          },
-          {
-            "label": "Recount adjacent pairs after each merge. l o and o w tie at 8.",
-            "highlight": ["pairs"]
-          },
-          {
-            "label": "Rank 0 merges l o into lo.",
-            "highlight": ["corpus", "rank0"]
-          },
-          {
-            "label": "Rank 1 merges lo w into low.",
-            "highlight": ["corpus", "rank1"]
-          },
-          {
-            "label": "Rank 2 merges low with the end-of-word marker.",
-            "highlight": ["corpus", "rank2"]
-          },
-          {
-            "label": "Rank 3 merges low e into lowe.",
-            "highlight": ["corpus", "rank3"]
-          },
-          {
-            "label": "The final pieces are lowe, s, t, and the end-of-word marker.",
-            "highlight": ["final"]
-          }
-        ]
-      }
-    },
-    {
       "id": "gpt2-vocabulary",
       "title": "GPT-2's 50,257-token vocabulary",
       "caption": "GPT-2's vocabulary decomposes exactly into 256 base byte tokens, 50,000 learned merges, and one end-of-text marker. The rows are schematic because 256 and 1 would be invisible beside 50,000; the counts are exact.",
@@ -82,9 +12,18 @@
       "data": {
         "heading": "GPT-2's 50,257-token vocabulary",
         "parts": [
-          ["base byte tokens", 256],
-          ["learned merges", 50000],
-          ["end-of-text marker", 1]
+          [
+            "base byte tokens",
+            256
+          ],
+          [
+            "learned merges",
+            50000
+          ],
+          [
+            "end-of-text marker",
+            1
+          ]
         ],
         "total": 50257
       }

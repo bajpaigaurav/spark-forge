@@ -18,104 +18,265 @@
      the splits are arbitrary and corpus-dependent, which is the
      chapter's whole argument.
      ============================================================ */
-  var MERGES = [
-    ["t","h"], ["h","e"], ["e"," "], [" ","t"], ["th","e"], ["the"," "],
-    ["i","n"], ["in","g"], ["e","r"], ["s","t"], ["a","n"], ["o","n"],
-    ["e","n"], ["t","i"], ["o","r"], ["l","y"], ["e","d"], ["i","on"],
-    ["at","ion"], ["the","re"], ["th","ere"], ["i","s"], ["is"," "],
-    ["a","l"], ["al","l"], ["t","o"], ["to"," "], ["c","o"], ["o","m"],
-    ["m","p"], ["co","m"], ["com","p"], ["comp","ress"], ["i","on"],
-    ["w","o"], ["o","r"], ["wor","d"], ["word","s"], ["s"," "],
-    ["f","o"], ["fo","r"], ["for"," "], ["n","o"], ["no","t"],
-    ["u","n"], ["un","u"], ["unu","s"], ["usu","al"]
+  var MARK = "</w>";
+  var RANKS = [
+    ["l", "o"],
+    ["lo", "w"],
+    ["low", MARK],
+    ["low", "e"],
+    ["lowe", "r"],
+    ["lower", MARK]
   ];
-  var KNOWN = {};
-  MERGES.forEach(function (m) { KNOWN[m[0] + m[1]] = true; });
+  var MERGED_ID = {};
+  RANKS.forEach(function (p, r) { MERGED_ID[p[0] + p[1]] = 256 + r; });
 
-  function bpeStep(tokens) {
-    // find the leftmost adjacent pair that exists in the merge table
-    for (var i = 0; i < tokens.length - 1; i++) {
-      var pair = tokens[i] + tokens[i + 1];
-      if (KNOWN[pair]) {
-        return {
-          found: true, index: i, merged: pair,
-          next: tokens.slice(0, i).concat([pair], tokens.slice(i + 2))
-        };
+  // One rank: scan left to right, merge every match, record which
+  // output positions are new. This is the inference loop, not the
+  // training loop; the pair comes from the rank list, never from
+  // the word being tokenized.
+  function applyRank(tokens, pair) {
+    var out = [], made = [];
+    for (var i = 0; i < tokens.length; i++) {
+      if (i < tokens.length - 1 && tokens[i] === pair[0] && tokens[i + 1] === pair[1]) {
+        out.push(pair[0] + pair[1]);
+        made.push(out.length - 1);
+        i++;
+      } else {
+        out.push(tokens[i]);
       }
     }
-    return { found: false };
+    return { tokens: out, made: made };
   }
 
-  function tokenize(word) {
-    var toks = word.toLowerCase().split("");
-    var steps = [toks.slice()];
-    var guard = 0;
-    while (guard++ < 40) {
-      var r = bpeStep(toks);
-      if (!r.found) break;
-      toks = r.next;
-      steps.push(toks.slice());
-    }
-    return steps;
+  function visibleLength(tok) {
+    if (tok === MARK) return 0;
+    return tok.slice(-MARK.length) === MARK ? tok.length - MARK.length : tok.length;
   }
 
   function mountTokenizer() {
     var input = document.getElementById("bpe-input");
     var host = document.getElementById("bpe-host");
     var out = document.getElementById("bpe-out");
+    var rankLine = document.getElementById("bpe-rank");
+    var stepLabel = document.getElementById("bpe-step");
+    var table = document.getElementById("bpe-pairs");
     if (!input || !host) return;
+    var tbody = table ? table.querySelector("tbody") : null;
+    var btn = function (name) {
+      return document.querySelector(".bpe-controls [data-" + name + "]");
+    };
+    var prevBtn = btn("prev"), nextBtn = btn("next"),
+        playBtn = btn("play"), resetBtn = btn("reset");
 
-    function draw() {
-      var raw = input.value || "unusual";
-      var steps = tokenize(raw);
-      host.innerHTML = "";
+    var chars = "", steps = [], stepIndex = 0, timer = null;
 
-      var W = 640, rowH = 34, padT = 8;
-      var H = padT + steps.length * rowH + 20;
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+      if (playBtn) playBtn.textContent = "Play";
+    }
+
+    function go(i) {
+      stepIndex = Math.max(0, Math.min(steps.length - 1, i));
+      render();
+      if (stepIndex >= steps.length - 1) stop();
+    }
+
+    function caption(svg, x, y, str, anchor) {
+      var t = el("text", {
+        x: x, y: y, "font-size": 10,
+        fill: "var(--color-muted)", "text-anchor": anchor || "start"
+      });
+      t.textContent = str;
+      svg.appendChild(t);
+    }
+
+    function render() {
+      var st = steps[stepIndex];
+      var toks = st.tokens;
+      var n = toks.length;
+      var total = chars.length;
+
+      /* ---- the two strips ---- */
+      var W = 760, PAD = 8, GAP = 4, ROW = 36;
+      var avail = W - 2 * PAD;
+      var yA = PAD + 16, yB = yA + ROW + 26, H = yB + ROW + PAD;
+
+      host.textContent = "";
       var svg = el("svg", {
         viewBox: "0 0 " + W + " " + H, width: "100%",
-        role: "img", "aria-label": "Byte-pair merge steps for the typed word"
+        role: "img",
+        "aria-label": "Token split for " + (chars || "an empty word") +
+          " after " + stepIndex + " of " + (steps.length - 1) + " ranks: " +
+          toks.join(" ")
       });
       svg.classList.add("bpe-svg");
 
-      steps.forEach(function (toks, row) {
-        var y = padT + row * rowH;
-        var x = 8;
-        toks.forEach(function (t) {
-          var w = Math.max(26, t.length * 11 + 14);
-          svg.appendChild(el("rect", {
-            x: x, y: y, width: w, height: 22, rx: 2,
-            fill: row === steps.length - 1 ? "var(--accent)" : "none",
-            "fill-opacity": row === steps.length - 1 ? 0.14 : 0,
-            stroke: "var(--rule)", "stroke-width": 1
-          }));
-          var label = el("text", {
-            x: x + w / 2, y: y + 15, "text-anchor": "middle",
-            "font-size": 11, fill: "var(--ink)",
-            "font-family": "DejaVu Sans Mono, monospace"
-          });
-          label.textContent = t === " " ? "\u2423" : t;
-          svg.appendChild(label);
-          x += w + 4;
+      // Band A: one uniform cell per token, so the width reads as count.
+      caption(svg, PAD, yA - 8, "same cell, so you read the count");
+      caption(svg, W - PAD, yA - 8, n + (n === 1 ? " token" : " tokens"), "end");
+      var bw = Math.min(72, (avail - GAP * (n - 1)) / n);
+      var x = PAD;
+      toks.forEach(function (tok, i) {
+        var made = st.made.indexOf(i) >= 0;
+        var merged = made || (tok !== MARK && tok.length > 1);
+        svg.appendChild(el("rect", {
+          x: x, y: yA, width: bw, height: ROW, rx: 2,
+          fill: "var(--color-accent)",
+          "fill-opacity": made ? 0.40 : (merged ? 0.22 : 0.10),
+          stroke: made ? "var(--color-accent)" : "var(--color-rule)",
+          "stroke-width": made ? 1.5 : 1
+        }));
+        var label = el("text", {
+          x: x + bw / 2, y: yA + ROW / 2 + 4.5,
+          "text-anchor": "middle", "font-size": 12,
+          fill: "var(--color-ink)"
         });
-        var n = el("text", {
-          x: W - 4, y: y + 15, "text-anchor": "end",
-          "font-size": 9, fill: "var(--ink-soft)", opacity: 0.7
+        label.setAttribute("class", "mono");
+        label.textContent = tok;
+        svg.appendChild(label);
+        x += bw + GAP;
+      });
+
+      // Band B: cells sized by the characters each token eats. The
+      // end-of-word marker gets a fixed slot, because it is a marker,
+      // not text.
+      var hasMark = toks.indexOf(MARK) >= 0;
+      var markW = 44;
+      var usable = avail - GAP * (n - 1) - (hasMark ? markW : 0);
+      var unit = total ? usable / total : 0;
+      caption(svg, PAD, yB - 8, "sized by characters, so you read the length");
+      caption(svg, W - PAD, yB - 8, total + (total === 1 ? " character" : " characters"), "end");
+      x = PAD;
+      toks.forEach(function (tok, i) {
+        var made = st.made.indexOf(i) >= 0;
+        var merged = made || (tok !== MARK && tok.length > 1);
+        var w = tok === MARK ? markW : Math.max(14, visibleLength(tok) * unit);
+        svg.appendChild(el("rect", {
+          x: x, y: yB, width: w, height: ROW, rx: 2,
+          fill: "var(--color-accent)",
+          "fill-opacity": made ? 0.40 : (merged ? 0.22 : 0.10),
+          stroke: tok === MARK ? "var(--color-muted)" : (made ? "var(--color-accent)" : "var(--color-rule)"),
+          "stroke-width": made ? 1.5 : 1,
+          "stroke-dasharray": tok === MARK ? "3 3" : null
+        }));
+        var label = el("text", {
+          x: x + w / 2, y: yB + ROW / 2 + 4,
+          "text-anchor": "middle", "font-size": 11,
+          fill: "var(--color-ink)"
         });
-        n.textContent = toks.length + " tokens";
-        svg.appendChild(n);
+        label.setAttribute("class", "mono");
+        label.textContent = tok;
+        svg.appendChild(label);
+        x += w + GAP;
       });
 
       host.appendChild(svg);
-      var final = steps[steps.length - 1];
-      out.innerHTML =
-        "<strong>" + final.length + "</strong> tokens for " +
-        "<strong>" + raw.length + "</strong> characters &middot; " +
-        (raw.length / final.length).toFixed(2) + " chars per token";
+
+      /* ---- rank line ---- */
+      if (rankLine) {
+        rankLine.textContent = "";
+        if (st.rank < 0) {
+          rankLine.appendChild(document.createTextNode(
+            "No rank applied yet: raw symbols plus the end-of-word marker."));
+        } else {
+          rankLine.appendChild(document.createTextNode("rank " + st.rank + " \u00b7 "));
+          var pairSpan = document.createElement("span");
+          pairSpan.className = "pair";
+          pairSpan.textContent = st.pair[0] + " + " + st.pair[1];
+          rankLine.appendChild(pairSpan);
+          rankLine.appendChild(document.createTextNode(" \u2192 "));
+          var madeSpan = document.createElement("span");
+          madeSpan.className = "merged";
+          madeSpan.textContent = st.pair[0] + st.pair[1];
+          rankLine.appendChild(madeSpan);
+          rankLine.appendChild(document.createTextNode(
+            st.hits ? " \u00b7 " + st.hits + (st.hits === 1 ? " merge" : " merges")
+                    : " \u00b7 nothing to merge"));
+        }
+      }
+
+      if (stepLabel) stepLabel.textContent = "Step " + stepIndex + " of " + (steps.length - 1);
+
+      /* ---- rank table ---- */
+      if (tbody) {
+        tbody.textContent = "";
+        RANKS.forEach(function (pair, r) {
+          var applied = stepIndex > r;
+          var tr = document.createElement("tr");
+          if (applied) tr.className = stepIndex === r + 1 ? "is-current" : "is-past";
+          var cells = [
+            String(r),
+            pair[0] + " \u00b7 " + pair[1],
+            pair[0] + pair[1],
+            String(steps[r + 1].hits),
+            applied ? (stepIndex === r + 1 ? "just applied" : "applied") : "pending"
+          ];
+          cells.forEach(function (text) {
+            var td = document.createElement("td");
+            td.textContent = text;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      /* ---- readout ---- */
+      if (out) {
+        out.textContent = "";
+        var strong = function (text) {
+          var s = document.createElement("strong");
+          s.textContent = text;
+          return s;
+        };
+        out.appendChild(strong(String(n)));
+        out.appendChild(document.createTextNode(n === 1 ? " token for " : " tokens for "));
+        out.appendChild(strong(String(total)));
+        out.appendChild(document.createTextNode(total === 1 ? " character \u00b7 " : " characters \u00b7 "));
+        out.appendChild(strong(total ? (total / n).toFixed(2) : "0.00"));
+        out.appendChild(document.createTextNode(" characters per token \u00b7 ids "));
+        var ids = toks.map(function (tok) {
+          if (tok === MARK) return "\u2014";
+          if (MERGED_ID[tok] !== undefined) return String(MERGED_ID[tok]);
+          return String(tok.charCodeAt(0));
+        });
+        out.appendChild(strong(ids.join(" ")));
+        out.appendChild(document.createTextNode(" \u00b7 merged ids are 256 + rank"));
+      }
     }
 
-    input.addEventListener("input", draw);
-    draw();
+    function rebuild() {
+      chars = (input.value || "").toLowerCase().replace(/\s+/g, "").slice(0, 12);
+      var toks = chars.split("");
+      toks.push(MARK);
+      steps = [{ tokens: toks, rank: -1, pair: null, hits: 0, made: [] }];
+      for (var r = 0; r < RANKS.length; r++) {
+        var res = applyRank(toks, RANKS[r]);
+        toks = res.tokens;
+        steps.push({ tokens: toks, rank: r, pair: RANKS[r], hits: res.made.length, made: res.made });
+      }
+      stop();
+      stepIndex = 0;
+      render();
+    }
+
+    if (prevBtn) prevBtn.addEventListener("click", function () { stop(); go(stepIndex - 1); });
+    if (nextBtn) nextBtn.addEventListener("click", function () { stop(); go(stepIndex + 1); });
+    if (resetBtn) resetBtn.addEventListener("click", function () { stop(); go(0); });
+    if (playBtn) playBtn.addEventListener("click", function () {
+      if (timer) { stop(); return; }
+      if (stepIndex >= steps.length - 1) stepIndex = 0;
+      render();
+      playBtn.textContent = "Pause";
+      timer = setInterval(function () {
+        if (stepIndex >= steps.length - 1) { stop(); return; }
+        stepIndex++;
+        render();
+        if (stepIndex >= steps.length - 1) stop();
+      }, 1200);
+    });
+
+    input.addEventListener("input", rebuild);
+    rebuild();
   }
 
   /* ============================================================
@@ -161,21 +322,21 @@
         var bw = Math.max(1, w[i] * maxW);
         var lab = el("text", {
           x: padL - 8, y: y + 17, "text-anchor": "end",
-          "font-size": 11, fill: "var(--ink)",
-          "font-family": "DejaVu Sans Mono, monospace"
+          "font-size": 11, fill: "var(--color-ink)",
+          style: "font-family: var(--font-outlier)"
         });
         lab.textContent = word;
         svg.appendChild(lab);
 
         svg.appendChild(el("rect", {
           x: padL, y: y, width: bw, height: barH,
-          fill: "var(--accent)", "fill-opacity": i === 7 ? 0.85 : 0.4
+          fill: "var(--color-accent)", "fill-opacity": i === 7 ? 0.85 : 0.4
         }));
 
         var pct = el("text", {
           x: padL + bw + 6, y: y + 17, "font-size": 10,
-          fill: "var(--ink-soft)",
-          "font-family": "DejaVu Sans Mono, monospace"
+          fill: "var(--color-muted)",
+          style: "font-family: var(--font-outlier)"
         });
         pct.textContent = (w[i] * 100).toFixed(1) + "%";
         svg.appendChild(pct);
@@ -248,22 +409,22 @@
         var lab = el("text", {
           x: padL - 8, y: y + 16, "text-anchor": "end",
           "font-size": 11,
-          fill: i === QUERY ? "var(--accent)" : "var(--ink)",
+          fill: i === QUERY ? "var(--color-accent)" : "var(--color-ink)",
           "font-weight": i === QUERY ? "bold" : "normal",
-          "font-family": "DejaVu Sans Mono, monospace"
+          style: "font-family: var(--font-outlier)"
         });
         lab.textContent = word;
         svg.appendChild(lab);
 
         svg.appendChild(el("rect", {
           x: padL, y: y, width: bw, height: barH,
-          fill: "var(--accent)", "fill-opacity": i === QUERY ? 0.25 : 0.55
+          fill: "var(--color-accent)", "fill-opacity": i === QUERY ? 0.25 : 0.55
         }));
 
         var pct = el("text", {
           x: padL + bw + 6, y: y + 16, "font-size": 10,
-          fill: "var(--ink-soft)",
-          "font-family": "DejaVu Sans Mono, monospace"
+          fill: "var(--color-muted)",
+          style: "font-family: var(--font-outlier)"
         });
         pct.textContent = (w[i] * 100).toFixed(1) + "%";
         svg.appendChild(pct);
@@ -331,11 +492,11 @@
         var share = Math.log(p[1]) / logTotal; // log-scale share
         var bw = Math.max(3, share * (W - 190));
         var lab = el("text", { x: 0, y: y + 16, "font-size": 11,
-          fill: "var(--ink)", "font-family": "DejaVu Sans Mono, monospace" });
+          fill: "var(--color-ink)", style: "font-family: var(--font-outlier)" });
         lab.textContent = p[0];
         svg.appendChild(lab);
         svg.appendChild(el("rect", { x: 168, y: y + 4, width: bw, height: 16,
-          fill: "var(--accent)", "fill-opacity": 0.45 }));
+          fill: "var(--color-accent)", "fill-opacity": 0.45 }));
       });
       host.appendChild(svg);
 

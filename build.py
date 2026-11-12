@@ -796,7 +796,17 @@ button, input, select, textarea { font: inherit; }
 .interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
 .interactive button:hover { background: var(--color-accent-2); }
 .bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#bpe-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.bpe-svg text.mono { font-family: var(--font-outlier); }
+.bpe-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.bpe-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.bpe-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.bpe-rankline .pair { color: var(--color-ink); }
+.bpe-rankline .merged { color: var(--color-accent); font-weight: 600; }
+#bpe-pairs tr.is-current td { color: var(--color-accent); font-weight: 600; }
+#bpe-pairs tr.is-past td { color: var(--color-muted); }
+#bpe-pairs tr.is-past td:first-child { opacity: 0.7; }
 .interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
 .interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
 .interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
@@ -942,6 +952,9 @@ button, input, select, textarea { font: inherit; }
   .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch; max-width: 100%; }
   .chapter-figure .fig-svg { min-width: 46rem; }
+  /* the token strip carries 11-12px labels; below this width it scrolls
+     instead of shrinking them, same floor as the static figures */
+  #bpe-host .bpe-svg { min-width: 46rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -1197,15 +1210,31 @@ def interactive_for(cid):
     if cid == "01-tokens":
         return """
 <section class="interactive">
-  <h3>Watch the merges happen</h3>
-  <p class="lede">Type a word. The table below runs a greedy byte-pair merge over it,
-  left to right, using the merge rules a tokenizer learns from its corpus. The splits
-  are not linguistic. They are whatever was frequent in somebody else's training data.</p>
+  <h3>Six ranks, applied in order</h3>
+  <p class="lede">These are the six merge rules the corpus above produces, in the order
+  it produces them. Type a word and step through the ranks: each one scans left to right
+  and merges every match of its pair. The top strip gives every token the same cell, so
+  you read the count. The strip under it sizes each cell by its symbols, so you read the
+  length. A word outside the corpus may match nothing, which is the honest result: six
+  ranks here, tens of thousands in a real tokenizer.</p>
   <div class="slider-row">
     <label for="bpe-input">word</label>
-    <input type="text" id="bpe-input" value="unusual" spellcheck="false">
+    <input type="text" id="bpe-input" value="lowest" spellcheck="false" maxlength="12" autocomplete="off">
   </div>
+  <div class="bpe-controls">
+    <button type="button" data-prev>Previous</button>
+    <button type="button" data-next>Next</button>
+    <button type="button" data-play>Play</button>
+    <button type="button" data-reset>Reset</button>
+    <span class="step-count" id="bpe-step">Step 0 of 6</span>
+  </div>
+  <p class="bpe-rankline" id="bpe-rank" aria-live="polite"></p>
   <div id="bpe-host"></div>
+  <table id="bpe-pairs">
+    <caption class="visually-hidden">The six merge ranks and what each one does to the current word</caption>
+    <thead><tr><th scope="col">rank</th><th scope="col">pair</th><th scope="col">merges into</th><th scope="col">merges</th><th scope="col">state</th></tr></thead>
+    <tbody></tbody>
+  </table>
   <p class="readout" id="bpe-out"></p>
 </section>
 """
