@@ -1,5 +1,5 @@
 /* Hand-written. No framework, no build step, no dependencies.
-   Three interactive devices, each tied to a specific chapter's argument. */
+   Six interactive devices, each tied to a specific chapter's argument. */
 
 (function () {
   "use strict";
@@ -13,10 +13,10 @@
   }
 
   /* ============================================================
-     1. TOKENIZER — type a word, see how BPE would chew it up.
-     A real greedy BPE over a tiny merge table. The point is that
-     the splits are arbitrary and corpus-dependent, which is the
-     chapter's whole argument.
+     1. TOKEN FOREST — one word's merge genealogy, grown rank by
+     rank. Each merge becomes a node whose two children are the
+     pieces it was built from, so a token reads as a composition
+     rather than a cell. Ranks that do not match leave no node.
      ============================================================ */
   var MARK = "</w>";
   var RANKS = [
@@ -27,19 +27,23 @@
     ["lowe", "r"],
     ["lower", MARK]
   ];
-  var MERGED_ID = {};
-  RANKS.forEach(function (p, r) { MERGED_ID[p[0] + p[1]] = 256 + r; });
 
-  // One rank: scan left to right, merge every match, record which
-  // output positions are new. This is the inference loop, not the
-  // training loop; the pair comes from the rank list, never from
-  // the word being tokenized.
-  function applyRank(tokens, pair) {
+  // One rank over token objects. A match replaces the two children
+  // with a new node that remembers them; this is inference, so the
+  // pair comes from the rank list, never from the word itself.
+  function mergeRank(tokens, pair, rank) {
     var out = [], made = [];
     for (var i = 0; i < tokens.length; i++) {
-      if (i < tokens.length - 1 && tokens[i] === pair[0] && tokens[i + 1] === pair[1]) {
-        out.push(pair[0] + pair[1]);
-        made.push(out.length - 1);
+      if (i < tokens.length - 1 && tokens[i].label === pair[0] &&
+          tokens[i + 1].label === pair[1]) {
+        var node = {
+          id: "m" + rank + "-" + made.length,
+          label: pair[0] + pair[1],
+          children: [tokens[i].id, tokens[i + 1].id],
+          rank: rank
+        };
+        out.push(node);
+        made.push(node);
         i++;
       } else {
         out.push(tokens[i]);
@@ -48,27 +52,21 @@
     return { tokens: out, made: made };
   }
 
-  function visibleLength(tok) {
-    if (tok === MARK) return 0;
-    return tok.slice(-MARK.length) === MARK ? tok.length - MARK.length : tok.length;
-  }
-
-  function mountTokenizer() {
-    var input = document.getElementById("bpe-input");
-    var host = document.getElementById("bpe-host");
-    var out = document.getElementById("bpe-out");
-    var rankLine = document.getElementById("bpe-rank");
-    var stepLabel = document.getElementById("bpe-step");
-    var table = document.getElementById("bpe-pairs");
+  function mountTokenForest() {
+    var input = document.getElementById("token-forest-input");
+    var host = document.getElementById("token-forest-host");
+    var out = document.getElementById("forest-out");
+    var rankLine = document.getElementById("forest-rank");
+    var stepLabel = document.getElementById("forest-step");
     if (!input || !host) return;
-    var tbody = table ? table.querySelector("tbody") : null;
     var btn = function (name) {
-      return document.querySelector(".bpe-controls [data-" + name + "]");
+      return document.querySelector(".forest-controls [data-" + name + "]");
     };
     var prevBtn = btn("prev"), nextBtn = btn("next"),
         playBtn = btn("play"), resetBtn = btn("reset");
 
-    var chars = "", steps = [], stepIndex = 0, timer = null;
+    var leaves = [], merges = [], steps = [], stepIndex = 0, timer = null;
+    var SIZE = 12, GAP = 22, LEVEL = 54, PAD = 16, TOP = 30, EM = 0.62, TARGET = 640;
 
     function stop() {
       if (timer) { clearInterval(timer); timer = null; }
@@ -81,146 +79,145 @@
       if (stepIndex >= steps.length - 1) stop();
     }
 
-    function caption(svg, x, y, str, anchor) {
-      var t = el("text", {
-        x: x, y: y, "font-size": 10,
-        fill: "var(--color-muted)", "text-anchor": anchor || "start"
+    /* Positions are computed once per word, over the whole tree, so a node
+       never moves when a later rank adds it: the growth reads as growth. */
+    function layout() {
+      var xs = {}, ys = {}, cursor = PAD;
+      leaves.forEach(function (n) {
+        var half = n.label.length * SIZE * EM / 2 + 3;
+        xs[n.id] = cursor + half;
+        cursor += half * 2 + GAP;
       });
-      t.textContent = str;
-      svg.appendChild(t);
+      var byDepth = {}, maxDepth = 0;
+      merges.forEach(function (n) {
+        byDepth[n.depth] = byDepth[n.depth] || [];
+        byDepth[n.depth].push(n);
+        if (n.depth > maxDepth) maxDepth = n.depth;
+      });
+      for (var d = 1; d <= maxDepth; d++) {
+        (byDepth[d] || []).forEach(function (n) {
+          xs[n.id] = (xs[n.children[0]] + xs[n.children[1]]) / 2;
+        });
+      }
+      leaves.forEach(function (n) { ys[n.id] = TOP + maxDepth * LEVEL; });
+      merges.forEach(function (n) { ys[n.id] = TOP + (maxDepth - n.depth) * LEVEL; });
+
+      var left = Infinity, right = 0;
+      leaves.concat(merges).forEach(function (n) {
+        var half = n.label.length * SIZE * EM / 2;
+        left = Math.min(left, xs[n.id] - half);
+        right = Math.max(right, xs[n.id] + half);
+      });
+      // a short word would otherwise render huge: spread it to TARGET wide
+      var span = Math.max(1, right - left);
+      var room = TARGET - 2 * PAD;
+      var k = span < room ? room / span : 1;
+      leaves.concat(merges).forEach(function (n) {
+        xs[n.id] = PAD + (xs[n.id] - left) * k;
+      });
+      var width = Math.max(TARGET, span * k + 2 * PAD);
+      var height = TOP + maxDepth * LEVEL + SIZE * 2.6;
+      return { xs: xs, ys: ys, width: width, height: height };
     }
 
     function render() {
       var st = steps[stepIndex];
-      var toks = st.tokens;
-      var n = toks.length;
-      var total = chars.length;
-
-      /* ---- the two strips ---- */
-      var W = 760, PAD = 8, GAP = 4, ROW = 36;
-      var avail = W - 2 * PAD;
-      var yA = PAD + 16, yB = yA + ROW + 26, H = yB + ROW + PAD;
+      var view = layout();
+      var currentRank = stepIndex - 1;
 
       host.textContent = "";
       var svg = el("svg", {
-        viewBox: "0 0 " + W + " " + H, width: "100%",
-        role: "img",
-        "aria-label": "Token split for " + (chars || "an empty word") +
-          " after " + stepIndex + " of " + (steps.length - 1) + " ranks: " +
-          toks.join(" ")
+        viewBox: "0 0 " + view.width + " " + view.height,
+        width: "100%", role: "img",
+        "aria-label": "Merge tree for " + (st.word || "an empty word") +
+          " after " + Math.max(0, stepIndex) + " of " + (steps.length - 1) +
+          " ranks: " + st.tokens.map(function (t) { return t.label; }).join(" ")
       });
-      svg.classList.add("bpe-svg");
+      svg.setAttribute("class", "forest-svg");
 
-      // Band A: one uniform cell per token, so the width reads as count.
-      caption(svg, PAD, yA - 8, "same cell, so you read the count");
-      caption(svg, W - PAD, yA - 8, n + (n === 1 ? " token" : " tokens"), "end");
-      var bw = Math.min(72, (avail - GAP * (n - 1)) / n);
-      var x = PAD;
-      toks.forEach(function (tok, i) {
-        var made = st.made.indexOf(i) >= 0;
-        var merged = made || (tok !== MARK && tok.length > 1);
-        svg.appendChild(el("rect", {
-          x: x, y: yA, width: bw, height: ROW, rx: 2,
-          fill: "var(--color-accent)",
-          "fill-opacity": made ? 0.40 : (merged ? 0.22 : 0.10),
-          stroke: made ? "var(--color-accent)" : "var(--color-rule)",
-          "stroke-width": made ? 1.5 : 1
+      var visible = merges.filter(function (n) { return n.rank < stepIndex; });
+
+      // edges first, so nodes sit on top of the lines that feed them
+      visible.forEach(function (n) {
+        var now = n.rank === currentRank;
+        svg.appendChild(el("line", {
+          x1: view.xs[n.children[0]], y1: view.ys[n.children[0]],
+          x2: view.xs[n.id], y2: view.ys[n.id],
+          stroke: now ? "var(--color-accent)" : "var(--color-rule)",
+          "stroke-width": now ? 1.6 : 1.2
         }));
-        var label = el("text", {
-          x: x + bw / 2, y: yA + ROW / 2 + 4.5,
-          "text-anchor": "middle", "font-size": 12,
-          fill: "var(--color-ink)"
-        });
-        label.setAttribute("class", "mono");
-        label.textContent = tok;
-        svg.appendChild(label);
-        x += bw + GAP;
       });
 
-      // Band B: cells sized by the characters each token eats. The
-      // end-of-word marker gets a fixed slot, because it is a marker,
-      // not text.
-      var hasMark = toks.indexOf(MARK) >= 0;
-      var markW = 44;
-      var usable = avail - GAP * (n - 1) - (hasMark ? markW : 0);
-      var unit = total ? usable / total : 0;
-      caption(svg, PAD, yB - 8, "sized by characters, so you read the length");
-      caption(svg, W - PAD, yB - 8, total + (total === 1 ? " character" : " characters"), "end");
-      x = PAD;
-      toks.forEach(function (tok, i) {
-        var made = st.made.indexOf(i) >= 0;
-        var merged = made || (tok !== MARK && tok.length > 1);
-        var w = tok === MARK ? markW : Math.max(14, visibleLength(tok) * unit);
-        svg.appendChild(el("rect", {
-          x: x, y: yB, width: w, height: ROW, rx: 2,
-          fill: "var(--color-accent)",
-          "fill-opacity": made ? 0.40 : (merged ? 0.22 : 0.10),
-          stroke: tok === MARK ? "var(--color-muted)" : (made ? "var(--color-accent)" : "var(--color-rule)"),
-          "stroke-width": made ? 1.5 : 1,
-          "stroke-dasharray": tok === MARK ? "3 3" : null
+      leaves.forEach(function (n) {
+        svg.appendChild(el("circle", {
+          cx: view.xs[n.id], cy: view.ys[n.id], r: 3.4,
+          fill: "var(--color-muted)"
         }));
         var label = el("text", {
-          x: x + w / 2, y: yB + ROW / 2 + 4,
-          "text-anchor": "middle", "font-size": 11,
-          fill: "var(--color-ink)"
+          x: view.xs[n.id], y: view.ys[n.id] + 16,
+          "text-anchor": "middle", "font-size": SIZE,
+          fill: "var(--color-muted)"
         });
         label.setAttribute("class", "mono");
-        label.textContent = tok;
+        label.textContent = n.label;
         svg.appendChild(label);
-        x += w + GAP;
+      });
+
+      visible.forEach(function (n) {
+        var now = n.rank === currentRank;
+        svg.appendChild(el("circle", {
+          cx: view.xs[n.id], cy: view.ys[n.id], r: 6,
+          fill: "var(--color-accent)",
+          "fill-opacity": now ? 1 : 0.42
+        }));
+        var label = el("text", {
+          x: view.xs[n.id], y: view.ys[n.id] - 11,
+          "text-anchor": "middle", "font-size": SIZE,
+          fill: now ? "var(--color-ink)" : "var(--color-ink)",
+          "font-weight": now ? 600 : 500
+        });
+        label.setAttribute("class", "mono");
+        label.textContent = n.label;
+        svg.appendChild(label);
+        var badge = el("text", {
+          x: view.xs[n.id], y: view.ys[n.id] + 16,
+          "text-anchor": "middle", "font-size": 9.5,
+          fill: "var(--color-muted)"
+        });
+        badge.setAttribute("class", "mono");
+        badge.textContent = "r" + n.rank;
+        svg.appendChild(badge);
       });
 
       host.appendChild(svg);
 
-      /* ---- rank line ---- */
       if (rankLine) {
         rankLine.textContent = "";
-        if (st.rank < 0) {
+        if (currentRank < 0) {
           rankLine.appendChild(document.createTextNode(
             "No rank applied yet: raw symbols plus the end-of-word marker."));
         } else {
-          rankLine.appendChild(document.createTextNode("rank " + st.rank + " \u00b7 "));
+          rankLine.appendChild(document.createTextNode("rank " + currentRank + " \u00b7 "));
           var pairSpan = document.createElement("span");
           pairSpan.className = "pair";
-          pairSpan.textContent = st.pair[0] + " + " + st.pair[1];
+          pairSpan.textContent = RANKS[currentRank][0] + " + " + RANKS[currentRank][1];
           rankLine.appendChild(pairSpan);
           rankLine.appendChild(document.createTextNode(" \u2192 "));
           var madeSpan = document.createElement("span");
           madeSpan.className = "merged";
-          madeSpan.textContent = st.pair[0] + st.pair[1];
+          madeSpan.textContent = st.made.length ? st.made.map(function (n) {
+            return n.label;
+          }).join(", ") : "no match";
           rankLine.appendChild(madeSpan);
           rankLine.appendChild(document.createTextNode(
-            st.hits ? " \u00b7 " + st.hits + (st.hits === 1 ? " merge" : " merges")
-                    : " \u00b7 nothing to merge"));
+            st.made.length ? " \u00b7 " + st.made.length +
+              (st.made.length === 1 ? " merge" : " merges")
+                           : " \u00b7 nothing to merge"));
         }
       }
 
       if (stepLabel) stepLabel.textContent = "Step " + stepIndex + " of " + (steps.length - 1);
 
-      /* ---- rank table ---- */
-      if (tbody) {
-        tbody.textContent = "";
-        RANKS.forEach(function (pair, r) {
-          var applied = stepIndex > r;
-          var tr = document.createElement("tr");
-          if (applied) tr.className = stepIndex === r + 1 ? "is-current" : "is-past";
-          var cells = [
-            String(r),
-            pair[0] + " \u00b7 " + pair[1],
-            pair[0] + pair[1],
-            String(steps[r + 1].hits),
-            applied ? (stepIndex === r + 1 ? "just applied" : "applied") : "pending"
-          ];
-          cells.forEach(function (text) {
-            var td = document.createElement("td");
-            td.textContent = text;
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-      }
-
-      /* ---- readout ---- */
       if (out) {
         out.textContent = "";
         var strong = function (text) {
@@ -228,32 +225,43 @@
           s.textContent = text;
           return s;
         };
-        out.appendChild(strong(String(n)));
-        out.appendChild(document.createTextNode(n === 1 ? " token for " : " tokens for "));
-        out.appendChild(strong(String(total)));
-        out.appendChild(document.createTextNode(total === 1 ? " character \u00b7 " : " characters \u00b7 "));
-        out.appendChild(strong(total ? (total / n).toFixed(2) : "0.00"));
-        out.appendChild(document.createTextNode(" characters per token \u00b7 ids "));
-        var ids = toks.map(function (tok) {
-          if (tok === MARK) return "\u2014";
-          if (MERGED_ID[tok] !== undefined) return String(MERGED_ID[tok]);
-          return String(tok.charCodeAt(0));
-        });
-        out.appendChild(strong(ids.join(" ")));
-        out.appendChild(document.createTextNode(" \u00b7 merged ids are 256 + rank"));
+        var toks = st.tokens;
+        out.appendChild(strong(String(toks.length)));
+        out.appendChild(document.createTextNode(toks.length === 1 ? " token \u00b7 " : " tokens \u00b7 "));
+        out.appendChild(strong(toks.map(function (t) { return t.label; }).join(" ")));
       }
     }
 
     function rebuild() {
-      chars = (input.value || "").toLowerCase().replace(/\s+/g, "").slice(0, 12);
-      var toks = chars.split("");
-      toks.push(MARK);
-      steps = [{ tokens: toks, rank: -1, pair: null, hits: 0, made: [] }];
+      var word = (input.value || "").toLowerCase().replace(/\s+/g, "").slice(0, 12);
+      leaves = [];
+      merges = [];
+      var chars = word.split("");
+      chars.forEach(function (ch, i) {
+        leaves.push({ id: "l" + i, label: ch });
+      });
+      leaves.push({ id: "lmark", label: MARK });
+
+      var toks = leaves.slice();
+      steps = [{ word: word, tokens: toks, made: [], rank: -1 }];
       for (var r = 0; r < RANKS.length; r++) {
-        var res = applyRank(toks, RANKS[r]);
+        var res = mergeRank(toks, RANKS[r], r);
         toks = res.tokens;
-        steps.push({ tokens: toks, rank: r, pair: RANKS[r], hits: res.made.length, made: res.made });
+        merges = merges.concat(res.made);
+        steps.push({ word: word, tokens: toks, made: res.made, rank: r });
       }
+      // depth is a property of the whole tree, so it survives step changes
+      var depthOf = {};
+      leaves.forEach(function (n) { depthOf[n.id] = 0; });
+      for (var d = 1; d <= RANKS.length; d++) {
+        merges.forEach(function (n) {
+          if (depthOf[n.id] === undefined) {
+            var a = depthOf[n.children[0]], b = depthOf[n.children[1]];
+            if (a !== undefined && b !== undefined) n.depth = depthOf[n.id] = 1 + Math.max(a, b);
+          }
+        });
+      }
+
       stop();
       stepIndex = 0;
       render();
@@ -278,6 +286,7 @@
     input.addEventListener("input", rebuild);
     rebuild();
   }
+
 
   /* ============================================================
      2. ATTENTION — one query token scoring against its context.
@@ -748,7 +757,7 @@
     });
   }
 
-  function boot() { mountTokenizer(); mountAttention(); mountMultiHead(); mountCache(); mountKeys(); mountShell(); }
+  function boot() { mountTokenForest(); mountAttention(); mountMultiHead(); mountCache(); mountKeys(); mountShell(); }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

@@ -756,6 +756,7 @@ button, input, select, textarea { font: inherit; }
 .chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
 .chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
 .chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure .fig-svg text.mono { font-family: var(--font-outlier); }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
@@ -795,18 +796,15 @@ button, input, select, textarea { font: inherit; }
 .interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
 .interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
 .interactive button:hover { background: var(--color-accent-2); }
-.bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
-#bpe-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-.bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
-.bpe-svg text.mono { font-family: var(--font-outlier); }
-.bpe-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
-.bpe-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-.bpe-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
-.bpe-rankline .pair { color: var(--color-ink); }
-.bpe-rankline .merged { color: var(--color-accent); font-weight: 600; }
-#bpe-pairs tr.is-current td { color: var(--color-accent); font-weight: 600; }
-#bpe-pairs tr.is-past td { color: var(--color-muted); }
-#bpe-pairs tr.is-past td:first-child { opacity: 0.7; }
+.forest-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#token-forest-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.forest-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.forest-svg text.mono { font-family: var(--font-outlier); }
+.forest-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.forest-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.forest-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.forest-rankline .pair { color: var(--color-ink); }
+.forest-rankline .merged { color: var(--color-accent); font-weight: 600; }
 .interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
 .interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
 .interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
@@ -952,9 +950,9 @@ button, input, select, textarea { font: inherit; }
   .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch; max-width: 100%; }
   .chapter-figure .fig-svg { min-width: 46rem; }
-  /* the token strip carries 11-12px labels; below this width it scrolls
+  /* the merge tree carries 12px mono labels; below this width it scrolls
      instead of shrinking them, same floor as the static figures */
-  #bpe-host .bpe-svg { min-width: 46rem; }
+  #token-forest-host .forest-svg { min-width: 34rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
@@ -1210,32 +1208,27 @@ def interactive_for(cid):
     if cid == "01-tokens":
         return """
 <section class="interactive">
-  <h3>Six ranks, applied in order</h3>
-  <p class="lede">These are the six merge rules the corpus above produces, in the order
-  it produces them. Type a word and step through the ranks: each one scans left to right
-  and merges every match of its pair. The top strip gives every token the same cell, so
-  you read the count. The strip under it sizes each cell by its symbols, so you read the
-  length. A word outside the corpus may match nothing, which is the honest result: six
-  ranks here, tens of thousands in a real tokenizer.</p>
+  <h3>One word's merge genealogy</h3>
+  <p class="lede">The corpus produced six ranks, and the figure above shows all of them at
+  once. Here you grow one word's tree instead: type a word, then step through the ranks.
+  Each merge that fires adds a node whose two children are exactly the pieces it was built
+  from, and the label under the node is the rank that fired. Ranks that do not match the
+  word leave no node at all. The same lo then low spine shows up in every word that starts
+  low, so a word only pays for the merges it actually needs.</p>
   <div class="slider-row">
-    <label for="bpe-input">word</label>
-    <input type="text" id="bpe-input" value="lowest" spellcheck="false" maxlength="12" autocomplete="off">
+    <label for="token-forest-input">word</label>
+    <input type="text" id="token-forest-input" value="lowest" spellcheck="false" maxlength="12" autocomplete="off">
   </div>
-  <div class="bpe-controls">
+  <div class="forest-controls">
     <button type="button" data-prev>Previous</button>
     <button type="button" data-next>Next</button>
     <button type="button" data-play>Play</button>
     <button type="button" data-reset>Reset</button>
-    <span class="step-count" id="bpe-step">Step 0 of 6</span>
+    <span class="step-count" id="forest-step">Step 0 of 6</span>
   </div>
-  <p class="bpe-rankline" id="bpe-rank" aria-live="polite"></p>
-  <div id="bpe-host"></div>
-  <table id="bpe-pairs">
-    <caption class="visually-hidden">The six merge ranks and what each one does to the current word</caption>
-    <thead><tr><th scope="col">rank</th><th scope="col">pair</th><th scope="col">merges into</th><th scope="col">merges</th><th scope="col">state</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <p class="readout" id="bpe-out"></p>
+  <p class="forest-rankline" id="forest-rank" aria-live="polite"></p>
+  <div id="token-forest-host"></div>
+  <p class="readout" id="forest-out"></p>
 </section>
 """
     if cid == "05-scaled-dot-product":

@@ -23,6 +23,7 @@ fields. The vocabulary is below; a spec names one in `kind`.
     lane       a block diagram with a bypass lane that runs past every stage
     flow       a left-to-right sequence of stages, wrapping into rows
     grid       an n-by-n grid with an axis (the causal score matrix)
+    merge_forest  a merge genealogy: bytes at the leaves, each merge a node above them
 
 Nothing here invents a number: every label comes from the spec, and the spec was told to
 use only quantities that appear in the chapter. The figure is inline SVG with no script,
@@ -871,6 +872,138 @@ def render_vocab_stack(spec):
     return _fit(spec, 760, build).render()
 
 
+MONO_EM = 0.62
+
+
+def _mono_w(s, size):
+    """Advance width of a mono label, in user units. Wider than the sans estimate."""
+    return len(str(s)) * size * MONO_EM
+
+
+def render_merge_forest(spec):
+    """The merge genealogy: one graph, leaves at the bottom, each merge a node.
+
+    A token is a composition, not a cell. Two children feed every node, so the same
+    subtree (`lo`, then `low`) is visibly reused by three words, and the words part
+    company at the branch that builds `lowe`.
+
+    Layout is computed, not authored: leaves sit left to right in spec order with room
+    for their labels, every merge sits above the midpoint of its children, and the
+    viewBox grows to whatever the widest label needs.
+    """
+    data = spec.get("data") or {}
+    nodes = data.get("nodes") or []
+    if not nodes:
+        return None
+    note = data.get("note") or ""
+
+    by_id = {n["id"]: n for n in nodes}
+    leaves = [n for n in nodes if not n.get("from")]
+    depth = {}
+
+    def depth_of(nid, seen=()):
+        if nid in depth:
+            return depth[nid]
+        n = by_id[nid]
+        if not n.get("from"):
+            depth[nid] = 0
+        elif nid in seen:
+            depth[nid] = 0
+        else:
+            depth[nid] = 1 + max(depth_of(c, seen + (nid,)) for c in n["from"])
+        return depth[nid]
+
+    for n in nodes:
+        depth_of(n["id"])
+    max_depth = max(depth.values()) or 1
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("alt") or spec.get("caption") or "")
+        pad = 28
+        gap = 16
+        level_gap = max(46, size * 4.0)
+        r_leaf, r_merge = 3.6, 6.4
+
+        # leaves left to right, each slot as wide as its label
+        xs = {}
+        cursor = pad
+        for n in leaves:
+            half = _mono_w(n["label"], size) / 2 + 4
+            xs[n["id"]] = cursor + half
+            cursor += 2 * half + gap
+        # every other node sits over the midpoint of the children that feed it
+        for d in range(1, max_depth + 1):
+            for n in nodes:
+                if depth[n["id"]] == d and n.get("from"):
+                    xs[n["id"]] = sum(xs[c] for c in n["from"]) / len(n["from"])
+        # the top merge carries a label above it; leave room for that ascender
+        top = r_merge + 5 + size * 1.2
+        ys = {n["id"]: top + (max_depth - depth[n["id"]]) * level_gap for n in nodes}
+
+        # shift right if a rank badge would run off the left edge
+        left = pad
+        for n in nodes:
+            if n.get("rank") is not None:
+                badge = _mono_w(f"r{n['rank']}", size * 0.78)
+                left = min(left, xs[n["id"]] - r_merge - 6 - badge)
+        shift = max(0.0, pad - left)
+        for nid in xs:
+            xs[nid] += shift
+
+        # edges first, so every node sits on top of the lines that feed it
+        for n in nodes:
+            part = n.get("part")
+            for child in n.get("from") or []:
+                c.add(c.line(xs[child], ys[child], xs[n["id"]], ys[n["id"]],
+                             stroke=RULE, sw=1.4, part=part))
+        for n in nodes:
+            nid = n["id"]
+            part = n.get("part")
+            x, y = xs[nid], ys[nid]
+            leaf = depth[nid] == 0
+            r = r_leaf if leaf else r_merge
+            c.add(c.circle(x, y, r, fill=MUTED if leaf else ACCENT,
+                           stroke=SHEET, sw=1.6, part=part))
+            if leaf:
+                c.add(c.text(x, y + r + size * 1.25, n["label"], size,
+                             fill=MUTED, family=FONT_MONO, cls="mono", part=part))
+            else:
+                c.add(c.text(x, y - r - 5, n["label"], size, fill=INK,
+                             family=FONT_MONO, weight="500", cls="mono",
+                             part=part))
+                if n.get("rank") is not None:
+                    c.add(c.text(x, y + r + size * 1.05, f"r{n['rank']}",
+                                 size * 0.78, fill=MUTED, family=FONT_MONO,
+                                 cls="mono", part=part))
+
+        # widen for the widest label rather than clipping it
+        right = 0.0
+        for n in nodes:
+            nid = n["id"]
+            half = _mono_w(n["label"], size) / 2
+            right = max(right, xs[nid] + half)
+            if n.get("rank") is not None:
+                half = _mono_w(f"r{n['rank']}", size * 0.78) / 2
+                right = max(right, xs[nid] + half)
+        c.w = max(w, right + pad)
+
+        bottom = max(ys.values()) + r_leaf + size * 1.25
+        note_y = bottom + size * 1.7
+        if note:
+            note_size = size * 0.82
+            lines = wrap_px(note, note_size, c.w - 2 * pad)
+            lh = round(note_size * 1.5)
+            c.add(c.block(pad, note_y, lines, note_size, anchor="start",
+                          fill=MUTED, lh=lh))
+            c.h = note_y + (len(lines) - 1) * lh + note_size * 1.6 + 12
+        else:
+            c.h = note_y + 14
+        return c
+
+    return _fit(spec, 480, build, min_w=400).render()
+
+
 RENDER = {
     "tokens": render_tokens,
     "matrix": render_matrix,
@@ -884,6 +1017,7 @@ RENDER = {
     "flow": render_flow,
     "grid": render_grid,
     "vocab_stack": render_vocab_stack,
+    "merge_forest": render_merge_forest,
 }
 
 

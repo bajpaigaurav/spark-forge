@@ -3,6 +3,185 @@
   "spine": "tokens",
   "figures": [
     {
+      "id": "merge-forest",
+      "title": "One merge forest, three words",
+      "caption": "Every token is a composition. Read bottom to top: characters at the leaves, each merge a node whose two children are the pieces it was built from, and the rank that fired under each node. The corpus' low, lower and lowest share one spine up to lowe, then part company; only low and lower run all the way to a finished token.",
+      "alt": "A graph with the characters l, o, w, e, r, s, t and two end-of-word markers along the bottom. Lines rise from l and o to a node labelled lo, then from lo and w to low. From low, one branch joins an end-of-word marker to make the token low, and another joins e to make lowe. lowe and r make lower, and lower and a second end-of-word marker make the finished token lower. The characters s and t have no parent, so lowest stops at lowe. Each merge node carries the rank that fired beneath it.",
+      "anchor": "the-merge-loop-and-rank-order",
+      "kind": "merge_forest",
+      "data": {
+        "note": "Read bottom to top. Each node is one merge and its two children are the pieces it was built from; the badge under a node is the rank that fired. The lo then low spine is shared, so lower never rebuilds it. lowest stops at lowe and leaves its s, t and end-of-word marker as raw bytes.",
+        "nodes": [
+          {
+            "id": "l",
+            "label": "l",
+            "part": "base"
+          },
+          {
+            "id": "o",
+            "label": "o",
+            "part": "base"
+          },
+          {
+            "id": "w",
+            "label": "w",
+            "part": "base"
+          },
+          {
+            "id": "e",
+            "label": "e",
+            "part": "base"
+          },
+          {
+            "id": "r",
+            "label": "r",
+            "part": "base"
+          },
+          {
+            "id": "s",
+            "label": "s",
+            "part": "base"
+          },
+          {
+            "id": "t",
+            "label": "t",
+            "part": "base"
+          },
+          {
+            "id": "end-low",
+            "label": "</w>",
+            "part": "base"
+          },
+          {
+            "id": "end-lower",
+            "label": "</w>",
+            "part": "base"
+          },
+          {
+            "id": "lo",
+            "label": "lo",
+            "rank": 0,
+            "from": [
+              "l",
+              "o"
+            ],
+            "part": "lo"
+          },
+          {
+            "id": "low",
+            "label": "low",
+            "rank": 1,
+            "from": [
+              "lo",
+              "w"
+            ],
+            "part": "low"
+          },
+          {
+            "id": "low-end",
+            "label": "low</w>",
+            "rank": 2,
+            "from": [
+              "low",
+              "end-low"
+            ],
+            "part": "low-end"
+          },
+          {
+            "id": "lowe",
+            "label": "lowe",
+            "rank": 3,
+            "from": [
+              "low",
+              "e"
+            ],
+            "part": "low-e"
+          },
+          {
+            "id": "lower",
+            "label": "lower",
+            "rank": 4,
+            "from": [
+              "lowe",
+              "r"
+            ],
+            "part": "lower"
+          },
+          {
+            "id": "lower-end",
+            "label": "lower</w>",
+            "rank": 5,
+            "from": [
+              "lower",
+              "end-lower"
+            ],
+            "part": "lower-end"
+          }
+        ]
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1400,
+        "intro": "Press Play or Next to grow the forest one rank at a time.",
+        "steps": [
+          {
+            "label": "rank 0: l + o -> lo",
+            "highlight": [
+              "base",
+              "lo"
+            ]
+          },
+          {
+            "label": "rank 1: lo + w -> low",
+            "highlight": [
+              "base",
+              "lo",
+              "low"
+            ]
+          },
+          {
+            "label": "rank 2: low + </w> -> low</w>",
+            "highlight": [
+              "base",
+              "lo",
+              "low",
+              "low-end"
+            ]
+          },
+          {
+            "label": "rank 3: low + e -> lowe",
+            "highlight": [
+              "base",
+              "lo",
+              "low",
+              "low-e"
+            ]
+          },
+          {
+            "label": "rank 4: lowe + r -> lower",
+            "highlight": [
+              "base",
+              "lo",
+              "low",
+              "low-e",
+              "lower"
+            ]
+          },
+          {
+            "label": "rank 5: lower + </w> -> lower</w>",
+            "highlight": [
+              "base",
+              "lo",
+              "low",
+              "low-e",
+              "lower",
+              "lower-end"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "gpt2-vocabulary",
       "title": "GPT-2's 50,257-token vocabulary",
       "caption": "GPT-2's vocabulary decomposes exactly into 256 base byte tokens, 50,000 learned merges, and one end-of-text marker. The rows are schematic because 256 and 1 would be invisible beside 50,000; the counts are exact.",

@@ -312,6 +312,7 @@ button, input, select, textarea { font: inherit; }
 .chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
 .chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
 .chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure .fig-svg text.mono { font-family: var(--font-outlier); }
 .chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
 .chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
 .fig-svg text { font-family: var(--font-display); }
@@ -351,18 +352,15 @@ button, input, select, textarea { font: inherit; }
 .interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
 .interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
 .interactive button:hover { background: var(--color-accent-2); }
-.bpe-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
-#bpe-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-.bpe-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
-.bpe-svg text.mono { font-family: var(--font-outlier); }
-.bpe-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
-.bpe-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-.bpe-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
-.bpe-rankline .pair { color: var(--color-ink); }
-.bpe-rankline .merged { color: var(--color-accent); font-weight: 600; }
-#bpe-pairs tr.is-current td { color: var(--color-accent); font-weight: 600; }
-#bpe-pairs tr.is-past td { color: var(--color-muted); }
-#bpe-pairs tr.is-past td:first-child { opacity: 0.7; }
+.forest-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#token-forest-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.forest-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.forest-svg text.mono { font-family: var(--font-outlier); }
+.forest-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.forest-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.forest-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.forest-rankline .pair { color: var(--color-ink); }
+.forest-rankline .merged { color: var(--color-accent); font-weight: 600; }
 .interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
 .interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
 .interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
@@ -508,9 +506,9 @@ button, input, select, textarea { font: inherit; }
   .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch; max-width: 100%; }
   .chapter-figure .fig-svg { min-width: 46rem; }
-  /* the token strip carries 11-12px labels; below this width it scrolls
+  /* the merge tree carries 12px mono labels; below this width it scrolls
      instead of shrinking them, same floor as the static figures */
-  #bpe-host .bpe-svg { min-width: 46rem; }
+  #token-forest-host .forest-svg { min-width: 34rem; }
   .chapter-nav { grid-template-columns: 1fr; }
   .chapter-nav a.next { text-align: left; }
   .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }

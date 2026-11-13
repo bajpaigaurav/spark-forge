@@ -234,7 +234,7 @@ EOF
 fi
 
 # interactives are wired to ids the JS actually looks for
-for pair in "01-tokens:bpe-host" "05-scaled-dot-product:attn-host" "10-kv-cache:kv-host"; do
+for pair in "01-tokens:token-forest-host" "05-scaled-dot-product:attn-host" "10-kv-cache:kv-host"; do
   ch="${pair%%:*}"; wid="${pair##*:}"
   [ -f "site/chapters/$ch.html" ] || continue
   grep -q "id=\"$wid\"" "site/chapters/$ch.html" || { echo "widget $wid missing in $ch"; fail=1; }
