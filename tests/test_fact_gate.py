@@ -30,9 +30,9 @@ def derives(text, target):
 def test_unit_scaled_result():
     """Bytes / 1e6 stated as MB must resolve."""
     t = ("At a mean prompt length of 130,659 tokens, the KV traffic per rank is "
-         "130,659 × 922 = 120.5 MB per generated token.")
-    assert derives(t, 120.5), "unit-scaled MB result rejected"
-    print("ok: unit-scaled result (120.5 MB)")
+         "130,659 × 1,024 = 133.8 MB per generated token.")
+    assert derives(t, 133.8), "unit-scaled MB result rejected"
+    print("ok: unit-scaled result (133.8 MB)")
 
 
 def test_ratio_as_percent():
@@ -45,8 +45,8 @@ def test_ratio_as_percent():
 
 def test_repeated_operand():
     """The same figure twice in a clause must collapse to two operands."""
-    t = "The cache is 130,659 × 922 = 120.5 MB per token."
-    assert derives(t, 120.5), "repeated operand rejected"
+    t = "The cache is 130,659 × 1,024 = 133.8 MB per token."
+    assert derives(t, 133.8), "repeated operand rejected"
     print("ok: repeated operand collapsed")
 
 

@@ -1,448 +1,448 @@
 {
-  "needed": true,
-  "spine": "attention",
-  "figures": [
-    {
-      "id": "flash-tile-map",
-      "title": "The score matrix as causal tiles that never leave the chip",
-      "caption": "FlashAttention computes attention one Br x Bc score tile at a time. A Q tile of 128 rows is 32 KB, a K tile of 64 columns is 16 KB, and the score tile is 16 KB; with the matching V tile the working set is 80 KB. The L x L matrix is never written to HBM, so the 34.1 GB per head per layer is never materialized.",
-      "alt": "A ten-by-ten grid of tiles. Row i has a live S tile in every column up to i and blank cells after it, so the live tiles form a lower triangle under the causal mask. The last row is highlighted. Each cell is one 128-by-64 score tile built in shared memory, softmaxed with a running max, multiplied by its V tile, and accumulated; blank cells are masked and never computed.",
-      "anchor": "flashattention-s-tiling-fix",
-      "kind": "matrix",
-      "data": {
-        "rows": [
-          [
-            "S",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            ""
-          ],
-          [
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S",
-            "S"
-          ]
-        ],
-        "cols": [
-          "0",
-          "1",
-          "2",
-          "3",
-          "4",
-          "5",
-          "6",
-          "7",
-          "8",
-          "9"
-        ],
-        "col_head": "K/V tile, Bc = 64 keys",
-        "row_head": "Q tile, Br = 128 queries",
-        "corner": "tile",
-        "highlight_row": 9,
-        "note": "Schematic 10 x 10 tile map. In deployment Br = 128 and Bc = 64, so the real tile grid is far larger than shown. Blank cells are masked by causality and never computed.",
-        "parts": {
-          "cols": [
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile",
-            "k-tile next-tile"
-          ],
-          "rows": [
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile",
-            "q-tile output"
-          ],
-          "cells": [
-            [
-              "score-tile",
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null,
-              null
-            ],
-            [
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              "score-tile",
-              null
-            ],
-            [
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output",
-              "score-tile output next-tile"
-            ]
-          ],
-          "corner": "q-tile k-tile",
-          "headers": "q-tile k-tile",
-          "note": "online-softmax"
-        }
-      },
-      "anim": {
-        "mode": "step",
-        "interval": 1400,
-        "intro": "Walk one Q tile across its K/V tiles.",
-        "steps": [
-          {
-            "label": "Load one Q tile of Br = 128 rows and one K tile of Bc = 64 columns into shared memory.",
-            "highlight": [
-              "q-tile",
-              "k-tile"
-            ]
-          },
-          {
-            "label": "Compute the 128 x 64 score tile; it stays in registers and shared memory.",
-            "highlight": [
-              "score-tile"
-            ]
-          },
-          {
-            "label": "Fold the tile into the running max m and sum l; rescale the accumulator by alpha = exp(m_old - m_new).",
-            "highlight": [
-              "online-softmax"
-            ]
-          },
-          {
-            "label": "Multiply by the matching V tile and accumulate the Br x d output block.",
-            "highlight": [
-              "output"
-            ]
-          },
-          {
-            "label": "Advance to the next K tile; the L x L matrix never exists.",
-            "highlight": [
-              "next-tile"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "sram-budget",
-      "title": "What fits in one SM's shared memory",
-      "caption": "One 128 x 64 stage needs 80 KB: a 32 KB Q tile, 16 KB each for K, V, and the score tile. Double-buffering K and V brings the resident set to 112 KB, which fits Hopper's 228 KB per SM but not Ampere's 164 KB with much headroom. Shared memory sustains 281 GB/s per SM against 273 GB/s for the whole chip.",
-      "alt": "A memory strip of 228 KB. The Q tile takes 32 KB, K takes 16 KB, V takes 16 KB, the score tile takes 16 KB, and the double buffers K-prime and V-prime take 16 KB each, for 112 KB used. The remaining 116 KB is free headroom.",
-      "anchor": "the-bandwidth-gap-and-latency",
-      "kind": "memory",
-      "data": {
-        "total": 228,
-        "spans": [
-          {
-            "from": 0,
-            "to": 32,
-            "label": "Q 32 KB",
-            "kind": "used"
-          },
-          {
-            "from": 32,
-            "to": 48,
-            "label": "K",
-            "kind": "used"
-          },
-          {
-            "from": 48,
-            "to": 64,
-            "label": "V",
-            "kind": "used"
-          },
-          {
-            "from": 64,
-            "to": 80,
-            "label": "S",
-            "kind": "used"
-          },
-          {
-            "from": 80,
-            "to": 96,
-            "label": "K'",
-            "kind": "used"
-          },
-          {
-            "from": 96,
-            "to": 112,
-            "label": "V'",
-            "kind": "used"
-          },
-          {
-            "from": 112,
-            "to": 228,
-            "label": "free",
-            "kind": "free"
-          }
-        ],
-        "axis": [
-          {
-            "at": 0,
-            "label": "0"
-          },
-          {
-            "at": 112,
-            "label": "112 KB"
-          },
-          {
-            "at": 228,
-            "label": "228 KB"
-          }
-        ],
-        "note": "K, V, S, K-prime, and V-prime are 16 KB each. One stage is 80 KB; double-buffered K and V make 112 KB. Hopper allows 228 KB per SM, Ampere 164 KB, so the 112 KB resident set leaves 116 KB free on Hopper."
-      }
-    },
-    {
-      "id": "attention-footprint",
-      "title": "The score matrix is 510 times the keys and values it summarizes",
-      "caption": "At L = 130,659 and d_head = 128, storing one head's score matrix takes L^2 x 2 bytes = 34.1 GB, while its keys and values take 4Ld bytes = 66.9 MB. The ratio is L / 2d = 510x, and in FP32 the matrix would be 68.3 GB. FlashAttention stores none of it and recomputes the tiles in the backward pass for 4.37e12 extra FLOPs.",
-      "alt": "Two horizontal bars. The score matrix for one head is 34.1 GB, L squared times two bytes. The keys and values for the same head are 66.9 MB, four times L times d bytes, a sliver beside the matrix. The ratio between them is 510 to 1.",
-      "anchor": "backward-pass-recomputation-and-linear-footprint",
-      "kind": "bars",
-      "data": {
-        "bars": [
-          {
-            "label": "score matrix, one head",
-            "value": 34100,
-            "display": "34.1 GB, L^2 x 2 bytes",
-            "accent": true
-          },
-          {
-            "label": "keys and values, one head",
-            "value": 66.9,
-            "display": "66.9 MB, 4Ld bytes"
-          }
-        ],
-        "note": "The 34.1 GB bar is L^2 x 2 bytes; 66.9 MB is 4Ld. At 262,144 positions the keys and values for one head still fit in 134.2 MB, while the matrix would be four times larger than at 130,659."
-      }
+ "needed": true,
+ "spine": "attention",
+ "figures": [
+  {
+   "id": "flash-tile-map",
+   "title": "The score matrix as causal tiles that never leave the chip",
+   "caption": "FlashAttention computes attention one Br x Bc score tile at a time. A Q tile of 128 rows is 32 KB, a K tile of 64 columns is 16 KB, and the score tile is 16 KB; with the matching V tile the working set is 80 KB. The L x L matrix is never written to HBM, so the 20 GB per head per layer is never materialized.",
+   "alt": "A ten-by-ten grid of tiles. Row i has a live S tile in every column up to i and blank cells after it, so the live tiles form a lower triangle under the causal mask. The last row is highlighted. Each cell is one 128-by-64 score tile built in shared memory, softmaxed with a running max, multiplied by its V tile, and accumulated; blank cells are masked and never computed.",
+   "anchor": "flashattention-s-tiling-fix",
+   "kind": "matrix",
+   "data": {
+    "rows": [
+     [
+      "S",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      ""
+     ],
+     [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S",
+      "S"
+     ]
+    ],
+    "cols": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9"
+    ],
+    "col_head": "K/V tile, Bc = 64 keys",
+    "row_head": "Q tile, Br = 128 queries",
+    "corner": "tile",
+    "highlight_row": 9,
+    "note": "Schematic 10 x 10 tile map. In deployment Br = 128 and Bc = 64, so the real tile grid is far larger than shown. Blank cells are masked by causality and never computed.",
+    "parts": {
+     "cols": [
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile",
+      "k-tile next-tile"
+     ],
+     "rows": [
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile",
+      "q-tile output"
+     ],
+     "cells": [
+      [
+       "score-tile",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null,
+       null
+      ],
+      [
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       "score-tile",
+       null
+      ],
+      [
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output",
+       "score-tile output next-tile"
+      ]
+     ],
+     "corner": "q-tile k-tile",
+     "headers": "q-tile k-tile",
+     "note": "online-softmax"
     }
-  ],
-  "sources": [
-    {
-      "url": "https://arxiv.org/abs/2205.14135",
-      "note": "Dao et al., FlashAttention: tiling, online softmax, and the IO-aware analysis."
-    },
-    {
-      "url": "https://arxiv.org/abs/2307.08691",
-      "note": "Dao, FlashAttention-2: work partitioning across warps and the 128 x 128 tile schedule."
-    }
-  ]
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1400,
+    "intro": "Walk one Q tile across its K/V tiles.",
+    "steps": [
+     {
+      "label": "Load one Q tile of Br = 128 rows and one K tile of Bc = 64 columns into shared memory.",
+      "highlight": [
+       "q-tile",
+       "k-tile"
+      ]
+     },
+     {
+      "label": "Compute the 128 x 64 score tile; it stays in registers and shared memory.",
+      "highlight": [
+       "score-tile"
+      ]
+     },
+     {
+      "label": "Fold the tile into the running max m and sum l; rescale the accumulator by alpha = exp(m_old - m_new).",
+      "highlight": [
+       "online-softmax"
+      ]
+     },
+     {
+      "label": "Multiply by the matching V tile and accumulate the Br x d output block.",
+      "highlight": [
+       "output"
+      ]
+     },
+     {
+      "label": "Advance to the next K tile; the L x L matrix never exists.",
+      "highlight": [
+       "next-tile"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "sram-budget",
+   "title": "What fits in one SM's shared memory",
+   "caption": "One 128 x 64 stage needs 80 KB: a 32 KB Q tile, 16 KB each for K, V, and the score tile. Double-buffering K and V brings the resident set to 112 KB, which fits Hopper's 228 KB per SM and Ampere's 164 KB, leaving 116 KB free on Hopper.",
+   "alt": "A memory strip of 228 KB. The Q tile takes 32 KB, K takes 16 KB, V takes 16 KB, the score tile takes 16 KB, and the double buffers K-prime and V-prime take 16 KB each, for 112 KB used. The remaining 116 KB is free headroom.",
+   "anchor": "the-bandwidth-gap-and-latency",
+   "kind": "memory",
+   "data": {
+    "total": 228,
+    "spans": [
+     {
+      "from": 0,
+      "to": 32,
+      "label": "Q 32 KB",
+      "kind": "used"
+     },
+     {
+      "from": 32,
+      "to": 48,
+      "label": "K",
+      "kind": "used"
+     },
+     {
+      "from": 48,
+      "to": 64,
+      "label": "V",
+      "kind": "used"
+     },
+     {
+      "from": 64,
+      "to": 80,
+      "label": "S",
+      "kind": "used"
+     },
+     {
+      "from": 80,
+      "to": 96,
+      "label": "K'",
+      "kind": "used"
+     },
+     {
+      "from": 96,
+      "to": 112,
+      "label": "V'",
+      "kind": "used"
+     },
+     {
+      "from": 112,
+      "to": 228,
+      "label": "free",
+      "kind": "free"
+     }
+    ],
+    "axis": [
+     {
+      "at": 0,
+      "label": "0"
+     },
+     {
+      "at": 112,
+      "label": "112 KB"
+     },
+     {
+      "at": 228,
+      "label": "228 KB"
+     }
+    ],
+    "note": "K, V, S, K-prime, and V-prime are 16 KB each. One stage is 80 KB; double-buffered K and V make 112 KB. Hopper allows 228 KB per SM, Ampere 164 KB, so the 112 KB resident set leaves 116 KB free on Hopper."
+   }
+  },
+  {
+   "id": "attention-footprint",
+   "title": "The score matrix is 390 times the keys and values it summarizes",
+   "caption": "At L = 100,000 and d_head = 128, storing one head's score matrix takes L^2 x 2 bytes = 20 GB, while its keys and values take 4Ld bytes = 51.2 MB. The ratio is L / 2d = 390x, and in FP32 the matrix would be 40 GB. FlashAttention stores none of it and recomputes the tiles in the backward pass for 2.56e12 extra FLOPs.",
+   "alt": "Two horizontal bars. The score matrix for one head is 20 GB, L squared times two bytes. The keys and values for the same head are 51.2 MB, four times L times d bytes, a sliver beside the matrix. The ratio between them is 390 to 1.",
+   "anchor": "backward-pass-recomputation-and-linear-footprint",
+   "kind": "bars",
+   "data": {
+    "bars": [
+     {
+      "label": "score matrix, one head",
+      "value": 20000,
+      "display": "20 GB, L^2 x 2 bytes",
+      "accent": true
+     },
+     {
+      "label": "keys and values, one head",
+      "value": 51.2,
+      "display": "51.2 MB, 4Ld bytes"
+     }
+    ],
+    "note": "The 20 GB bar is L^2 x 2 bytes; 51.2 MB is 4Ld. At 262,144 positions the keys and values for one head are 262,144 × 128 × 2 × 2 = 134.2 MB, while a stored score matrix would be 262,144 × 262,144 × 2 = 137.4 GB, nearly seven times the 20 GB at L = 100,000."
+   }
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://arxiv.org/abs/2205.14135",
+   "note": "Dao et al., FlashAttention: tiling, online softmax, and the IO-aware analysis."
+  },
+  {
+   "url": "https://arxiv.org/abs/2307.08691",
+   "note": "Dao, FlashAttention-2: work partitioning across warps and the 128 x 128 tile schedule."
+  }
+ ]
 }

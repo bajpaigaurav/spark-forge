@@ -5,8 +5,8 @@
     {
       "id": "request-lifecycle-instruments",
       "title": "One request seen by three instruments",
-      "caption": "The client wall clock starts before the request reaches the engine and ends after detokenization, so it includes tokenization, admission, queueing, prefill, decode and client overhead. The engine's counters split the same request into 3.33 s of prefill and 8.38 s of decode, and TTFT is 3.46 s, 0.13 s above prefill. The three numbers add to nearly twelve seconds, which is why the wall clock says nearly twelve seconds while no single counter explains why.",
-      "alt": "Five lanes across six steps: arrival, queue, prefill, first token, decode and last token. The wall clock lane runs from zero to nearly twelve seconds. The counters lane carries prefill at 3.33 seconds, TTFT at 3.46 seconds and decode at 8.38 seconds. The logs lane marks the request start, first token and request end. The tokens lane carries the prompt tokens, one emitted token, then 607 generated. The gap lane marks 0.13 seconds at the first-token step.",
+      "caption": "The client wall clock starts before the request reaches the engine and ends after detokenization, so it includes tokenization, admission, queueing, prefill, decode and client overhead. The engine's counters split the same request into 8 s of prefill and 2 s of decode, and time to first token is 8.2 s, a fifth of a second above prefill. The counters sum to ten seconds while the wall clock says eleven, and the missing second is where queueing, tokenization, detokenization and client overhead live.",
+      "alt": "Five lanes across six steps: arrival, queue, prefill, first token, decode and last token. The wall clock lane runs from zero to eleven seconds. The counters lane carries prefill at 8 seconds, time to first token at 8.2 seconds and decode at 2 seconds. The logs lane marks the request start, first token and request end. The tokens lane carries the prompt tokens, one emitted token, then the generated tokens. The gap lane marks 0.2 seconds at the first-token step.",
       "anchor": "three-instruments-three-different-answers",
       "kind": "timeline",
       "data": {
@@ -31,7 +31,7 @@
               null,
               null,
               {
-                "label": "≈12 s",
+                "label": "≈11 s",
                 "kind": "new"
               }
             ]
@@ -42,15 +42,15 @@
               null,
               null,
               {
-                "label": "prefill 3.33 s",
+                "label": "prefill 8 s",
                 "kind": "solid"
               },
               {
-                "label": "TTFT 3.46 s",
+                "label": "TTFT 8.2 s",
                 "kind": "solid"
               },
               {
-                "label": "decode 8.38 s",
+                "label": "decode 2 s",
                 "kind": "solid"
               },
               null
@@ -90,7 +90,7 @@
                 "kind": "solid"
               },
               {
-                "label": "607",
+                "label": "generated",
                 "kind": "solid"
               },
               null
@@ -103,7 +103,7 @@
               null,
               null,
               {
-                "label": "0.13 s",
+                "label": "0.2 s",
                 "kind": "new"
               },
               null,
@@ -111,7 +111,7 @@
             ]
           }
         ],
-        "note": "3.33 + 8.38 + 0.13 s is nearly twelve seconds. The 0.13 s is the sum of queueing, cache lookup and the first decode step; the metrics do not break it down further. The wall clock also includes tokenization, admission, detokenization and the client's own overhead, which no counter separates. This is the mean request from the 98-request window, not a single trace.",
+        "note": "8 + 2 + 0.2 s is ten seconds; the wall clock says eleven. The 0.2 s is the sum of queueing, cache lookup and the first decode step, which the counters do not break down further. The remaining second is tokenization, admission, detokenization and the client's own overhead, which no counter separates. The illustration is schematic: the counters report means over a window, not one trace.",
         "parts": {
           "steps": [
             "arrival",
@@ -190,7 +190,7 @@
             ]
           },
           {
-            "label": "Prefill runs 3.33 s; no text is emitted.",
+            "label": "Prefill runs 8 s; no text is emitted.",
             "highlight": [
               "prefill"
             ]
@@ -202,7 +202,7 @@
             ]
           },
           {
-            "label": "Decode emits 607 tokens over 8.38 s.",
+            "label": "Decode emits the reply tokens over 2 s.",
             "highlight": [
               "decode"
             ]
@@ -219,31 +219,31 @@
     {
       "id": "same-unit-different-quantity",
       "title": "Three tokens-per-second numbers that are not the same quantity",
-      "caption": "All three bars carry the unit tokens/s and none of them measures the same thing. Wall clock divides 1,600 tokens by 27.1 s of total request time and gets 59.1, but that total includes the prefill of each prompt. The counters divide 607 generated tokens by 8.38 s of decode alone and get 72.4. The concurrency-four run sums four streams and gets 106.2, a 1.80× multiplier. Quoting one without saying which is the error.",
-      "alt": "Three horizontal bars in tokens per second. The wall-clock figure is 59.1 from 1,600 tokens over 27.1 seconds. The counter-derived figure is 72.4 from 607 tokens over 8.38 seconds. The concurrency-four aggregate is 106.2. The first includes prefill, the second is decode only, and the third sums four streams.",
+      "caption": "All three bars carry the unit tokens/s and none of them measures the same thing. Counter-derived decode divides generated tokens by decode seconds and approaches the batch-one ceiling, 3,350 ÷ 35 = 95.7 for a 70B model at four bits on a 3,350 GB/s card. End-to-end throughput divides every token in the request, prompt included, by the total request seconds, so it averages prefill in and reports less: two thirds of the ceiling is 2/3 × 95.7 = 63.8. Aggregate throughput at concurrency four reads the weights once for four rows, so it is 4 × 3,350 ÷ 35 = 383, and each stream still sees a quarter of it. Quoting one without saying which is the error.",
+      "alt": "Three bars in tokens per second. Counter-derived decode at batch one is 95.7, the memory-bound ceiling for a 70B model at four bits on a 3,350 GB/s card. End-to-end throughput is 63.8, two thirds of the ceiling, because prompt tokens and queueing are inside its denominator. Aggregate throughput at concurrency four is 383, four times the ceiling, and each stream receives a quarter of that.",
       "anchor": "units-averages-and-what-the-mean-hides",
       "kind": "bars",
       "data": {
         "bars": [
           {
-            "label": "wall clock: 1,600 ÷ 27.1 s",
-            "value": 59.1,
-            "display": "59.1 tok/s"
+            "label": "counter-derived decode, batch 1",
+            "value": 95.7,
+            "display": "95.7 tok/s"
           },
           {
-            "label": "counters: 607 ÷ 8.38 s",
-            "value": 72.4,
-            "display": "72.4 tok/s",
+            "label": "end-to-end, prompt included",
+            "value": 63.8,
+            "display": "63.8 tok/s"
+          },
+          {
+            "label": "aggregate, concurrency 4",
+            "value": 383,
+            "display": "383 tok/s",
             "accent": true
-          },
-          {
-            "label": "aggregate at concurrency 4",
-            "value": 106.2,
-            "display": "106.2 tok/s"
           }
         ],
-        "group": "same unit, different quantity",
-        "note": "The prefix cache contaminates prefill the same way. prompt_tokens_total is 12,804,579 and total prefill time is 326.34 s, so the apparent rate is 39,237 tok/s. But 95.9% of those tokens were served from cache; only 518,627 were computed, and 518,627 ÷ 326.34 = 1,589 tok/s. The cold-cache prefill is about 24.7× the warm-cache prefill. Percentiles are no better: the p99 rank is ceil(0.99 × 98) = 98 of 98, which is the maximum."
+        "group": "one card, three denominators",
+        "note": "The same run reports three rates because the denominator changes. Decode-only counts generated tokens over decode seconds; end-to-end counts every token over wall clock; aggregate counts the sum of streams over the same wall clock. The third bar is the short-context case, where the cache term is small. Add the cache and it shrinks: at a 100,000-token context one stream holds 100,000 × 327,680 = 32,768,000,000 bytes, four streams hold 131.07 GB, and 4 × 3,350 ÷ (35 + 131.07) = 80.7, below the batch-one ceiling."
       }
     }
   ],

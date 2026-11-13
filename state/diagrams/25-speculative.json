@@ -219,7 +219,7 @@
           }
         ],
         "group": "speedup over target decode, k = 4",
-        "note": "The engine's counters report 67.6% acceptance: 42,181 accepted out of 62,390 drafted, from mtp_accepted_total / mtp_drafted_total. That is an operational rate over mixed traffic, not a controlled α: the counters do not record k, temperature, top-p, dataset or per-request breakdown, so it cannot be dropped into the formula above without matching settings. A faster drafter accepted less often can lose ground, as the middle bar shows."
+        "note": "Each bar is the formula in the chapter: E = (1 − α^{k+1}) / (1 − α) over the round time k t_d + t_v, at k = 4. The first two bars differ only in α and t_d, so a drafter accepted less often can still lose ground even when it is cheaper. The third bar falls below 1.0 because verification costs more than the round saves."
       }
     }
   ],

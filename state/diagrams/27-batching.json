@@ -1,393 +1,392 @@
 {
-  "needed": true,
-  "spine": "serving",
-  "figures": [
-    {
-      "id": "static-versus-continuous-batch",
-      "title": "Static rows hold dead weight; continuous rows refill",
-      "caption": "Static batching runs until the slowest sequence finishes. A request that stops after 607 tokens leaves its neighbours' finished rows in the batch, still read on every step, emitting nothing, so the batch runs at the speed of its slowest member. Continuous batching rebuilds the batch at every decode step: finished sequences retire, their slots refill, and the batch dimension changes. The figure uses six decode steps, one long request of 607 tokens and two short neighbours; the step count is illustrative, the 607-token request is the chapter's mean generation.",
-      "alt": "Seven lanes across six decode steps. Static R1 decodes through step five and finishes at step six. Static R2 and R3 finish at step one, but their rows stay as dashed idle cells for the remaining steps. Continuous R1 decodes through step five and finishes at step six. Continuous R2 and R3 finish at step one and their slots are freed, shown as empty cells. Continuous R4 is admitted at step two and decodes to the end. Continuous lanes never show idle rows.",
-      "anchor": "iteration-level-scheduling-and-selective-batching",
-      "kind": "timeline",
-      "data": {
-        "steps": [
-          "step 1",
-          "step 2",
-          "step 3",
-          "step 4",
-          "step 5",
-          "step 6"
-        ],
-        "lanes": [
-          {
-            "name": "static R1",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              }
-            ]
-          },
-          {
-            "name": "static R2",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              }
-            ]
-          },
-          {
-            "name": "static R3",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              },
-              {
-                "label": "idle row",
-                "kind": "waste"
-              }
-            ]
-          },
-          {
-            "name": "cont. R1",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              }
-            ]
-          },
-          {
-            "name": "cont. R2",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              },
-              null,
-              null,
-              null,
-              null
-            ]
-          },
-          {
-            "name": "cont. R3",
-            "cells": [
-              {
-                "label": "decode",
-                "kind": "solid"
-              },
-              {
-                "label": "done",
-                "kind": "solid"
-              },
-              null,
-              null,
-              null,
-              null
-            ]
-          },
-          {
-            "name": "cont. R4",
-            "cells": [
-              null,
-              {
-                "label": "admitted",
-                "kind": "new"
-              },
-              {
-                "label": "decode",
-                "kind": "new"
-              },
-              {
-                "label": "decode",
-                "kind": "new"
-              },
-              {
-                "label": "decode",
-                "kind": "new"
-              },
-              {
-                "label": "decode",
-                "kind": "new"
-              }
-            ]
-          }
-        ],
-        "note": "Padding wastes prefill too: a batch whose longest prompt is 130,659 tokens forces every shorter prompt out to that length, and the layers chew through the padding as text. Continuous batching keeps the linear projections batched but segments attention per sequence with a block-diagonal mask, so finished sequences cost nothing. At concurrency 1 a step takes 16.9 ms; at concurrency 4 it takes 37.7 ms and emits four tokens.",
-        "parts": {
-          "lanes": [
-            "static-batch",
-            "static-batch",
-            "static-batch",
-            "continuous-batch",
-            "continuous-batch",
-            "continuous-batch",
-            "continuous-batch"
-          ],
-          "cells": [
-            [
-              "static-batch",
-              "static-batch",
-              "static-batch",
-              "static-batch",
-              "static-batch",
-              "retire static-batch"
-            ],
-            [
-              "static-batch",
-              "retire static-batch",
-              "waste static-batch",
-              "waste static-batch",
-              "waste static-batch",
-              "waste static-batch"
-            ],
-            [
-              "static-batch",
-              "retire static-batch",
-              "waste static-batch",
-              "waste static-batch",
-              "waste static-batch",
-              "waste static-batch"
-            ],
-            [
-              "continuous-batch",
-              "continuous-batch",
-              "continuous-batch",
-              "continuous-batch",
-              "continuous-batch",
-              "retire continuous-batch"
-            ],
-            [
-              "continuous-batch",
-              "retire continuous-batch",
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              "continuous-batch",
-              "retire continuous-batch",
-              null,
-              null,
-              null,
-              null
-            ],
-            [
-              null,
-              "admit continuous-batch",
-              "continuous-batch",
-              "continuous-batch",
-              "continuous-batch",
-              "continuous-batch"
-            ]
-          ]
-        }
-      },
-      "anim": {
-        "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to compare the two schedules step by step.",
-        "steps": [
-          {
-            "label": "Step 1: three requests are resident; both schedules look the same.",
-            "highlight": [
-              "static-batch",
-              "continuous-batch"
-            ]
-          },
-          {
-            "label": "Step 2: R2 and R3 finish. Static keeps their rows; continuous frees their slots.",
-            "highlight": [
-              "waste",
-              "retire"
-            ]
-          },
-          {
-            "label": "Step 3: continuous admits R4 into a freed slot; static has only one live row.",
-            "highlight": [
-              "admit"
-            ]
-          },
-          {
-            "label": "Steps 4 and 5: static still reads two dead rows every step.",
-            "highlight": [
-              "waste"
-            ]
-          },
-          {
-            "label": "Step 6: R1 finishes. The static batch retires as a whole; continuous has already been full.",
-            "highlight": [
-              "retire"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "pool-admission-split",
-      "title": "Each stream's share: 32,768 + 16 + 2 reserved, 32,750 usable",
-      "caption": "The 262,144-position KV pool split across four streams gives each 65,536 positions. Admission reserves the 32,768-token reply budget, rounds the batch width up to the 16-row kernel granularity and adds 2 slack positions: 32,768 + 16 + 2. That leaves 65,536 − (32,768 + 16 + 2) = 32,750 positions as the prompt ceiling a request sees. The reservation is a worst-case rule, and the measured traffic averages 607 generated tokens against a 32,768-token reservation.",
-      "alt": "A horizontal bar of 262,144 positions divided into four equal shares of 65,536. Each share is split into a reserved span of 32,768 reply-budget positions, 16 round rows and 2 slack positions, and an open span of 32,750 positions for the prompt ceiling. The two spans alternate across the bar, so the reserved and usable halves of each stream are visible side by side.",
-      "anchor": "the-scheduler-s-phases-and-admission-arithmetic",
-      "kind": "memory",
-      "data": {
-        "total": 262144,
-        "spans": [
-          {
-            "from": 0,
-            "to": 32786,
-            "label": "32,768 + 16 + 2",
-            "kind": "reserved"
-          },
-          {
-            "from": 32786,
-            "to": 65536,
-            "label": "32,750",
-            "kind": "used"
-          },
-          {
-            "from": 65536,
-            "to": 98322,
-            "label": "32,768 + 16 + 2",
-            "kind": "reserved"
-          },
-          {
-            "from": 98322,
-            "to": 131072,
-            "label": "32,750",
-            "kind": "used"
-          },
-          {
-            "from": 131072,
-            "to": 163858,
-            "label": "32,768 + 16 + 2",
-            "kind": "reserved"
-          },
-          {
-            "from": 163858,
-            "to": 196608,
-            "label": "32,750",
-            "kind": "used"
-          },
-          {
-            "from": 196608,
-            "to": 229394,
-            "label": "32,768 + 16 + 2",
-            "kind": "reserved"
-          },
-          {
-            "from": 229394,
-            "to": 262144,
-            "label": "32,750",
-            "kind": "used"
-          }
-        ],
-        "axis": [
-          {
-            "at": 0,
-            "label": "0"
-          },
-          {
-            "at": 262144,
-            "label": "262,144"
-          }
-        ],
-        "note": "262,144 ÷ 4 = 65,536; 65,536 − 32,768 − 16 − 2 = 32,750. Idle slots do not hold their reservation, which is why a single 130,659-token prompt fits. At the native 1,048,576 window the pool is 262,144 per rank, and 1,048,576 ÷ 16 = 65,536, minus 32,768, minus 16, minus 2 = 32,750 again."
-      }
+ "needed": true,
+ "spine": "serving",
+ "figures": [
+  {
+   "id": "static-versus-continuous-batch",
+   "title": "Static rows hold dead weight; continuous rows refill",
+   "caption": "Static batching runs until the slowest sequence finishes. A request that stops after 200 tokens leaves its neighbours' finished rows in the batch, still read on every step, emitting nothing, so the batch runs at the speed of its slowest member. Continuous batching rebuilds the batch at every decode step: finished sequences retire, their slots refill, and the batch dimension changes. The figure uses six decode steps, one long request and two short neighbours; the step count is illustrative.",
+   "alt": "Seven lanes across six decode steps. Static R1 decodes through step five and finishes at step six. Static R2 and R3 finish at step one, but their rows stay as dashed idle cells for the remaining steps. Continuous R1 decodes through step five and finishes at step six. Continuous R2 and R3 finish at step one and their slots are freed, shown as empty cells. Continuous R4 is admitted at step two and decodes to the end. Continuous lanes never show idle rows.",
+   "anchor": "iteration-level-scheduling-and-selective-batching",
+   "kind": "timeline",
+   "data": {
+    "steps": [
+     "step 1",
+     "step 2",
+     "step 3",
+     "step 4",
+     "step 5",
+     "step 6"
+    ],
+    "lanes": [
+     {
+      "name": "static R1",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       }
+      ]
+     },
+     {
+      "name": "static R2",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       }
+      ]
+     },
+     {
+      "name": "static R3",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       },
+       {
+        "label": "idle row",
+        "kind": "waste"
+       }
+      ]
+     },
+     {
+      "name": "cont. R1",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       }
+      ]
+     },
+     {
+      "name": "cont. R2",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       },
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "name": "cont. R3",
+      "cells": [
+       {
+        "label": "decode",
+        "kind": "solid"
+       },
+       {
+        "label": "done",
+        "kind": "solid"
+       },
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "name": "cont. R4",
+      "cells": [
+       null,
+       {
+        "label": "admitted",
+        "kind": "new"
+       },
+       {
+        "label": "decode",
+        "kind": "new"
+       },
+       {
+        "label": "decode",
+        "kind": "new"
+       },
+       {
+        "label": "decode",
+        "kind": "new"
+       },
+       {
+        "label": "decode",
+        "kind": "new"
+       }
+      ]
+     }
+    ],
+    "note": "Padding wastes prefill too: a batch whose longest prompt is 100,000 tokens forces every shorter prompt out to that length, and the layers chew through the padding as text. Continuous batching keeps the linear projections batched but segments attention per sequence with a block-diagonal mask, so finished sequences cost nothing. A decode step at batch one reads one cache; at batch four it reads four caches plus the same weight read.",
+    "parts": {
+     "lanes": [
+      "static-batch",
+      "static-batch",
+      "static-batch",
+      "continuous-batch",
+      "continuous-batch",
+      "continuous-batch",
+      "continuous-batch"
+     ],
+     "cells": [
+      [
+       "static-batch",
+       "static-batch",
+       "static-batch",
+       "static-batch",
+       "static-batch",
+       "retire static-batch"
+      ],
+      [
+       "static-batch",
+       "retire static-batch",
+       "waste static-batch",
+       "waste static-batch",
+       "waste static-batch",
+       "waste static-batch"
+      ],
+      [
+       "static-batch",
+       "retire static-batch",
+       "waste static-batch",
+       "waste static-batch",
+       "waste static-batch",
+       "waste static-batch"
+      ],
+      [
+       "continuous-batch",
+       "continuous-batch",
+       "continuous-batch",
+       "continuous-batch",
+       "continuous-batch",
+       "retire continuous-batch"
+      ],
+      [
+       "continuous-batch",
+       "retire continuous-batch",
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "continuous-batch",
+       "retire continuous-batch",
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       null,
+       "admit continuous-batch",
+       "continuous-batch",
+       "continuous-batch",
+       "continuous-batch",
+       "continuous-batch"
+      ]
+     ]
     }
-  ],
-  "sources": [
-    {
-      "url": "https://www.usenix.org/conference/osdi22/presentation/yu",
-      "note": "Yu et al., Orca: A Distributed Serving System for Transformer-Based Generative Models (OSDI 2022): iteration-level scheduling and selective batching."
-    },
-    {
-      "url": "https://arxiv.org/abs/2309.06180",
-      "note": "Kwon et al., Efficient Memory Management for Large Language Model Serving with PagedAttention (2023): 16-token blocks and bounded fragmentation."
-    }
-  ]
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1400,
+    "intro": "Press Play or Next to compare the two schedules step by step.",
+    "steps": [
+     {
+      "label": "Step 1: three requests are resident; both schedules look the same.",
+      "highlight": [
+       "static-batch",
+       "continuous-batch"
+      ]
+     },
+     {
+      "label": "Step 2: R2 and R3 finish. Static keeps their rows; continuous frees their slots.",
+      "highlight": [
+       "retire"
+      ]
+     },
+     {
+      "label": "Step 3: continuous admits R4 into a freed slot; static has only one live row.",
+      "highlight": [
+       "admit"
+      ]
+     },
+     {
+      "label": "Steps 4 and 5: static still reads two dead rows every step.",
+      "highlight": [
+       "waste"
+      ]
+     },
+     {
+      "label": "Step 6: R1 finishes. The static batch retires as a whole; continuous has already been full.",
+      "highlight": [
+       "retire"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "pool-admission-split",
+   "title": "Each stream's share: 32,768 + 16 + 2 reserved, 32,750 usable",
+   "caption": "The 262,144-position KV pool split across four streams gives each 65,536 positions. Admission reserves the 32,768-token reply budget, rounds the batch width up to the 16-row kernel granularity and adds 2 slack positions: 32,768 + 16 + 2. That leaves 65,536 − (32,768 + 16 + 2) = 32,750 positions as the prompt ceiling a request sees. The reservation is a worst-case rule, and a typical request generates 200 tokens against a 32,768-token reservation.",
+   "alt": "A horizontal bar of 262,144 positions divided into four equal shares of 65,536. Each share is split into a reserved span of 32,768 reply-budget positions, 16 round rows and 2 slack positions, and an open span of 32,750 positions for the prompt ceiling. The two spans alternate across the bar, so the reserved and usable halves of each stream are visible side by side.",
+   "anchor": "the-scheduler-s-phases-and-admission-arithmetic",
+   "kind": "memory",
+   "data": {
+    "total": 262144,
+    "spans": [
+     {
+      "from": 0,
+      "to": 32786,
+      "label": "32,768 + 16 + 2",
+      "kind": "reserved"
+     },
+     {
+      "from": 32786,
+      "to": 65536,
+      "label": "32,750",
+      "kind": "used"
+     },
+     {
+      "from": 65536,
+      "to": 98322,
+      "label": "32,768 + 16 + 2",
+      "kind": "reserved"
+     },
+     {
+      "from": 98322,
+      "to": 131072,
+      "label": "32,750",
+      "kind": "used"
+     },
+     {
+      "from": 131072,
+      "to": 163858,
+      "label": "32,768 + 16 + 2",
+      "kind": "reserved"
+     },
+     {
+      "from": 163858,
+      "to": 196608,
+      "label": "32,750",
+      "kind": "used"
+     },
+     {
+      "from": 196608,
+      "to": 229394,
+      "label": "32,768 + 16 + 2",
+      "kind": "reserved"
+     },
+     {
+      "from": 229394,
+      "to": 262144,
+      "label": "32,750",
+      "kind": "used"
+     }
+    ],
+    "axis": [
+     {
+      "at": 0,
+      "label": "0"
+     },
+     {
+      "at": 262144,
+      "label": "262,144"
+     }
+    ],
+    "note": "262,144 ÷ 4 = 65,536; 65,536 − 32,768 − 16 − 2 = 32,750. A stream that owns the whole pool gets 1,048,576 ÷ 4 = 262,144, minus 32,768, minus 16, minus 2 = 229,358 positions."
+   }
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.usenix.org/conference/osdi22/presentation/yu",
+   "note": "Yu et al., Orca: A Distributed Serving System for Transformer-Based Generative Models (OSDI 2022): iteration-level scheduling and selective batching."
+  },
+  {
+   "url": "https://arxiv.org/abs/2309.06180",
+   "note": "Kwon et al., Efficient Memory Management for Large Language Model Serving with PagedAttention (2023): 16-token blocks and bounded fragmentation."
+  }
+ ]
 }

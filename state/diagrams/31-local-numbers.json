@@ -3,274 +3,153 @@
   "spine": "measurement",
   "figures": [
     {
-      "id": "memguard-kill-restart-loop",
-      "title": "The memguard loop: floor, SIGKILL, reload, retry",
-      "caption": "Unified memory makes the footprint one shared number: 111.5 GB across the pair, roughly 55.8 GB per rank, and no separate VRAM to spill into. memguard.sh polls MemAvailable; below 2.5 GiB it sends SIGKILL, which cannot be caught, so the rank does not flush caches or close sockets. The kernel closes the sockets, in-flight requests get a connection reset, the launcher restarts the rank, and the shard reloads from disk before the client's retry can succeed.",
-      "alt": "Five lanes across six steps. The footprint lane starts at 111.5 GB, grows with the KV pool, then reloads a 55.8 GB shard after the kill. The MemAvailable lane starts above 2.5 GiB, falls, is sampled, crosses below the floor and recovers. The memguard lane reads a timer, decides, and sends SIGKILL. The rank lane serves, allocates, dies and restarts. The client lane sees a connection reset and retries.",
-      "anchor": "the-shared-memory-budget-and-the-memguard-kill-switch",
-      "kind": "timeline",
+      "id": "tensor-parallel-split",
+      "title": "Two ranks, 17.5 GB each, 64 all-reduces per forward pass",
+      "caption": "Tensor parallelism splits every weight matrix rather than splitting the layer stack, so each rank holds 35 GB ÷ 2 = 17.5 GB and reads only its own half per decode step. Each transformer layer crosses the split twice, after the attention output projection and after the MLP down-projection, so 32 layers need 2 × 32 = 64 all-reduces per forward pass. The residual stream stays local to each rank; only the partial activation crosses the cable.",
+      "alt": "A five-stage lane. Stage one is the 17.5 GB weight shard held by each rank. Stage two is a transformer block on one rank. Stage three is an all-reduce across the cable. Stage four is the next block. Stage five produces logits. A bypass lane labelled residual stream runs above every stage, showing that the residual connection never leaves the rank.",
+      "anchor": "splitting-the-model-across-the-pair",
+      "kind": "lane",
       "data": {
-        "steps": [
-          "steady state",
-          "KV grows",
-          "sample MemAvailable",
-          "below floor",
-          "SIGKILL",
-          "restart"
+        "stages": [
+          "weight shard",
+          "transformer block",
+          "all-reduce",
+          "next block",
+          "logits"
         ],
-        "lanes": [
-          {
-            "name": "footprint",
-            "cells": [
-              {
-                "label": "111.5 GB",
-                "kind": "solid"
-              },
-              {
-                "label": "+ KV pool",
-                "kind": "solid"
-              },
-              null,
-              null,
-              null,
-              {
-                "label": "reload 55.8 GB shard",
-                "kind": "new"
-              }
-            ]
-          },
-          {
-            "name": "MemAvailable",
-            "cells": [
-              {
-                "label": "above 2.5 GiB",
-                "kind": "solid"
-              },
-              {
-                "label": "falling",
-                "kind": "solid"
-              },
-              {
-                "label": "sampled",
-                "kind": "solid"
-              },
-              {
-                "label": "< 2.5 GiB",
-                "kind": "new"
-              },
-              null,
-              {
-                "label": "recovers",
-                "kind": "solid"
-              }
-            ]
-          },
-          {
-            "name": "memguard.sh",
-            "cells": [
-              null,
-              null,
-              {
-                "label": "timer",
-                "kind": "solid"
-              },
-              {
-                "label": "decides",
-                "kind": "solid"
-              },
-              {
-                "label": "SIGKILL",
-                "kind": "new"
-              },
-              null
-            ]
-          },
-          {
-            "name": "rank",
-            "cells": [
-              {
-                "label": "serving",
-                "kind": "solid"
-              },
-              {
-                "label": "allocating",
-                "kind": "solid"
-              },
-              null,
-              null,
-              {
-                "label": "dies",
-                "kind": "waste"
-              },
-              {
-                "label": "restarts",
-                "kind": "new"
-              }
-            ]
-          },
-          {
-            "name": "client",
-            "cells": [
-              null,
-              null,
-              null,
-              null,
-              {
-                "label": "connection reset",
-                "kind": "waste"
-              },
-              {
-                "label": "retries",
-                "kind": "new"
-              }
-            ]
-          }
+        "sizes": [
+          "17.5 GB per rank",
+          "attention, then MLP",
+          "bf16 activations",
+          "repeat 32 times",
+          "vocabulary row"
         ],
-        "note": "The engine's device_memory_bytes gauge reads 111,515,771,428 bytes, about 55.8 GB per rank, covering weights, caches and live streams. The KV pool is 262,144 positions at 921.6 bytes per position, so the pool is not what crosses the floor; growth in live streams and the page cache is. SIGKILL is the point: a graceful stop would let the rank release the pool, and the floor exists to keep the host from thrashing before that can happen.",
+        "bypass": "residual stream, rank-local",
+        "note": "The split is by matrix, not by layer, so each rank reads 17.5 GB per decode step rather than 35 GB. What the split buys is capacity; what it costs is 2 × 32 = 64 collectives per forward pass, each of which blocks both ranks until the partial sums land. At decode the batch is small and the payload is small, so the cost is latency. At prefill the payload grows with the prompt and the collective becomes a bandwidth problem of its own.",
         "parts": {
-          "steps": [
-            "footprint",
-            "kv",
-            "memguard",
-            "floor",
-            "kill",
-            "restart"
+          "stages": [
+            "shard",
+            "block",
+            "collective",
+            "next",
+            "logits"
           ],
-          "lanes": [
-            "footprint",
-            "floor",
-            "memguard",
-            "kill",
-            "restart"
-          ],
-          "cells": [
-            [
-              "footprint",
-              "kv",
-              null,
-              null,
-              null,
-              "restart"
-            ],
-            [
-              "floor",
-              "kv",
-              "memguard",
-              "floor",
-              null,
-              "restart"
-            ],
-            [
-              null,
-              null,
-              "memguard",
-              "floor",
-              "kill",
-              null
-            ],
-            [
-              "footprint",
-              "kv",
-              null,
-              null,
-              "kill",
-              "restart"
-            ],
-            [
-              null,
-              null,
-              null,
-              null,
-              "kill",
-              "restart"
-            ]
-          ]
+          "bypass": "residual",
+          "note": "note"
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to run the kill-and-restart loop.",
+        "interval": 1500,
+        "intro": "Press Play or Next to walk one forward pass across the pair.",
         "steps": [
           {
-            "label": "Steady state: the pair's footprint is 111.5 GB, about 55.8 GB per rank.",
+            "label": "Each rank holds half of every weight matrix: 35 GB ÷ 2 = 17.5 GB.",
             "highlight": [
-              "footprint"
+              "shard"
             ]
           },
           {
-            "label": "The KV pool grows as streams hold context.",
+            "label": "One rank runs the attention half of the block on its own shard.",
             "highlight": [
-              "kv"
+              "block"
             ]
           },
           {
-            "label": "memguard.sh reads MemAvailable on a timer.",
+            "label": "The partial activations are summed across the cable by an all-reduce.",
             "highlight": [
-              "memguard"
+              "collective"
             ]
           },
           {
-            "label": "MemAvailable crosses below 2.5 GiB.",
+            "label": "The next block repeats the same two boundaries, 2 × 32 = 64 collectives per forward pass.",
             "highlight": [
-              "floor"
+              "next"
             ]
           },
           {
-            "label": "SIGKILL: the rank cannot catch it or flush its caches.",
+            "label": "The last block emits logits from the sharded output projection.",
             "highlight": [
-              "kill"
+              "logits"
             ]
           },
           {
-            "label": "The launcher restarts the rank, reloads the shard, and the client retries.",
+            "label": "The residual stream never crosses the cable; each rank keeps its own copy.",
             "highlight": [
-              "restart"
+              "residual"
             ]
           }
         ]
       }
     },
     {
-      "id": "concurrency-scaling-measured",
-      "title": "Four streams: 1.80× aggregate, 45% of the linear ceiling",
-      "caption": "Measured decode on the pair: one stream 59.1 tok/s, four streams 106.2 tok/s aggregate, a 1.80× multiplier, and 26.55 tok/s per stream. The linear prediction is 4 × 59.1 = 236.4 tok/s; the measured aggregate reaches 45% of it, so batching is sublinear. The per-stream rate is also 45% of the single-stream rate, which is the same shortfall seen from the other side.",
-      "alt": "Four horizontal bars in tokens per second. One stream is 59.1. Per stream at four streams is 26.55. Aggregate at four streams is 106.2, marked 1.80 times. The linear prediction of four times 59.1 is 236.4. The aggregate bar is less than half the linear bar.",
-      "anchor": "decode-throughput-and-concurrency-scaling",
+      "id": "pair-roof-vs-single-card",
+      "title": "The pair's aggregate roof is 31.2 tokens per second against 95.7 on one H100",
+      "caption": "Bandwidth sets the roof. One rank reads 17.5 GB per step at 273 GB/s, so its ceiling is 273 ÷ 17.5 = 15.6 tokens per second, and two ranks together give 2 × 15.6 = 31.2. A single H100 reads 35 GB at 3,350 GB/s for 3,350 ÷ 35 = 95.7 tokens per second, which is 95.7 ÷ 31.2 = 3.07 times the pair's aggregate. The pair's figure is an upper bound: it assumes the 64 collectives per forward pass are free.",
+      "alt": "Three horizontal bars in tokens per second. One rank at 15.6. The pair's aggregate at 31.2, marked as the accent bar. One H100 at 95.7, roughly three times the pair.",
+      "anchor": "what-the-pair-s-roof-looks-like",
       "kind": "bars",
       "data": {
         "bars": [
           {
-            "label": "single stream",
-            "value": 59.1,
-            "display": "59.1 tok/s"
+            "label": "one rank, 17.5 GB at 273 GB/s",
+            "value": 15.6,
+            "display": "15.6 tok/s"
           },
           {
-            "label": "per stream, 4 streams",
-            "value": 26.55,
-            "display": "26.55 tok/s"
-          },
-          {
-            "label": "aggregate, 4 streams",
-            "value": 106.2,
-            "display": "106.2 tok/s (1.80×)",
+            "label": "pair aggregate, 2 ranks",
+            "value": 31.2,
+            "display": "31.2 tok/s",
             "accent": true
           },
           {
-            "label": "linear prediction, 4 × 59.1",
-            "value": 236.4,
-            "display": "236.4 tok/s"
+            "label": "one H100, 35 GB at 3,350 GB/s",
+            "value": 95.7,
+            "display": "95.7 tok/s"
           }
         ],
-        "group": "decode throughput, same four prompts",
-        "note": "The shortfall has several candidate causes and the run does not separate them: the bandwidth ceiling N·B/(W+K), the 16-row decode kernel (ROUND_ROWS=16), the SM clock observed at 2,197 MHz against a 3,003 MHz silicon maximum, and the 120,000 ms cumulative pair stall. A roofline calculation can test bandwidth; the rest needs profiling or controlled experiments."
+        "group": "batch-one decode roof, bytes over bandwidth",
+        "note": "Every bar is weights divided by bandwidth: 273 ÷ 17.5 = 15.6, 2 × 15.6 = 31.2, and 3,350 ÷ 35 = 95.7. None of the three is a measurement. The pair's bar ignores the collectives, the KV cache re-read per stream, and the fraction of peak bandwidth a real kernel reaches, so the achievable rate sits below 31.2.",
+        "parts": {
+          "bars": [
+            "rank",
+            "pair",
+            "h100"
+          ],
+          "note": "note"
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to build the roof from bandwidth and weights.",
+        "steps": [
+          {
+            "label": "One rank reads its 17.5 GB shard at 273 GB/s: 273 ÷ 17.5 = 15.6 tokens per second.",
+            "highlight": [
+              "rank"
+            ]
+          },
+          {
+            "label": "Two ranks each produce tokens, so the aggregate roof is 2 × 15.6 = 31.2.",
+            "highlight": [
+              "pair"
+            ]
+          },
+          {
+            "label": "One H100 reads all 35 GB at 3,350 GB/s: 3,350 ÷ 35 = 95.7, which is 95.7 ÷ 31.2 = 3.07 times the pair.",
+            "highlight": [
+              "h100"
+            ]
+          }
+        ]
       }
     }
   ],
   "sources": [
     {
       "url": "https://docs.nvidia.com/dgx/dgx-spark/hardware.html",
-      "note": "NVIDIA DGX Spark hardware guide: 273 GB/s LPDDR5X shared between CPU and GPU, and the GB10's 3,003 MHz maximum clock."
+      "note": "NVIDIA DGX Spark hardware guide: 273 GB/s LPDDR5X unified memory shared between CPU and GPU, in a 128 GB coherent pool per GB10 box. The chapter's 17.5, 15.6 and 31.2 figures are derived from this rate and from a 35 GB four-bit 70B model, not measured."
     }
   ]
 }

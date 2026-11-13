@@ -55,7 +55,7 @@
       "30-measurement",
       "31-local-numbers"
     ],
-    "why": "Skips 01-09 and every chapter from 11 to 25 except 12 and 13. You are not choosing a token; you are deciding how many requests fit. 10 is the memory budget, 12 and 13 are the two things you can actually deploy that change it, 26-28 are the scheduler and the sharding, and 29-31 tell you whether any of it can hit your latency target. 11 is cut because architecture choice is made before you arrive; 14 and 15 are cut because kernel selection does not change the cost model you are building here."
+    "why": "Skips 01-09 and every chapter from 11 to 25 except 12 and 13. You are not choosing a token; you are deciding how many requests fit. 10 is the memory budget, 12 and 13 are the two things you can actually deploy that change it, 26-28 are the scheduler and the sharding, and 29-31 tell you whether any of it can hit your latency target: 29 derives the roofline, 30 says how a number from it would have to be measured, and 31 works the same arithmetic on a two-machine pair. 11 is cut because architecture choice is made before you arrive; 14 and 15 are cut because kernel selection does not change the cost model you are building here."
   },
   {
     "id": "precision",
@@ -71,6 +71,6 @@
       "29-roofline",
       "31-local-numbers"
     ],
-    "why": "Skips 01-15, 17, 18 and 23-30. Precision is meaningless until you know where the parameters live, so it opens on 16 and 19 rather than on dtype tables. 10 is here because the cache, not the weights, is often what stops a model fitting. 29 and 31 close it with the bandwidth arithmetic and the measured result, so the claim that four bits is enough is checked against a real machine instead of asserted."
+    "why": "Skips 01-15, 17, 18 and 23-30. Precision is meaningless until you know where the parameters live, so it opens on 16 and 19 rather than on dtype tables. 10 is here because the cache, not the weights, is often what stops a model fitting. 29 and 31 close it with the bandwidth arithmetic and a two-machine case study built from the same arithmetic, so the claim that four bits is enough is checked by derivation rather than asserted."
   }
 ]

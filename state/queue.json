@@ -414,9 +414,9 @@
       "id": "31-local-numbers",
       "number": 31,
       "part": "VIII. Grounding it",
-      "title": "The same book, measured on two small machines",
-      "thesis": "Every concept in this book lands somewhere concrete, and here is where it lands on a two-machine desk setup.",
-      "cover": "The rig: two GB10 systems, a model split across them, a unified memory pool. Decode and prefill rates, cache hit rates, speculative acceptance, and the derived ceilings from the roofline chapter. Which numbers matched the prediction and which did not, and what the gaps imply. Why this is a case study rather than a benchmark: one workload, one configuration.",
+      "title": "Two small machines, by arithmetic",
+      "thesis": "The first thirty chapters are enough to predict what a pair of small machines can and cannot do, before anything is measured on one.",
+      "cover": "A case study with no measurements in it. Two GB10 boxes with 128 GB of shared LPDDR5X each at 273 GB/s, a 70B model at four bits split by tensor parallelism into 17.5 GB per rank, and 64 all-reduces per forward pass across the cable. The derived ceilings: 15.6 tokens per second per rank, 31.2 for the pair, against 95.7 for one H100, a ratio of 3.07. Where the arithmetic stops being enough, and what this setup can and cannot answer.",
       "status": "published",
       "runs": 2,
       "prereqs": [

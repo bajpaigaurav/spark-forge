@@ -5,7 +5,7 @@
     {
       "id": "sliding-window-mask",
       "title": "The sliding window keeps only the last W keys in each row",
-      "caption": "With W = 4, each query scores only the four most recent keys including itself; earlier keys are masked out of the softmax and never read. The band slides down one row per token, so the work per token is W rather than n. At n = 130,659 and W = 4,096 the windowed path computes 535,179,264 pairs against 8,535,952,470 for full causal attention, 16x fewer.",
+      "caption": "With W = 4, each query scores only the four most recent keys including itself; earlier keys are masked out of the softmax and never read. The band slides down one row per token, so the work per token is W rather than n. At n = 131,072 and W = 4,096 the windowed path computes 536,870,912 pairs against 8,589,869,056 for full causal attention, 16x fewer.",
       "alt": "A ten-by-ten mask grid. Row i has a 1 in columns i minus 3 through i and blank cells elsewhere, so the ones form a diagonal band that slides right as rows go down. The last row is highlighted and shows ones in columns 6 through 9. Blank cells are masked and never enter the softmax denominator.",
       "anchor": "the-quadratic-cost-of-full-attention",
       "kind": "matrix",
@@ -339,8 +339,8 @@
     {
       "id": "pattern-comparison",
       "title": "Three patterns and what each costs",
-      "caption": "Full causal attention computes 8,535,952,470 pairs at n = 130,659. A sliding window of 4,096 computes 535,179,264 pairs, 16x fewer, and after 32 layers reaches 131,041 positions. Dilation 2 covers 8,191 positions with the same 4,096 scores per query; a hybrid of 16 full and 16 local layers costs 51.6 percent of an all-full stack.",
-      "alt": "Three aligned panels. Full causal lists 8,535,952,470 pairs at n = 130,659, every query reading every earlier key, with cost growing as n squared. The sliding window with W = 4,096 lists 535,179,264 pairs, 16 times fewer, a receptive field of 131,041 after 32 layers, and a cache holding only the last W positions. Dilated and global lists dilation 2 covering 8,191 positions with 4,096 scores, global tokens attended by every token, and a 16-full-plus-16-local hybrid at 51.6 percent of full cost.",
+      "caption": "Full causal attention computes 8,589,869,056 pairs at n = 131,072. A sliding window of 4,096 computes 536,870,912 pairs, 16x fewer, and after 32 layers reaches 131,041 positions. Dilation 2 covers 8,191 positions with the same 4,096 scores per query; a hybrid of 16 full and 16 local layers costs 51.6 percent of an all-full stack.",
+      "alt": "Three aligned panels. Full causal lists 8,589,869,056 pairs at n = 131,072, every query reading every earlier key, with cost growing as n squared. The sliding window with W = 4,096 lists 536,870,912 pairs, 16 times fewer, a receptive field of 131,041 after 32 layers, and a cache holding only the last W positions. Dilated and global lists dilation 2 covering 8,191 positions with 4,096 scores, global tokens attended by every token, and a 16-full-plus-16-local hybrid at 51.6 percent of full cost.",
       "anchor": "local-dilated-and-global-sparse-patterns",
       "kind": "panels",
       "data": {
@@ -348,8 +348,8 @@
           {
             "title": "Full causal vs sliding window",
             "items": [
-              "full: 8,535,952,470 pairs at n = 130,659",
-              "window W = 4,096: 535,179,264 pairs, 16x fewer",
+              "full: 8,589,869,056 pairs at n = 131,072",
+              "window W = 4,096: 536,870,912 pairs, 16x fewer",
               "receptive field L(W-1)+1 = 131,041 after 32 layers"
             ],
             "note": "Full cost grows with n squared; the window costs W per token. The path back to position 1 is indirect, carried through 32 layers of averaging."
@@ -369,8 +369,8 @@
     {
       "id": "rolling-cache-savings",
       "title": "A rolling cache holds W positions, not the whole context",
-      "caption": "Mistral 7B's cache costs 128 KiB per token: 32 layers x 8 KV heads x 128 dimensions x 2 for K and V x 2 bytes. A 4,096-token window needs 512 MiB per stream, where holding 65,536 positions would need 8 GiB and the mean 130,659-token prompt 16 GiB. The last two bars are 128 KiB multiplied by the position count, not separately measured sizes.",
-      "alt": "Three horizontal bars of cache size per stream. The rolling window of 4,096 positions is 512 MiB. A full cache over one stream's 65,536-position share is 8 GiB. A full cache over the mean 130,659-token prompt is 16 GiB.",
+      "caption": "Mistral 7B's cache costs 128 KiB per token: 32 layers x 8 KV heads x 128 dimensions x 2 for K and V x 2 bytes. A 4,096-token window needs 512 MiB per stream, where holding 65,536 positions would need 8 GiB and a full 131,072-token prompt 16 GiB. The last two bars are 128 KiB multiplied by the position count, not separately measured sizes.",
+      "alt": "Three horizontal bars of cache size per stream. The rolling window of 4,096 positions is 512 MiB. A full cache over one stream's 65,536-position share is 8 GiB. A full cache over a 131,072-token prompt is 16 GiB.",
       "anchor": "rolling-kv-cache-and-position-ids",
       "kind": "bars",
       "data": {
@@ -386,9 +386,9 @@
             "display": "8 GiB = 65,536 x 128 KiB"
           },
           {
-            "label": "full, 130,659",
+            "label": "full, 131,072",
             "value": 16384,
-            "display": "16 GiB = 130,659 x 128 KiB",
+            "display": "16 GiB = 131,072 x 128 KiB",
             "accent": true
           }
         ],

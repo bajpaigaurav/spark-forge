@@ -4,7 +4,7 @@ A book about how a language model actually works, from the tokenizer to the samp
 and gated by an unattended loop and published as a hand-built site.
 
 Read it at **https://bajpaigaurav.github.io/spark-forge/** (GitHub Pages, served from
-`docs/`), or on the rig at `http://<spark-ip>:8081`.
+`docs/`).
 
 ## What it is
 
@@ -50,20 +50,21 @@ setup, weasel attribution, importance puffery. Plus an em-dash density ceiling.
 **`skills/fact_gate.py`** — separates two kinds of number, deliberately:
 
 - *Measurement claims* — anything with a thousands separator, or a unit (GB, tok/s, layers,
-  dimensions, bytes, percent). These must trace to `content/sources.json` (captured from the
-  live engine) or `skills/textbook.json` (published constants with their source). A
-  fabricated "111.5 GB" or "59.1 tok/s" cannot survive.
+  dimensions, bytes, percent). These must trace to `skills/textbook.json` (published constants
+  with their source) or be derived in the paragraph that uses them from inputs the chapter
+  already prints. A fabricated "111.5 GB" or "59.1 tok/s" cannot survive.
 - *Illustrative integers* — token ids, ranges like "30 or 40", counts in a worked example,
   bare decimals that are cosine similarities or probabilities. These are allowed, because
   the reader can check them from the numbers printed beside them.
 
 The split matters. A book about LLMs has to mention 4,096 dimensions and 128k vocabularies;
-a rig notebook has to mention 111.5 GB. Confusing the two makes a fact checker useless in
-one direction or the other.
+a claim about one machine has to mention a bandwidth and a weight size. Confusing the two
+makes a fact checker useless in one direction or the other.
 
-`skills/textbook.json` holds 109 published constants with provenance: paper years, model
-dimensions, vocabulary sizes, A100 and H100 bandwidths, quantization group sizes, and the
-derived arithmetic each chapter uses.
+`skills/textbook.json` holds 149 published constants with provenance: paper years, model
+dimensions, vocabulary sizes, A100 and H100 and GB10 bandwidths, quantization group sizes,
+and the derived arithmetic each chapter uses. `content/sources.json` holds no measurements:
+the book cites published figures only.
 
 ## The site
 
@@ -115,14 +116,10 @@ hermes cron pause  eb8ff5b0656a     # pause
 hermes cron resume eb8ff5b0656a     # resume
 ```
 
-Site server on the rig: `spark-forge-site.service` (systemd user unit, enabled, binds
-`0.0.0.0:8081`).
-
 GitHub Pages serves `docs/` from `main`, at `https://bajpaigaurav.github.io/spark-forge/`.
 `docs/` is a committed copy of the built site, refreshed by `./build_site.sh` (rebuild,
 verify, then copy `site/` into `docs/`). Commit `docs/` whenever the chapters change.
-The rig server and Pages do not interfere: `site/` is the working build directory and is
-gitignored.
+`site/` is the working build directory and is gitignored.
 
 ## Verification
 
@@ -135,10 +132,10 @@ python3 audit_design.py chapters/01-tokens.html       # computed-style audit via
 ### The fact gate has two jobs
 
 `skills/textbook.json` holds published constants (paper years, model dimensions,
-vocabulary sizes, hardware specs). `content/sources.json` holds measurements taken
-off this machine. A book about language models must cite 4096 dimensions; a rig
-notebook must cite 111.5 GB. Confusing the two makes the checker useless in one
-direction.
+vocabulary sizes, hardware specs). `content/sources.json` is reserved for a measurement
+a chapter reports first-hand, and it is empty: every figure in the book is published or
+derived. A book about language models must cite 4096 dimensions; a claim about one machine
+must cite a bandwidth. Confusing the two makes the checker useless in one direction.
 
 ### Zero tolerance, and why it needed a derivation detector
 
@@ -182,13 +179,12 @@ overflows horizontally.
 ```
 forge.py              orchestrator: write, critique, revise, gate, plan, polish
 build.py              markdown -> HTML, hand-rolled; owns the CSS and page structure
-live_figures.py       Prometheus -> site/figures.json
-site/site.js          three interactives, no dependencies
+site/site.js          four interactives, no dependencies
 skills/slop_gate.py   style gate
 skills/fact_gate.py   fact gate (measurement claims vs illustrative integers)
-skills/textbook.json  109 published constants with provenance
+skills/textbook.json  149 published constants with provenance
 content/plan.json     the 31-chapter plan: parts, theses, cover lists
-content/sources.json  measured values from the live engine
+content/sources.json  reserved for first-hand measurements; empty by design
 content/chapters/     published markdown
 state/queue.json      the queue and its state
 docs/                 the committed site GitHub Pages serves
@@ -197,7 +193,7 @@ build_site.sh         rebuild, verify, and copy site/ into docs/
 
 Generated, not committed: `site/` (the working build directory), `logs/` (machine-local
 run output), and `.env` (the gateway key). `verify_site.sh` locates its own tree, so it
-works in a clone as well as on the rig.
+works in a clone as well.
 
 ## The revisit pass: expert review and figures
 

@@ -772,55 +772,6 @@
    "context": "GPT-2 small parameter count if input and output embeddings were untied."
   },
   {
-   "value": 786432,
-   "unit": "positions",
-   "display": "786,432",
-   "source": "derived: 1,048,576 native window - 262,144 current pool",
-   "context": "Positions added when the pool is raised to the model's full window."
-  },
-  {
-   "value": 921.6,
-   "unit": "bytes",
-   "display": "921.6",
-   "source": "derived: 0.9 GiB / 1,048,576 positions = 966,367,641.6 / 1,048,576",
-   "context": "Bytes of KV-cache memory per position across all layers, per rank."
-  },
-  {
-   "value": 724.8,
-   "unit": "megabytes",
-   "display": "724.8",
-   "source": "derived: 786,432 positions x 921.6 bytes/position",
-   "context": "Memory added by raising the pool by 786,432 positions, in MB."
-  },
-  {
-   "value": 33.4,
-   "unit": "million values",
-   "display": "33.4",
-   "source": "derived: 2 x 130,659 positions x 128 head dim = 33,448,704",
-   "context": "KV cache elements per layer at 130,659 tokens with 128-wide heads."
-  },
-  {
-   "value": 66.9,
-   "unit": "megabytes",
-   "display": "66.9",
-   "source": "derived: 33,448,704 values x 2 bytes (fp16)",
-   "context": "KV cache size in MB for one layer at 130,659 tokens."
-  },
-  {
-   "value": 34.1,
-   "unit": "gigabytes",
-   "display": "34.1",
-   "source": "derived: 1.707e10 score entries x 2 bytes (fp16)",
-   "context": "Dense fp16 score matrix size for one head in one layer at 130,659 tokens."
-  },
-  {
-   "value": 31,
-   "unit": "percent",
-   "display": "31%",
-   "source": "derived: 34.1 GB / 111.5 GB = 30.6 percent, rounded",
-   "context": "Share of the engine's 111.5 GB device memory a single head's score matrix would occupy."
-  },
-  {
    "value": 411705344,
    "unit": "bytes",
    "display": "411,705,344",
@@ -842,27 +793,6 @@
    "context": "Exponential ratio between top and second softmax score at a gap of two standard deviations."
   },
   {
-   "value": 928,
-   "unit": "bytes",
-   "display": "928",
-   "source": "derived: 0.68 GiB / 786,432 positions = 730,144,768 / 786,432",
-   "context": "KV-cache bytes per position per rank at the raised pool."
-  },
-  {
-   "value": 920,
-   "unit": "bytes",
-   "display": "920",
-   "source": "derived: 921.6 bytes per position, rounded in prose",
-   "context": "Rounded KV-cache bytes per position per rank, the figure the chapter multiplies by."
-  },
-  {
-   "value": 966367642,
-   "unit": "bytes",
-   "display": "966,367,641",
-   "source": "derived: 0.9 GiB x 1,073,741,824 bytes/GiB = 966,367,641.6",
-   "context": "0.9 GiB expressed in bytes."
-  },
-  {
    "value": 1280,
    "unit": "floats",
    "display": "1,280",
@@ -875,20 +805,6 @@
    "display": "12,800",
    "source": "derived: 50 source tokens x 256 hidden width",
    "context": "Embedding floats carried by fifty source tokens at width 256."
-  },
-  {
-   "value": 98092,
-   "unit": "positions",
-   "display": "98,092",
-   "source": "derived: 229,358 ceiling - 131,266 needed = 98,092 spare",
-   "context": "Spare pool positions at concurrency 1 for the mean 130,659-token prompt."
-  },
-  {
-   "value": 664,
-   "unit": "ratio",
-   "display": "664",
-   "source": "derived: 39,237 tok/s prefill / 59.1 tok/s decode = 663.9",
-   "context": "Prefill throughput expressed as a multiple of single-stream decode."
   },
   {
    "value": 484,
@@ -961,13 +877,6 @@
    "context": "Illustrative source length used when describing local attention's window around a predicted aligned position."
   },
   {
-   "value": 42.6,
-   "unit": "FLOPs/byte",
-   "display": "42.6 FLOPs per byte",
-   "source": "Derived: 8.74e12 FLOPs / 2.05e11 bytes for naive attention at L=130,659, d=128, counting both QK^T and PV matmuls",
-   "context": "Arithmetic intensity of the naive attention kernel, computed in the chapter from its own printed inputs."
-  },
-  {
    "value": 11008,
    "unit": "dim",
    "display": "11,008",
@@ -987,13 +896,6 @@
    "display": "144 bytes",
    "source": "Derived: GGUF Q4_K super-block layout",
    "context": "Q4_K block: 4 bytes (fp16 scale d + fp16 min m) + 12 bytes (8 sub-block scales + 8 minimums at 6 bits each, packed) + 128 bytes (256 four-bit codes) = 144 bytes for 256 weights, i.e. 4.5 bits/weight."
-  },
-  {
-   "value": 18,
-   "unit": "positions",
-   "display": "18 positions",
-   "source": "Derived: 65,536 - 32,768 - 16 - 2 = 32,750; admission overhead 16 + 2",
-   "context": "Per-stream ceiling arithmetic: pool 65,536 positions minus reply budget 32,768 minus ROUND_ROWS 16 minus 2 guard positions leaves 32,750; the 18 positions beyond the reply budget are admission overhead."
   },
   {
    "value": 201300000,
@@ -1017,90 +919,6 @@
    "context": "The logits head at V = 50,000 and d_model = 4,096 holds 204,800,000 parameters, about 205 million, removed entirely by weight tying."
   },
   {
-   "value": 90.3,
-   "unit": "MB",
-   "display": "90.3 MB per token",
-   "source": "Derived: 120.5 - 30.2 = 90.3",
-   "context": "KV traffic per rank falls from 120.5 MB at a 130,659-token prompt to 30.2 MB at the 32,750-token per-stream ceiling; the 90.3 MB difference at 273 GB/s is 0.33 ms per token."
-  },
-  {
-   "value": 40.7,
-   "unit": "percent",
-   "display": "40.7%",
-   "source": "Derived: 4/(1+3f) = 1.80 solves to f = 0.407",
-   "context": "Under linear scaling the concurrency-4 speedup is 4/(1+3f) where f is the KV share of per-token traffic; setting it equal to the measured 1.80 gives f = 0.407, so KV traffic would have to be 40.7% of per-token traffic to explain the shortfall."
-  },
-  {
-   "value": 25,
-   "unit": "percent",
-   "display": "25% utilized",
-   "source": "Derived: 4/16 = 25%",
-   "context": "The decode round is pinned at 16 rows; at concurrency 4 only 4 rows are active, so the weight fetch is amortized 4x but the kernel's row slots are 25% utilized."
-  },
-  {
-   "value": 22.6,
-   "unit": "seconds",
-   "display": "22.6 seconds",
-   "source": "Derived: 600 x 37.7 ms",
-   "context": "A long request with 600 tokens left at 37.7 ms per decode step needs 600 x 37.7 ms = 22.6 seconds of service."
-  },
-  {
-   "value": 16.9,
-   "unit": "ms",
-   "display": "16.9 ms per step",
-   "source": "Measured on this machine (concurrency 1 decode step)",
-   "context": "Decode at concurrency 1 took 16.9 ms per step against 37.7 ms at concurrency 4, a 2.2x rise for 4x the tokens: the signature of a bandwidth-bound step amortizing a fixed weight fetch."
-  },
-  {
-   "value": 13.2,
-   "unit": "seconds",
-   "display": "13.2 seconds",
-   "source": "Derived: 518,627 / 39,237 tokens per second",
-   "context": "The 518,627 uncached prompt tokens take 518,627 / 39,237 = 13.2 seconds of prefill compute; the cache removed the remaining 313 seconds."
-  },
-  {
-   "value": 13.0,
-   "unit": "ms",
-   "display": "13.0 ms",
-   "source": "Derived: 512 / 39,237 tokens per second",
-   "context": "A 512-token prefill chunk costs 512 / 39,237 = 13.0 ms of compute, about a third of a 37.7 ms decode step at concurrency 4."
-  },
-  {
-   "value": 59476,
-   "unit": "tokens",
-   "display": "59,476 generated tokens",
-   "source": "Measured: tensorfold metrics, sampled window",
-   "context": "In the sampled window the engine counted 98 requests, 12,804,579 prompt tokens and 59,476 generated tokens, i.e. 130,659 prompt and 607 generated tokens per request."
-  },
-  {
-   "value": 37.7,
-   "unit": "ms",
-   "display": "37.7 ms per step",
-   "source": "Derived: 4 tokens / 106.2 tok/s",
-   "context": "At concurrency 4 the engine sustains 106.2 tok/s across four streams, so each step emits four tokens and takes 4 / 106.2 = 37.7 ms; at concurrency 1 a step emits one token at 59.1 tok/s = 16.9 ms, a 2.2x rise for 4x the tokens."
-  },
-  {
-   "value": 26.5,
-   "unit": "tok/s",
-   "display": "26.5 tok/s per stream",
-   "source": "Derived: 106.2 tok/s / 4 streams",
-   "context": "At concurrency 4 a step emits four tokens in 37.7 ms, so each stream gets 106.2 / 4 = 26.5 tok/s while the aggregate nearly doubles; 106.2 / 59.1 = 1.80x."
-  },
-  {
-   "value": 518627,
-   "unit": "tokens",
-   "display": "518,627 uncached tokens",
-   "source": "Derived: 12,804,579 prompt tokens - 12,285,952 cached tokens",
-   "context": "Over the sampled window 12,804,579 prompt tokens were looked up and 12,285,952 were cache hits (95.9%), leaving 518,627 uncached tokens that take 518,627 / 39,237 = 13.2 seconds of prefill."
-  },
-  {
-   "value": 350,
-   "unit": "GB",
-   "display": "350 GB per token",
-   "source": "Derived: 175e9 params x 2 bytes (FP16)",
-   "context": "GPT-3 at 175 billion parameters needs 350 GB per token at FP16, so at 273 GB/s it could not exceed 0.78 tokens per second and would not fit."
-  },
-  {
    "value": 295,
    "unit": "FLOP/byte",
    "display": "295 FLOPs per byte",
@@ -1115,13 +933,6 @@
    "context": "A 70-billion-parameter model in FP16 occupies 140 GB, which no single device caches, so every decode step re-reads the weights."
   },
   {
-   "value": 45.7,
-   "unit": "percent",
-   "display": "45.7%",
-   "source": "Derived: 0.676^2",
-   "context": "DSpark acceptance rate was 67.6% (42,181 accepted of 62,390 drafted); if drafts were independent the chance the second is accepted after the first is 0.676^2 = 45.7%, the third 30.9%, the fourth 20.9%."
-  },
-  {
    "value": 35,
    "unit": "GB",
    "display": "35 GB",
@@ -1129,32 +940,11 @@
    "context": "A 70B model at 4 bits needs 35 GB, so 80 GB holds it only at 4 bits and holds nothing at FP16 (140 GB), giving a 273/35 = 7.8 tok/s ceiling."
   },
   {
-   "value": 145,
-   "unit": "tok/s",
-   "display": "145 tokens per second",
-   "source": "Derived: 1/s from the two-point fit (w+s=16.9, w+4s=37.7 => s=6.9 ms)",
-   "context": "Fitting step time as w + b*s to 16.9 ms at b=1 and 37.7 ms at b=4 gives s = 6.9 ms and w = 10.0 ms; the asymptote as b grows is 1/s = about 145 tokens per second, an upper bound because s itself grows with context."
-  },
-  {
    "value": 640000,
    "unit": "magnitude",
    "display": "640,000",
    "source": "Derived: 100^2 x 64",
    "context": "A dot product of two vectors with components near 100 over 64 dimensions can reach 100^2 x 64 = 640,000, which overflows fp16's largest finite value of 65,504."
-  },
-  {
-   "value": 235,
-   "unit": "million multiply-adds",
-   "display": "235 million multiply-adds",
-   "source": "Derived: k x 2 x d_model x d_ff with k=2, d_model=4096, d_ff=14336",
-   "context": "Per token per MoE layer the selected experts cost k x 2 x d_model x d_ff = 2 x 2 x 4096 x 14336 = 234,881,024, about 235 million multiply-adds, against the router's d_model x E = 4096 x 64 = 262,144, roughly a tenth of a percent."
-  },
-  {
-   "value": 4.62,
-   "unit": "GB per token",
-   "display": "4.62 GB per token",
-   "source": "Derived: 273 GB/s / 59.1 tok/s",
-   "context": "One stream at 59.1 tokens per second moves 273/59.1 = 4.62 GB of weights and cache per token; four concurrent streams at 106.2 aggregate give 273/106.2 = 2.57 GB per token, a 1.80 multiplier."
   },
   {
    "value": 57344,
@@ -1178,62 +968,6 @@
    "context": "The 2017 Volta whitepaper lists 125 TFLOPS fp16 tensor-core throughput against 15.7 TFLOPS fp32, roughly eight times the fp32 rate, which is why teams moved training to fp16."
   },
   {
-   "value": 27.9,
-   "unit": "billion parameters",
-   "display": "27.9 billion parameters",
-   "source": "Derived: 111,515,771,428 bytes / 4 (fp32)",
-   "context": "If every byte of the 111.5 GB unified memory were weights it would be 27.9 billion parameters at fp32, 55.8 billion at bf16, or 111.5 billion at fp8; the fp8 figure is why fp8 matters."
-  },
-  {
-   "value": 326.34,
-   "unit": "seconds",
-   "display": "326.34 seconds",
-   "source": "Derived: 3.33 s mean prefill x 98 requests",
-   "context": "Over the sampled window the mean prefill duration was 3.33 seconds over 98 requests, so total prefill time was 3.33 x 98 = 326.34 seconds."
-  },
-  {
-   "value": 1589,
-   "unit": "tok/s",
-   "display": "1,589 tokens per second",
-   "source": "Derived: 518,627 uncached tokens / 326.34 s",
-   "context": "The actual computed prefill rate over uncached tokens was 518,627 / 326.34 = 1,589 tokens per second, against the apparent 12,804,579 / 326.34 = 39,237 tok/s that counts cached tokens as free work."
-  },
-  {
-   "value": 7732,
-   "unit": "seconds",
-   "display": "7,732 seconds",
-   "source": "Derived: 12,285,952 cached tokens / 1,589 tok/s",
-   "context": "Recomputing the 12,285,952 cached tokens at the computed 1,589 tok/s rate would cost 7,732 seconds, so a cold run takes 326.34 + 7,732 = 8,058 seconds and the cache removed 95.9 percent of cold prefill time."
-  },
-  {
-   "value": 8058,
-   "unit": "seconds",
-   "display": "8,058 seconds",
-   "source": "Derived: 326.34 + 7,732",
-   "context": "A cold-cache prefill of the same 98 requests would take 326.34 + 7,732 = 8,058 seconds, roughly 25 times the warm run."
-  },
-  {
-   "value": 72.4,
-   "unit": "tok/s",
-   "display": "72.4 tokens per second",
-   "source": "Derived: 607 generated tokens / 8.38 s mean decode",
-   "context": "Mean decode duration over the 98 sampled requests is 8.38 seconds for 607 generated tokens, which is 607 / 8.38 = 72.4 tokens per second, against the 59.1 tok/s concurrency-one benchmark: both get called decode throughput."
-  },
-  {
-   "value": 45,
-   "unit": "percent",
-   "display": "45 percent",
-   "source": "Derived: 106.2 / 236.4 (4 x 59.1)",
-   "context": "If KV reads are small compared with the weight read the aggregate ceiling approaches 4 x 59.1 = 236.4 tok/s; the observed 106.2 is 45 percent of that, so the scheduler, batching or KV reads leave more than half the roofline unused."
-  },
-  {
-   "value": 98699,
-   "unit": "positions",
-   "display": "98,699 positions",
-   "source": "Derived: 262,144 pool - 32,768 reply reservation - 16 - 2 = 229,358 ceiling; 229,358 - 130,659 prompt = 98,699 spare",
-   "context": "Spare KV positions left after the prompt at concurrency 1, in the engine this book measures."
-  },
-  {
    "value": 1152,
    "unit": "bytes",
    "display": "1,152 bytes",
@@ -1241,18 +975,74 @@
    "context": "MLA per-token, per-layer cache footprint for d_model=4096, rank 512, rotary dim 64."
   },
   {
-   "value": 68.3,
+   "value": 350,
    "unit": "GB",
-   "display": "68.3 GB",
-   "source": "Derived: 130,659^2 entries x 4 bytes = 68,287,100,000 bytes ~ 68.3 GB",
-   "context": "fp32 score matrix for one head of one layer at a 130,659-token context."
+   "display": "350 GB per token",
+   "source": "Derived: 175e9 params x 2 bytes (FP16)",
+   "context": "Bytes read per decode step for a 175B model in FP16, before any cache traffic."
   },
   {
-   "value": 91,
-   "unit": "MB",
-   "display": "91 MB",
-   "source": "Derived: 32,750 positions x 696 bytes = 22.8 MB per copy; 4 copies (out and back, two buffers) = 4 x 22.8 = 91.2 MB",
-   "context": "KV traffic for offloading a 32,750-position sequence to host memory and back."
+   "value": 235,
+   "unit": "million multiply-adds",
+   "display": "235 million multiply-adds",
+   "source": "Derived: k x 2 x d_model x d_ff with k=2, d_model=4096, d_ff=14336",
+   "context": "Multiply-adds per token through a two-expert MoE layer at Llama-scale widths."
+  },
+  {
+   "value": 1048576,
+   "unit": "positions",
+   "display": "1,048,576 positions",
+   "source": "2^20 positions: a 1M-token context window, the largest window claimed by recent models",
+   "context": "Upper bound on positions a single sequence can occupy."
+  },
+  {
+   "value": 65536,
+   "unit": "positions",
+   "display": "65,536 positions",
+   "source": "Derived: 262,144 pool positions / 4 concurrent streams",
+   "context": "Even split of a fixed KV pool across four request slots."
+  },
+  {
+   "value": 32750,
+   "unit": "positions",
+   "display": "32,750 positions",
+   "source": "Derived: 65,536 pool share - 32,768 reply budget - 16 round rows - 2 slack",
+   "context": "Prompt tokens a stream can admit from an even share of a four-way KV pool."
+  },
+  {
+   "value": 10.4,
+   "unit": "ms",
+   "display": "10.4 ms per token",
+   "source": "Derived: 35 GB of 4-bit weights / 3,350 GB/s HBM bandwidth",
+   "context": "Memory-bound decode floor for a 70B model at four bits on an H100."
+  },
+  {
+   "value": 41.8,
+   "unit": "ms",
+   "display": "41.8 ms per token",
+   "source": "Derived: 140 GB of FP16 weights / 3,350 GB/s HBM bandwidth",
+   "context": "Memory-bound decode floor for the same model at sixteen bits."
+  },
+  {
+   "value": 229358,
+   "unit": "positions",
+   "display": "229,358 positions",
+   "source": "Derived: 262,144 pool - 32,768 reply budget - 16 round rows - 2 slack",
+   "context": "Admission ceiling for a single stream that owns the whole KV pool."
+  },
+  {
+   "value": 129358,
+   "unit": "positions",
+   "display": "129,358 positions",
+   "source": "Derived: 229,358 admission ceiling - 100,000 prompt tokens",
+   "context": "Spare pool positions after a 100,000-token prompt is admitted alone."
+  },
+  {
+   "value": 273,
+   "unit": "GB/s",
+   "display": "273 GB/s",
+   "source": "https://docs.nvidia.com/dgx/dgx-spark/hardware.html",
+   "context": "NVIDIA DGX Spark: GB10 LPDDR5X unified memory, shared between CPU and GPU, at 273 GB/s."
   }
  ]
 }

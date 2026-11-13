@@ -82,7 +82,7 @@
             ]
           }
         ],
-        "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. The pair decodes at 59.1 tok/s, so one forward pass takes 1000/59.1 = 16.9 ms; over 32 blocks and two collectives that is 64 collectives and a budget of 16.9/64 = 0.264 ms, or 264 µs, per collective. Above that round trip the schedule cannot hit 59.1 tok/s.",
+        "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. A 70B model at four bits reads 35 GB of weights per token, so on an H100 at 3,350 GB/s the step floor is 10.4 ms. Over 32 blocks and two collectives that is 64 collectives and a budget of 10.4/64 = 0.1625 ms, or 162.5 µs, per collective. Above that round trip the schedule cannot reach the memory-bound floor.",
         "parts": {
           "steps": [
             "input",
@@ -164,8 +164,8 @@
     {
       "id": "tensor-versus-pipeline-budget",
       "title": "Tensor parallelism pays per collective; pipeline pays per bubble",
-      "caption": "Tensor parallelism splits each layer's matrices and needs an all-reduce after every g: two collectives per block, 64 per forward for 32 blocks, which leaves 264 µs of the 16.9 ms forward pass per collective. Pipeline parallelism splits layers across ranks and needs a point-to-point send per micro-batch boundary; with P stages and M micro-batches the idle fraction is (P−1)/(M+P−1), 3/11 = 27.3% at P = 4, M = 8 and 3/19 = 15.8% at M = 16.",
-      "alt": "Two panels. The tensor-parallel panel lists: f computes y-i equals x W-i with W-i of shape H by K over N; g computes partial sums; an all-reduce follows each g; two collectives per block and 64 per 32-block forward; the per-collective budget is 264 microseconds; the ring moves 2 times N minus 1 over N times B by H. The pipeline panel lists: each rank holds whole layers; one send per micro-batch boundary; M times P minus 1 sends per direction; the bubble is P minus 1 over M plus P minus 1; 27.3 percent idle at four stages and eight micro-batches, 15.8 percent at sixteen.",
+      "caption": "Tensor parallelism splits each layer's matrices and needs an all-reduce after every g: two collectives per block, 64 per forward for 32 blocks, which leaves 162.5 µs of the 10.4 ms step per collective. Pipeline parallelism splits layers across ranks and needs a point-to-point send per micro-batch boundary; with P stages and M micro-batches the idle fraction is (P−1)/(M+P−1), 3 of 11 slots at P = 4, M = 8 and 3 of 19 at M = 16.",
+      "alt": "Two panels. The tensor-parallel panel lists: f computes y-i equals x W-i with W-i of shape H by K over N; g computes partial sums; an all-reduce follows each g; two collectives per block and 64 per 32-block forward; the per-collective budget is 162.5 microseconds; the ring moves 2 times N minus 1 over N times B by H. The pipeline panel lists: each rank holds whole layers; one send per micro-batch boundary; M times P minus 1 sends per direction; the bubble is P minus 1 over M plus P minus 1; 3 of 11 slots idle at four stages and eight micro-batches, 3 of 19 at sixteen.",
       "anchor": "pipeline-stages-and-the-micro-batch-bubble",
       "kind": "panels",
       "data": {
@@ -177,7 +177,7 @@
               "g: z_i = y_iV_i, partial sums of shape B×M",
               "one all-reduce after each g",
               "2 collectives per block; 64 per 32-block forward",
-              "16.9 ms ÷ 64 = 264 µs per collective",
+              "10.4 ms ÷ 64 = 162.5 µs per collective",
               "ring volume 2(N−1)/N × B×H"
             ],
             "note": "Volume grows with N: B×H at N = 2, 1.75 B×H at N = 8. A tree all-reduce trades volume for log N latency."
@@ -195,7 +195,7 @@
             "note": "Doubling M cuts the bubble from 27% to 16%, a factor of about 1.7, not half. With P = 2 and L = 32, tensor parallelism issues 64 collective operations for every pipeline send."
           }
         ],
-        "note": "The 264 µs cutoff is specific to this model, batch and collective size, not a general link threshold. The measured pair stall is 120,000 ms cumulative against 98 × 8.38 = 821 s of decode, about 15%; halving compute but doubling stall pays only while stall is below half the compute time."
+        "note": "The per-collective budget moves with the model, the batch and the collective size; it is not a general link threshold. A split that halves compute time but doubles stall time pays only while stall is below half the compute time it removes."
       }
     }
   ],
