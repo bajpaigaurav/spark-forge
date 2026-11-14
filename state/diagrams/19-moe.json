@@ -40,54 +40,63 @@
             "scores",
             "softmax",
             "topk",
-            "combine weights"
+            "combine"
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to route one token.",
+        "interval": 1500,
+        "intro": "Press Play or Next to route one token through a four-expert layer with k = 2.",
         "steps": [
           {
-            "label": "Read x, the token's hidden vector.",
+            "label": "Read x = [1, 2, 0, 0], the token's hidden vector at d_model = 4.",
             "highlight": [
               "input"
             ]
           },
           {
-            "label": "Multiply by the router W: one score per expert.",
+            "label": "The router is one d_model by E matrix, 4 x 4 here, one row per expert: w1 = [1,0,0,0], w2 = [0,1,0,0], w3 = [1,1,0,0], w4 = [-1,0,0,0].",
             "highlight": [
+              "input",
               "router"
             ]
           },
           {
-            "label": "Scores [1, 2, 3, -1]; expert 3 is highest.",
+            "label": "s = x·W = [1, 2, 3, -1]: one score per expert, expert 3 highest.",
             "highlight": [
+              "input",
+              "router",
               "scores"
             ]
           },
           {
-            "label": "Softmax over all E experts.",
+            "label": "Exponentiate to [2.718, 7.389, 20.086, 0.368], which sums to 30.561, so the softmax is [0.089, 0.242, 0.657, 0.012].",
             "highlight": [
+              "input",
+              "router",
+              "scores",
               "softmax"
             ]
           },
           {
-            "label": "Top-2 selects experts 3 and 2.",
+            "label": "Top-2 keeps experts 3 and 2 and drops the other two.",
             "highlight": [
+              "input",
+              "router",
+              "scores",
+              "softmax",
               "topk"
             ]
           },
           {
-            "label": "Renormalize over the pair: 0.731 and 0.269.",
+            "label": "Renormalize over the kept pair: 0.657/0.899 = 0.731 and 0.242/0.899 = 0.269, so the output is 0.731·E3(x) + 0.269·E2(x). Per token the router costs d_model x E = 262,144 multiply-adds, about 0.1% of the 235 million the two selected experts cost at d_ff = 14,336.",
             "highlight": [
-              "weights"
-            ]
-          },
-          {
-            "label": "Combine the two expert outputs and add to the residual.",
-            "highlight": [
+              "input",
+              "router",
+              "scores",
+              "softmax",
+              "topk",
               "combine"
             ]
           }
@@ -125,7 +134,52 @@
             "display": "15,032,385,536"
           }
         ],
-        "note": "d_model = 4,096, d_ff = 14,336, k = 2. Router: 4,096 × 64 = 262,144 multiply-adds, about 0.1% of 235 million. Load example: T = 4,096, E = 8, capacity 640; counts 900, 700, 500, 500, 400, 400, 400, 296 drop 320 assignments (7.8%), and padding is 1,344 of 5,120 expert rows (26%)."
+        "note": "d_model = 4,096, d_ff = 14,336, k = 2. Router: 4,096 × 64 = 262,144 multiply-adds, about 0.1% of 235 million. Load example: T = 4,096, E = 8, capacity 640; counts 900, 700, 500, 500, 400, 400, 400, 296 drop 320 assignments (7.8%), and padding is 1,344 of 5,120 expert rows (26%).",
+        "parts": {
+          "bars": [
+            "b-dense",
+            "b-active",
+            "b-total64",
+            "b-total128"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to separate per-token arithmetic from total capacity.",
+        "steps": [
+          {
+            "label": "A dense feed-forward block holds 2·d_model·d_ff = 2 x 4,096 x 14,336 = 117,440,512 parameters, and that is also its multiply-adds per token.",
+            "highlight": [
+              "b-dense"
+            ]
+          },
+          {
+            "label": "An expert is a copy of that block. With k = 2 a token visits two of them, so per-token arithmetic is 2 x 117,440,512 = 234,881,024.",
+            "highlight": [
+              "b-dense",
+              "b-active"
+            ]
+          },
+          {
+            "label": "Capacity scales with the expert count: E = 64 holds 64 x 2 x 4,096 x 14,336 = 7,516,192,768 parameters while per-token arithmetic stays at 234,881,024.",
+            "highlight": [
+              "b-dense",
+              "b-active",
+              "b-total64"
+            ]
+          },
+          {
+            "label": "Doubling to E = 128 doubles the parameters to 15,032,385,536 and leaves the expert term alone. Only the router grows: 4,096 x 64 = 262,144 multiply-adds at E = 64, doubling to 524,288 at E = 128, still a tenth of a percent of the expert cost.",
+            "highlight": [
+              "b-dense",
+              "b-active",
+              "b-total64",
+              "b-total128"
+            ]
+          }
+        ]
       }
     }
   ]
