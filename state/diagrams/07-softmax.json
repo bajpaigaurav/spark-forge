@@ -52,47 +52,47 @@
         "note": "Row max 2.0; shifted scores 0, −1.0, −1.9; exponentials 1, 0.368, 0.150; sum 1.518; T = 1 shares 0.659, 0.242, 0.099. The T = 0.5 and T = 2 columns are illustrative, computed by dividing the scores by T before exponentiating. Entropy: 0.45, 0.85, 1.03 nats; ceiling ln 3 = 1.10.",
         "parts": {
           "cols": [
-            "scores",
-            "shift",
-            "exp",
-            "shares temperature",
-            "shares temperature",
-            "shares temperature"
+            "col-s",
+            "col-shift",
+            "col-exp",
+            "col-t1",
+            "col-t05",
+            "col-t2"
           ],
           "rows": [
-            "max",
+            "row-max",
             "",
             ""
           ],
           "cells": [
             [
-              "scores max",
-              "shift max",
-              "exp max",
-              "shares temperature max",
-              "shares temperature max",
-              "shares temperature max"
+              "col-s",
+              "col-shift",
+              "col-exp",
+              "col-t1",
+              "col-t05",
+              "col-t2"
             ],
             [
-              "scores",
-              "shift",
-              "exp",
-              "shares temperature",
-              "shares temperature",
-              "shares temperature"
+              "col-s",
+              "col-shift",
+              "col-exp",
+              "col-t1",
+              "col-t05",
+              "col-t2"
             ],
             [
-              "scores",
-              "shift",
-              "exp",
-              "shares temperature",
-              "shares temperature",
-              "shares temperature"
+              "col-s",
+              "col-shift",
+              "col-exp",
+              "col-t1",
+              "col-t05",
+              "col-t2"
             ]
           ],
-          "corner": "scores",
-          "headers": "scores",
-          "note": "max"
+          "corner": "corner",
+          "headers": "headers",
+          "note": "note"
         }
       },
       "anim": {
@@ -103,37 +103,39 @@
           {
             "label": "Three scores: 2.0, 1.0, 0.1.",
             "highlight": [
-              "scores"
+              "col-s"
             ]
           },
           {
             "label": "Find the row maximum: 2.0.",
             "highlight": [
-              "max"
+              "col-s",
+              "row-max"
             ]
           },
           {
             "label": "Subtract it: 0, −1.0, −1.9.",
             "highlight": [
-              "shift"
+              "col-shift"
             ]
           },
           {
             "label": "Exponentiate: 1, 0.368, 0.150; sum 1.518.",
             "highlight": [
-              "exp"
+              "col-exp"
             ]
           },
           {
             "label": "Divide: 0.659, 0.242, 0.099. The shares match the unshifted softmax.",
             "highlight": [
-              "shares"
+              "col-t1"
             ]
           },
           {
-            "label": "Temperature: T = 0.5 concentrates to 0.864; T = 2 flattens to 0.502.",
+            "label": "Temperature: dividing by 0.5 concentrates the row to 0.864 on the leader; dividing by 2 flattens it to 0.502.",
             "highlight": [
-              "temperature"
+              "col-t05",
+              "col-t2"
             ]
           }
         ]
@@ -149,7 +151,113 @@
       "data": {
         "n": 8,
         "highlight_row": 7,
-        "note": "Column 0 is the first token. Under causal masking it is the only key visible to every query, so it is always available as a null key. Softmax must put its mass somewhere; many heads in pretrained models dump surplus mass there. Remove that token from the window and perplexity explodes."
+        "note": "Column 0 is the first token. Under causal masking it is the only key visible to every query, so it is always available as a null key. Softmax must put its mass somewhere; many heads in pretrained models dump surplus mass there. Remove that token from the window and perplexity explodes.",
+        "parts": {
+          "cells": [
+            [
+              "sink-col",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "masked",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "causal",
+              "masked",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "masked",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "masked",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "masked"
+            ],
+            [
+              "sink-col",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal",
+              "causal"
+            ]
+          ],
+          "axis": "axis",
+          "note": "note"
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to see why the first token is always available.",
+        "steps": [
+          {
+            "label": "Causal masking shows a query at i only keys 0 through i: the lower triangle.",
+            "highlight": [
+              "causal",
+              "sink-col"
+            ]
+          },
+          {
+            "label": "Column 0 appears in every row, so the first token is the only key every query can see.",
+            "highlight": [
+              "sink-col"
+            ]
+          }
+        ]
       }
     }
   ],
