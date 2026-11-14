@@ -426,6 +426,7 @@ def render_bits(spec):
         return None
     label = spec.get("label")
     caption = spec.get("caption")
+    parts = spec.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -440,8 +441,9 @@ def render_bits(spec):
             c.add(c.text(pad, y + h / 2 + size * 0.3, label, size * 0.86,
                          anchor="start", fill=INK, weight="600"))
         acc = 0
-        for f in fields:
+        for fi, f in enumerate(fields):
             n = int(f["bits"])
+            field_part = _part_at(parts, "fields", fi)
             x1 = bar_x + bar_w * acc / total_bits
             x2 = bar_x + bar_w * (acc + n) / total_bits
             # one accent for the exponent, a neutral wash for sign and mantissa
@@ -451,7 +453,7 @@ def render_bits(spec):
             fill = WASH_3 if f.get("accent") else "none"
             stroke = ACCENT if f.get("accent") else INK
             c.add(c.rect(x1, y, x2 - x1, h, fill=fill, stroke=stroke,
-                         sw=1.6 if f.get("accent") else 1.2))
+                         sw=1.6 if f.get("accent") else 1.2, part=field_part))
             mid = (x1 + x2) / 2
             field_w = x2 - x1
             # A one-bit field is too narrow for its name: wrapping "sign" would
@@ -459,16 +461,16 @@ def render_bits(spec):
             # keeps the label intact inside the bar.
             if field_w < text_width(f["name"], size * 0.84) + 6:
                 c.add(c.text(mid, y + h / 2, f["name"], size * 0.78,
-                             weight="600", rotate=-90))
+                             weight="600", rotate=-90, part=field_part))
             else:
                 lines = wrap_px(f["name"], size * 0.84, field_w - 6)
                 c.add(c.block_centered(mid, y + h / 2 - (size * 0.5 if f.get("note") else 0),
-                                       lines, size * 0.84, weight="600"))
+                                       lines, size * 0.84, weight="600", part=field_part))
             if f.get("note"):
                 c.add(c.text(mid, y + h / 2 + size * 0.9, f["note"], size * 0.78,
-                             fill=MUTED))
+                             fill=MUTED, part=field_part))
             c.add(c.text(mid, y + h + size + 2, str(n), size * 0.8, fill=ACCENT,
-                         weight="600"))
+                         weight="600", part=field_part))
             acc += n
         c.h = y + h + size * 2.2
         # a scale of bit indices under the bar
@@ -481,7 +483,8 @@ def render_bits(spec):
         if caption:
             c.h += size * 1.4
             nl = c.note_lines(caption, size * 0.82, w - 2 * pad)
-            c.add(c.note(pad, c.h, caption, size * 0.82, w - 2 * pad))
+            c.add(c.note(pad, c.h, caption, size * 0.82, w - 2 * pad,
+                         part=parts.get("caption")))
             c.h += nl * size * 1.2
         c.h = max(c.h + size * 1.2, 150)
         return c

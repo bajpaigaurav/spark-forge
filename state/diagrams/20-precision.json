@@ -26,6 +26,41 @@
             "name": "mantissa",
             "bits": 23
           }
+        ],
+        "parts": {
+          "fields": [
+            "sign",
+            "exponent",
+            "mantissa"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to spend one fp32 number bit by bit.",
+        "steps": [
+          {
+            "label": "One sign bit: the value is (-1)^sign x 2^(exponent - bias) x (1 + mantissa).",
+            "highlight": [
+              "sign"
+            ]
+          },
+          {
+            "label": "Eight exponent bits, with the mantissa held fixed, set the range: fp16 tops out at 1.9990234375 x 2^15 = 65,504 and its smallest normal is 2^-14, about 6.1 x 10^-5.",
+            "highlight": [
+              "sign",
+              "exponent"
+            ]
+          },
+          {
+            "label": "Twenty-three mantissa bits set the resolution. Near 1.0 the gap is 2^-23, about 1.19 x 10^-7, so 1 + 2^-8 = 1.00390625 lands exactly. fp16's ten bits give a gap of 2^-10, roughly 9.8 x 10^-4; bf16's seven bits give 2^-7 = 0.0078125, half a gap above 1.0, so round-to-nearest-even returns 1.0 and the 0.00390625 vanishes.",
+            "highlight": [
+              "sign",
+              "exponent",
+              "mantissa"
+            ]
+          }
         ]
       }
     },
@@ -67,42 +102,98 @@
           "panels": [
             "fp32-master",
             "low-precision"
+          ],
+          "items": [
+            [
+              "fp32-weights",
+              "fp32-optimizer",
+              "fp32-grad-acc",
+              "fp32-loss",
+              "fp32-norms",
+              "fp32-reductions",
+              "fp32-clip"
+            ],
+            [
+              "fwd-cast",
+              "bwd-cast",
+              "fp8-casts",
+              "e4m3-scale",
+              "e5m2-scale"
+            ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to follow one mixed-precision step.",
+        "interval": 1600,
+        "intro": "Press Play or Next to follow one mixed-precision step and see what stays in fp32.",
         "steps": [
           {
-            "label": "Start from the fp32 master weights and optimizer state.",
+            "label": "The fp32 master copy holds the weights and optimizer state. The update 1.0 + 1 x 10^-5 needs it: the gap at 1.0 is 1.19 x 10^-7 in fp32, but 9.8 x 10^-4 in fp16 and 0.0078125 in bf16, so in either narrow format the weight would round back to 1.0 and freeze.",
             "highlight": [
-              "fp32-master"
+              "fp32-master",
+              "fp32-weights",
+              "fp32-optimizer"
             ]
           },
           {
-            "label": "Cast weights and activations to e4m3 for the fp8 forward matmul, or use bf16.",
+            "label": "Cast weights and activations to e4m3 for the forward matmul, or stay in bf16. The e4m3 scale is 448/amax, so a tensor whose largest absolute value is 12.0 is multiplied by 448/12.0 = 37.333 before the cast.",
             "highlight": [
-              "low-precision"
+              "fp32-master",
+              "fp32-weights",
+              "fp32-optimizer",
+              "low-precision",
+              "fwd-cast",
+              "e4m3-scale"
             ]
           },
           {
-            "label": "Cast gradients to e5m2 for the fp8 backward matmul, or use bf16.",
+            "label": "Cast gradients to e5m2 for the backward matmul, or stay in bf16. The e5m2 scale is 57,344/amax: a gradient tensor peaking at 0.5 is multiplied by 57,344/0.5 = 114,688 and divided back after the matmul.",
             "highlight": [
-              "low-precision"
+              "fp32-master",
+              "fp32-weights",
+              "fp32-optimizer",
+              "low-precision",
+              "fwd-cast",
+              "e4m3-scale",
+              "bwd-cast",
+              "e5m2-scale"
             ]
           },
           {
-            "label": "Keep softmax, layer norm, batch norm, reductions, and the loss in fp32.",
+            "label": "Only the casts and the multiply inputs are low precision: the accumulation stays in fp32, along with softmax, layer norm, batch norm, the loss, and reductions. An e4m3 significand is four bits, so the product of two needs up to eight and is exact.",
             "highlight": [
-              "fp32-master"
+              "fp32-master",
+              "fp32-weights",
+              "fp32-optimizer",
+              "fp32-loss",
+              "fp32-norms",
+              "fp32-reductions",
+              "low-precision",
+              "fwd-cast",
+              "e4m3-scale",
+              "bwd-cast",
+              "e5m2-scale",
+              "fp8-casts"
             ]
           },
           {
-            "label": "Unscale the gradients, clip, and apply the fp32 update to the master copy.",
+            "label": "Unscale the gradients, clip after unscaling because clipping a scaled gradient changes the threshold, and apply the fp32 update to the master copy.",
             "highlight": [
-              "fp32-master"
+              "fp32-master",
+              "fp32-weights",
+              "fp32-optimizer",
+              "fp32-loss",
+              "fp32-norms",
+              "fp32-reductions",
+              "fp32-grad-acc",
+              "fp32-clip",
+              "low-precision",
+              "fwd-cast",
+              "e4m3-scale",
+              "bwd-cast",
+              "e5m2-scale",
+              "fp8-casts"
             ]
           }
         ]
