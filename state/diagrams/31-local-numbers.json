@@ -40,43 +40,53 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1500,
+        "interval": 1600,
         "intro": "Press Play or Next to walk one forward pass across the pair.",
         "steps": [
           {
-            "label": "Each rank holds half of every weight matrix: 35 GB ÷ 2 = 17.5 GB.",
+            "label": "A 70B model at four bits is 35 GB of weights. Tensor parallelism splits each matrix by row or column, so each rank holds half of every matrix rather than half of the layers: 35 GB ÷ 2 = 17.5 GB per rank.",
             "highlight": [
-              "shard"
+              "shard",
+              "residual"
             ]
           },
           {
-            "label": "One rank runs the attention half of the block on its own shard.",
+            "label": "Each rank runs the attention half of the block on its own shard and reads only its own 17.5 GB per decode step; neither rank reads the other's half.",
             "highlight": [
+              "shard",
+              "residual",
               "block"
             ]
           },
           {
-            "label": "The partial activations are summed across the cable by an all-reduce.",
+            "label": "After the attention output projection the two partial activations are summed across the cable by an all-reduce in bf16, and both ranks block until the partial sums land.",
             "highlight": [
+              "shard",
+              "residual",
+              "block",
               "collective"
             ]
           },
           {
-            "label": "The next block repeats the same two boundaries, 2 × 32 = 64 collectives per forward pass.",
+            "label": "The MLP down-projection needs the same agreement, so a model with 32 layers runs 2 × 32 = 64 all-reduces per forward pass. At decode the payload is small and the cost is latency; at prefill it grows with the prompt and becomes a bandwidth problem of its own.",
             "highlight": [
+              "shard",
+              "residual",
+              "block",
+              "collective",
               "next"
             ]
           },
           {
-            "label": "The last block emits logits from the sharded output projection.",
+            "label": "The last block emits logits from the sharded output projection. The step is one read of half the weights plus 64 waits, and no roofline contains those waits.",
             "highlight": [
-              "logits"
-            ]
-          },
-          {
-            "label": "The residual stream never crosses the cable; each rank keeps its own copy.",
-            "highlight": [
-              "residual"
+              "shard",
+              "residual",
+              "block",
+              "collective",
+              "next",
+              "logits",
+              "note"
             ]
           }
         ]
@@ -121,25 +131,37 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1500,
-        "intro": "Press Play or Next to build the roof from bandwidth and weights.",
+        "interval": 1600,
+        "intro": "Press Play or Next to build the pair's roof from bandwidth and weights.",
         "steps": [
           {
-            "label": "One rank reads its 17.5 GB shard at 273 GB/s: 273 ÷ 17.5 = 15.6 tokens per second.",
+            "label": "One box moves 273 GB/s and holds a coherent 128 GB pool, against the H100's 3,350 GB/s: 3,350 ÷ 273 = 12.3 times the bandwidth.",
             "highlight": [
               "rank"
             ]
           },
           {
-            "label": "Two ranks each produce tokens, so the aggregate roof is 2 × 15.6 = 31.2.",
+            "label": "One rank reads its 17.5 GB shard at 273 GB/s, so 273 ÷ 17.5 = 15.6 tokens per second is its ceiling.",
             "highlight": [
+              "rank",
               "pair"
             ]
           },
           {
-            "label": "One H100 reads all 35 GB at 3,350 GB/s: 3,350 ÷ 35 = 95.7, which is 95.7 ÷ 31.2 = 3.07 times the pair.",
+            "label": "Two ranks each produce tokens, so the aggregate roof is 2 × 15.6 = 31.2 tokens per second, provided the collectives are free. They are not free, so this is an upper bound.",
             "highlight": [
+              "rank",
+              "pair",
               "h100"
+            ]
+          },
+          {
+            "label": "One H100 reads all 35 GB at 3,350 GB/s for 95.7 tokens per second, and 95.7 ÷ 31.2 = 3.07. None of the three bars is a measurement, and none includes the KV cache or the 64 waits.",
+            "highlight": [
+              "rank",
+              "pair",
+              "h100",
+              "note"
             ]
           }
         ]
