@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why the second request is cheaper</title>
+<script>(function(){try{var t=localStorage.getItem("sft-theme");
+if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<meta name="description" content="If two requests share a prefix, the keys and values for that prefix are identical, so computing them twice is pure waste.">
+<meta property="og:description" content="If two requests share a prefix, the keys and values for that prefix are identical, so computing them twice is pure waste.">
+<meta property="og:title" content="Why the second request is cheaper">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://bajpaigaurav.github.io/spark-forge/chapters/13-prefix-caching.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%238a3324%22/><path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 stroke-linecap=%22round%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>
+/* ---- tokens: Almanac, the reference-book register ---- */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --color-paper: oklch(84% 0.012 245); --color-paper-2: oklch(81% 0.012 245); --color-paper-3: oklch(77% 0.012 245);
+  --color-ink: oklch(16% 0.020 245); --color-ink-2: oklch(24% 0.018 245); --color-muted: oklch(38% 0.016 245);
+  --color-rule: oklch(73% 0.013 240); --color-rule-2: oklch(32% 0.018 240);
+  --color-accent: oklch(45% 0.180 350); --color-accent-2: oklch(37% 0.160 350); --color-accent-ink: oklch(97% 0.006 245); --color-focus: oklch(46% 0.190 350);
+  --color-sheet: oklch(93.5% 0.008 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 7%, var(--color-sheet));
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader", ui-serif, Georgia, serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 0; --radius-pill: 2px; --rule-hair: 1px; --rule-bar: 2px; --rule-heavy: 4px; --shadow-card: none;
+  --tracking-display: -0.02em; --display-weight: 600;
+  --container: 1440px; --gutter: 64px;
+  --z-sticky-nav: 300; --z-modal: 400;
+  --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
+  --measure: var(--read-measure);
+}
+
+/* ---- dark: the same stock read by lamplight; magenta lifts one step ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(24% 0.016 245); --color-paper-2: oklch(21% 0.016 245); --color-paper-3: oklch(18% 0.016 245);
+  --color-ink: oklch(95% 0.008 245); --color-ink-2: oklch(88% 0.010 245); --color-muted: oklch(74% 0.014 245);
+  --color-rule: oklch(36% 0.016 240); --color-rule-2: oklch(62% 0.018 240);
+  --color-accent: oklch(70% 0.165 350); --color-accent-2: oklch(78% 0.150 350); --color-accent-ink: oklch(17% 0.016 245); --color-accent-text: oklch(82% 0.130 350); --color-focus: oklch(76% 0.175 350);
+  --color-sheet: oklch(30% 0.014 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 14%, var(--color-sheet));
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-muted) var(--color-paper); scroll-padding-top: calc(var(--topbar-h) + var(--space-md)); }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-synthesis: none; letter-spacing: var(--tracking-display); line-height: 1.05; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+img, video, svg { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+.num, td.num { font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+
+/* ---- frontispiece ---- */
+.frontis { margin: 0 0 var(--space-2xl); }
+.frontis p { max-width: 66ch; margin: 0 0 var(--space-md); }
+.frontis p.lead { font-size: var(--text-lead); line-height: 1.4; color: var(--color-ink); max-width: 52ch; }
+.frontis .drop::first-letter { font-size: 1em; float: none; color: inherit; }
+.rule-short { width: 4rem; border: 0; border-top: var(--rule-bar) solid var(--color-accent); margin: var(--space-xl) 0; }
+
+/* ---- masthead ---- */
+/* ---- cover: one screen, then the contents ---- */
+.cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
+.cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
+.cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
+.cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
+.btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
+.btn-primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
+.btn-quiet:hover { background: var(--color-wash); }
+.cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts div { margin: 0; }
+.cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
+.cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
+
+/* ---- the contents, set as a printed index ---- */
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
+.contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
+.contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.contents ol { list-style: none; margin: 0; padding: 0; }
+.contents li { border-top: 0; }
+.contents li:last-child { border-bottom: 0; }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a:hover { background: var(--color-wash); }
+.contents li a:hover .t { color: var(--color-accent-text); }
+.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 62ch; }
+.contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+
+/* ---- live numbers: the book's own measurements, set as a strip ---- */
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
+.fig .u { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); margin-top: 2px; }
+.fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
+
+/* ---- colophon block ---- */
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
+.colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
+.gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
+.gate-row > div { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.gate-row .gate-v { display: block; font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-accent); }
+.gate-row .gate-l { display: block; font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+.colophon-links { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-lg); font-family: var(--font-display); font-size: var(--text-sm); }
+.colophon-links a { color: var(--color-ink); text-decoration: none; border-bottom: var(--rule-hair) solid var(--color-accent); padding-bottom: 1px; }
+.colophon-links a:hover { color: var(--color-accent); }
+
+.masthead { padding: var(--space-xl) 0 var(--space-lg); border-bottom: var(--rule-bar) solid var(--color-rule-2); margin-bottom: var(--space-xl); }
+.masthead .kicker { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.masthead h1 { font-size: var(--text-3xl); color: var(--color-ink); margin: 0 0 var(--space-xs); }
+.masthead .standfirst { font-size: var(--text-lg); color: var(--color-muted); line-height: 1.4; margin: 0; max-width: 52ch; }
+.masthead .facts { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-md); font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.masthead .facts strong { color: var(--color-ink); font-weight: 500; }
+
+/* ---- parts ---- */
+.part { margin: 0 0 var(--space-xl); }
+.part-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); }
+.part-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-md); }
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: var(--rule-hair) solid var(--color-rule); }
+.toc li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.toc a { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: var(--space-md); padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.toc a:hover { background: var(--color-wash); }
+.toc a:hover .t-title { color: var(--color-ink); }
+.t-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.t-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.toc a.pending .t-title { color: var(--color-muted); }
+
+/* ---- chapter page ---- */
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
+.chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
+.chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
+.chapter-head .xref { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+
+.mini-toc { display: none; margin: var(--space-lg) 0 0; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); border-bottom: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-sm); grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc h2 { font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-2xs); grid-column: 1 / -1; }
+.mini-toc ul { list-style: none; margin: 0; padding: 0; grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc li { margin: 0; }
+.mini-toc li:first-child a { border-top: 0; }
+.mini-toc a { color: var(--color-ink-2); text-decoration: none; display: block; padding: 4px 0; line-height: 1.3; overflow-wrap: break-word; border-top: var(--rule-hair) solid var(--color-rule); }
+.mini-toc a:hover { color: var(--color-accent); }
+.prose h3 { scroll-margin-top: calc(var(--topbar-h) + var(--space-md)); }
+
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.glossary { max-width: var(--read-measure); }
+.glossary dl { margin: 0; }
+.glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
+.glossary dt a { color: var(--color-ink); text-decoration: none; }
+.glossary dt a:hover { color: var(--color-accent); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
+.glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.glossary dd .src a { color: var(--color-accent); text-decoration: none; }
+.glossary dd .src a:hover { text-decoration: underline; }
+
+/* ---- reading paths ---- */
+.paths-strip { margin: var(--section-gap) 0 0; }
+.paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
+.paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
+.paths-strip a { display: block; text-decoration: none; }
+.paths-strip a:hover .p-what { color: var(--color-accent); }
+.paths-kicker { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.p-when { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-accent); }
+.p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
+
+.paths-intro { max-width: var(--read-measure); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
+.path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
+.path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
+.path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.path-list a { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.path-list a:hover { background: var(--color-wash); }
+.path-list a:hover .p-title { color: var(--color-ink); }
+.p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
+
+/* ---- reproduce-this page ---- */
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
+
+/* ---- prose ---- */
+.prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
+.prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.prose a { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 0.15em; }
+.prose a:hover { text-decoration-thickness: 2px; }
+.prose strong { color: var(--color-ink); font-weight: 600; }
+.prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
+
+/* ---- figures: on the sheet, full measure, centred ---- */
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
+.chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure .fig-svg text.mono { font-family: var(--font-outlier); }
+.chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
+.chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
+.fig-svg text { font-family: var(--font-display); }
+.fig-controls { display: none; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-top: var(--space-sm); }
+.chapter-figure.is-animated .fig-controls { display: flex; }
+.fig-controls button { min-height: 44px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; }
+.fig-controls button:hover { border-color: var(--color-accent); }
+.fig-controls button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.fig-label { flex: 1 1 18rem; min-width: 12rem; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.chapter-figure .fig-svg [data-part] { transition: opacity .2s ease; }
+.chapter-figure.is-animated .fig-svg [data-part].is-dim { opacity: .22; }
+.chapter-figure.is-animated .fig-svg [data-part].is-active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .chapter-figure .fig-svg [data-part] { transition: none; } }
+@media print { .fig-controls { display: none !important; } .chapter-figure .fig-scroll { overflow: visible; } .chapter-figure .fig-scroll .fig-svg { min-width: 0; } }
+
+/* ---- data figures ---- */
+.figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-lg); color: var(--color-ink); letter-spacing: -0.02em; }
+.fig .u { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.fig .l { font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+
+/* ---- nav ---- */
+.chapter-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-2xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); font-family: var(--font-display); font-size: var(--text-sm); }
+.chapter-nav a { color: var(--color-ink); text-decoration: none; padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; white-space: normal; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; }
+.chapter-nav a:hover { border-color: var(--color-rule-2); background: var(--color-wash); }
+.chapter-nav a.next { text-align: right; }
+.chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
+
+/* ---- interactive devices ---- */
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive h3 { margin-top: 0; }
+.interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
+.interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
+.interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
+.interactive button:hover { background: var(--color-accent-2); }
+.forest-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#token-forest-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.forest-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.forest-svg text.mono { font-family: var(--font-outlier); }
+.forest-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.forest-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.forest-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.forest-rankline .pair { color: var(--color-ink); }
+.forest-rankline .merged { color: var(--color-accent); font-weight: 600; }
+.interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
+.interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
+.interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
+.slider-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+.slider-row label { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.slider-row input[type=text] { flex: 1; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--color-accent); }
+.readout { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.readout strong { color: var(--color-ink); font-weight: 600; }
+.steps { list-style: none; padding: 0; margin: 0 0 var(--space-md); font-family: var(--font-display); font-size: var(--text-sm); }
+.steps li { display: grid; grid-template-columns: 5rem 1fr; gap: var(--space-sm); padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.steps li .k { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--color-accent); }
+.steps li.done .k { color: var(--color-muted); }
+.btn { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; background: transparent; border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent); padding: var(--space-2xs) var(--space-sm); cursor: pointer; border-radius: var(--radius-pill); }
+.btn:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
+.provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
+.provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
+.provenance td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-xs); vertical-align: top; }
+.provenance td.pv { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-ink); }
+.provenance td.ps { color: var(--color-muted); }
+.provenance td.pc { color: var(--color-ink-2); }
+.provenance .prov-note { font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.provenance details.prov-more { display: block; }
+.provenance details.prov-more summary { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); cursor: pointer; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.provenance details.prov-more table { margin-top: var(--space-2xs); }
+/* provenance is a 3-column table; on a phone let it scroll rather than push the page wide */
+.provenance { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.provenance table { min-width: 30rem; }
+@media (max-width: 40rem) { .provenance table { min-width: 26rem; } }
+
+/* ---- margin rail ---- */
+.prose { position: relative; }
+.prose .sidenote { display: none; }
+@media (min-width: 1100px) {
+  .prose .sidenote { display: block; position: absolute; left: calc(var(--read-measure) + 2.5rem); width: 13rem; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.5; color: var(--color-muted); border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-sm); }
+}
+
+/* ---- reader shell: contents rail, top bar, chapter rail ---- */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; max-width: var(--container); margin-inline: auto; min-height: 100vh; }
+.shell--wide { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); grid-column: 1 / span 2; grid-row: 1; display: flex; align-items: center; gap: var(--space-md); height: var(--topbar-h); padding: 0 var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.topbar .wordmark { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); letter-spacing: -0.01em; color: var(--color-ink); text-decoration: none; white-space: nowrap; display: flex; align-items: baseline; gap: var(--space-xs); }
+.topbar .wordmark .part { color: var(--color-muted); font-weight: 500; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.topbar .spacer { flex: 1 1 auto; }
+.topbar .folio { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; padding-right: var(--space-xs); border-right: var(--rule-hair) solid var(--color-rule); margin-right: var(--space-2xs); }
+/* the topbar must never push the page wide: let it shrink, not overflow */
+.topbar { flex-wrap: nowrap; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.topbar .wordmark { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+@media (max-width: 68rem) {
+  .topbar .folio { display: none; }
+  .topbar .wordmark .part { display: none; }
+  .topbar { gap: var(--space-sm); padding: 0 var(--space-md); }
+}
+.topbar .tool { display: inline-flex; align-items: center; gap: var(--space-2xs); height: 2rem; padding: 0 var(--space-sm); font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-ink); background: transparent; border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); cursor: pointer; }
+.topbar .tool:hover { background: var(--color-paper-2); }
+.topbar .tool kbd { font-family: var(--font-outlier); font-size: 0.6875rem; color: var(--color-muted); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.rail-toggle { display: none; }
+.rail { grid-column: 1; grid-row: 2; position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-lg) var(--space-lg) var(--space-3xl); border-right: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; }
+.rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); letter-spacing: 0; margin: 0 0 var(--space-sm); max-width: none; }
+.rail .part { margin: 0 0 var(--space-lg); }
+.rail .part > h3 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-2xs); max-width: none; line-height: 1.3; }
+.rail ol { list-style: none; margin: 0; padding: 0; }
+.rail a { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: var(--space-2xs); align-items: baseline; padding: var(--space-2xs) var(--space-xs); margin-left: calc(-1 * var(--space-xs)); color: var(--color-ink-2); text-decoration: none; border-radius: var(--radius-pill); }
+.rail a > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail a:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.rail a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: 0.6875rem; color: var(--color-muted); text-align: right; }
+.rail a[aria-current="page"] { background: var(--color-wash); color: var(--color-ink); font-weight: 600; }
+.rail a[aria-current="page"] .n { color: var(--color-accent-text); }
+.rail .meta { margin-top: var(--space-xl); }
+.rail .meta a { display: block; padding: var(--space-2xs) 0; margin-left: 0; color: var(--color-muted); }
+.rail .meta a:hover { background: none; color: var(--color-accent); }
+.main { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--chapter-rail-w); }
+.main--single { grid-template-columns: minmax(0, 1fr); }
+.page { min-width: 0; padding: var(--space-lg) var(--space-xl) var(--space-3xl); }
+.page:has(.cover) { padding-top: 0; }
+.prose, .frontis, .masthead, .chapter-head, .mini-toc { max-width: var(--read-measure); }
+.chapter-rail { position: sticky; top: calc(var(--topbar-h) + var(--space-2xl)); align-self: start; padding: var(--space-md) 0 var(--space-xl); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-lg); margin-left: var(--space-lg); }
+.chapter-rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-sm); max-width: none; }
+.chapter-rail ul { list-style: none; margin: 0; padding: 0; }
+.chapter-rail li { margin: 0 0 var(--space-2xs); }
+.chapter-rail a { color: var(--color-muted); text-decoration: none; display: block; padding: 3px 0; line-height: 1.35; overflow-wrap: break-word; hyphens: auto; }
+.chapter-rail li { min-width: 0; }
+.chapter-rail a:hover { color: var(--color-ink); }
+.chapter-rail a.active { color: var(--color-accent-text); font-weight: 600; }
+/* not colour alone: a rule and a bullet mark the section you are in */
+.chapter-rail a.active::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: 2px; background: var(--color-accent-text); border-radius: 50%; }
+.chapter-rail .progress { margin-top: var(--space-lg); color: var(--color-muted); font-size: 0.6875rem; }
+.chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
+.chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
+
+
+/* ---- search dialog ---- */
+.search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
+.search-dialog[open] { display: block; }
+.search-box { max-width: 44rem; margin: 0 auto; background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); box-shadow: 0 24px 60px color-mix(in oklab, var(--color-ink) 30%, transparent); max-height: 84vh; display: flex; flex-direction: column; }
+.search-head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.search-head input { flex: 1; font-family: var(--font-display); font-size: var(--text-lg); border: 0; background: transparent; color: var(--color-ink); outline: none; }
+.search-head input::placeholder { color: var(--color-muted); }
+.search-head .close { font-family: var(--font-display); font-size: var(--text-xs); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); border-radius: var(--radius-pill); padding: 2px var(--space-xs); cursor: pointer; }
+.search-status { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); padding: var(--space-xs) var(--space-md); }
+.search-results { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.search-results li { border-top: var(--rule-hair) solid var(--color-rule); }
+.search-results a { display: block; padding: var(--space-sm) var(--space-md); text-decoration: none; color: var(--color-ink-2); }
+.search-results a:hover, .search-results a[aria-selected="true"] { background: var(--color-wash); }
+.search-results .r-ch { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.search-results .r-t { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); display: block; margin-top: 2px; }
+.search-results .r-s { font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; }
+.search-results mark { background: color-mix(in oklab, var(--color-accent) 24%, transparent); color: var(--color-ink); }
+.search-empty { padding: var(--space-lg) var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+
+/* ---- small screens ---- */
+@media (max-width: 68rem) {
+  .mini-toc { display: grid; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .chapter-rail { display: none; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* the rail is an overlay here, so it must not reserve a column */
+  .rail { grid-column: auto; }
+  .topbar { grid-column: 1 / span 2; }
+  .rail { grid-column: 1; grid-row: 2; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: var(--z-sticky-nav); background: var(--color-paper); height: auto; border-right: 0; display: none; padding-bottom: var(--space-3xl); }
+  .rail[data-open="true"] { display: block; }
+  .rail-toggle { display: inline-flex; }
+  .page { padding: var(--space-xl) var(--space-md) var(--space-2xl); }
+  .prose pre, .prose code { overflow-wrap: anywhere; }
+  .prose pre { white-space: pre-wrap; }
+  .provenance { overflow-x: auto; }
+  .prose pre { max-width: 100%; }
+  .provenance, .provenance table, .interactive table { max-width: 100%; }
+  .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
+  /* the merge tree carries 12px mono labels; below this width it scrolls
+     instead of shrinking them, same floor as the static figures */
+  #token-forest-host .forest-svg { min-width: 34rem; }
+  .chapter-nav { grid-template-columns: 1fr; }
+  .chapter-nav a.next { text-align: left; }
+  .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
+  .contents li a .m { display: none; }
+}
+@media (max-width: 40rem) {
+  .topbar { padding-inline: var(--space-md); }
+  .page { padding-inline: var(--space-sm); }
+  .topbar .wordmark .part { display: none; }
+  .topbar .tool .label { display: none; }
+  .masthead h1 { font-size: var(--text-2xl); }
+  .chapter-head h1 { font-size: var(--text-2xl); }
+  .search-dialog { padding: 0; }
+  .search-box { max-height: 100vh; min-height: 100vh; }
+  .mini-toc a { font-size: 0.75rem; }
+  .topbar .tool .label { display: none; }
+  .topbar .tool { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+<button class="tool rail-toggle" type="button" data-rail-toggle aria-controls="rail" aria-expanded="false">Contents</button>
+<a class="wordmark" href="../index.html">The Shape of a Token<span class="part">13 &middot; Why the second request is cheaper</span></a>
+<span class="spacer"></span>
+<span class="folio">13 / 31</span>
+<button class="tool" type="button" data-open-search aria-keyshortcuts="/">
+<span class="label">Search</span><kbd>/</kbd>
+</button>
+<button class="tool" type="button" data-theme-toggle aria-label="Switch between light and dark">
+<span class="label">Theme</span>
+</button>
+</header>
+<nav class="rail" id="rail" aria-label="Contents"><h2>Contents</h2><div class="part"><h3>I. The raw material</h3><ol><li><a href="../chapters/01-tokens.html" title="Text is not numbers yet"><span class="n">01</span><span>Text is not numbers yet</span></a></li><li><a href="../chapters/02-embeddings.html" title="A vector is a coordinate, not a meaning"><span class="n">02</span><span>A vector is a coordinate, not a meaning</span></a></li><li><a href="../chapters/03-residual-stream.html" title="The one lane everything writes into"><span class="n">03</span><span>The one lane everything writes into</span></a></li></ol></div><div class="part"><h3>II. Attention</h3><ol><li><a href="../chapters/04-before-attention.html" title="The bottleneck attention was invented to fix"><span class="n">04</span><span>The bottleneck attention was invented to fix</span></a></li><li><a href="../chapters/05-scaled-dot-product.html" title="The 2017 move: drop the recurrence"><span class="n">05</span><span>The 2017 move: drop the recurrence</span></a></li><li><a href="../chapters/06-multi-head.html" title="Why many small heads beat one large one"><span class="n">06</span><span>Why many small heads beat one large one</span></a></li><li><a href="../chapters/07-softmax.html" title="The function that turns scores into shares"><span class="n">07</span><span>The function that turns scores into shares</span></a></li><li><a href="../chapters/08-positions.html" title="Attention has no idea where it is"><span class="n">08</span><span>Attention has no idea where it is</span></a></li><li><a href="../chapters/09-quadratic-wall.html" title="The cost that defines the field"><span class="n">09</span><span>The cost that defines the field</span></a></li></ol></div><div class="part"><h3>III. The cache</h3><ol><li><a href="../chapters/10-kv-cache.html" title="Why generation is slow and memory-hungry"><span class="n">10</span><span>Why generation is slow and memory-hungry</span></a></li><li><a href="../chapters/11-mqa-gqa-mla.html" title="Three generations of sharing the cache"><span class="n">11</span><span>Three generations of sharing the cache</span></a></li><li><a href="../chapters/12-paged-attention.html" title="Virtual memory for the KV cache"><span class="n">12</span><span>Virtual memory for the KV cache</span></a></li><li><a href="../chapters/13-prefix-caching.html" aria-current="page" title="Why the second request is cheaper"><span class="n">13</span><span>Why the second request is cheaper</span></a></li><li><a href="../chapters/14-flash-attention.html" title="Attention that never builds the matrix"><span class="n">14</span><span>Attention that never builds the matrix</span></a></li><li><a href="../chapters/15-sparse-sliding.html" title="Not every token needs to see every token"><span class="n">15</span><span>Not every token needs to see every token</span></a></li></ol></div><div class="part"><h3>IV. The rest of the block</h3><ol><li><a href="../chapters/16-ffn.html" title="Where most of the parameters actually live"><span class="n">16</span><span>Where most of the parameters actually live</span></a></li><li><a href="../chapters/17-activations.html" title="ReLU, GELU, and the gated turn"><span class="n">17</span><span>ReLU, GELU, and the gated turn</span></a></li><li><a href="../chapters/18-normalization.html" title="Keeping the residual stream in range"><span class="n">18</span><span>Keeping the residual stream in range</span></a></li><li><a href="../chapters/19-moe.html" title="More parameters without more arithmetic"><span class="n">19</span><span>More parameters without more arithmetic</span></a></li></ol></div><div class="part"><h3>V. Precision</h3><ol><li><a href="../chapters/20-precision.html" title="From fp32 to bf16 to fp8"><span class="n">20</span><span>From fp32 to bf16 to fp8</span></a></li><li><a href="../chapters/21-quantization.html" title="Four bits and the outlier problem"><span class="n">21</span><span>Four bits and the outlier problem</span></a></li><li><a href="../chapters/22-why-4bit-works.html" title="Why four bits is enough"><span class="n">22</span><span>Why four bits is enough</span></a></li></ol></div><div class="part"><h3>VI. Producing a token</h3><ol><li><a href="../chapters/23-logits.html" title="From a vector to a word"><span class="n">23</span><span>From a vector to a word</span></a></li><li><a href="../chapters/24-sampling.html" title="Temperature, top-k, top-p, and what each one does"><span class="n">24</span><span>Temperature, top-k, top-p, and what each one does</span></a></li><li><a href="../chapters/25-speculative.html" title="Guessing ahead and checking cheaply"><span class="n">25</span><span>Guessing ahead and checking cheaply</span></a></li></ol></div><div class="part"><h3>VII. Serving</h3><ol><li><a href="../chapters/26-prefill-decode.html" title="Two regimes in one machine"><span class="n">26</span><span>Two regimes in one machine</span></a></li><li><a href="../chapters/27-batching.html" title="Continuous batching and the scheduler"><span class="n">27</span><span>Continuous batching and the scheduler</span></a></li><li><a href="../chapters/28-parallelism.html" title="Splitting a model across devices"><span class="n">28</span><span>Splitting a model across devices</span></a></li><li><a href="../chapters/29-roofline.html" title="What the hardware actually allows"><span class="n">29</span><span>What the hardware actually allows</span></a></li></ol></div><div class="part"><h3>VIII. Grounding it</h3><ol><li><a href="../chapters/30-measurement.html" title="How to know any of this is true"><span class="n">30</span><span>How to know any of this is true</span></a></li><li><a href="../chapters/31-local-numbers.html" title="Two small machines, by arithmetic"><span class="n">31</span><span>Two small machines, by arithmetic</span></a></li></ol></div><div class="meta"><a href="../paths.html">Reading paths</a><a href="../glossary.html">Glossary</a><a href="../about.html">How this was made</a></div></nav>
+<div class="main">
+<div class="page">
+
+<header class="chapter-head">
+  <span class="num">Chapter 13 &middot; III. The cache</span>
+  <h1>Why the second request is cheaper</h1>
+  <p class="thesis">If two requests share a prefix, the keys and values for that prefix are identical, so computing them twice is pure waste.</p>
+  <p class="meta-line">Assumes <a class="xref" href="12-paged-attention.html">12 &middot; Virtual memory for the KV cache</a>. Terms: <a href="../glossary.html#prefill">prefill</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#decode">decode</a> &middot; <a href="../glossary.html#pagedattention">PagedAttention</a> &middot; <a href="../glossary.html#prefix-caching">prefix caching</a> &middot; <a href="../glossary.html#continuous-batching">continuous batching</a> &middot; <a href="../glossary.html#throughput">throughput</a></p>
+</header>
+
+<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#when-a-shared-prefix-is-actually-reusable">When a shared prefix is actually reusable</a></li><li><a href="#what-a-pagedattention-block-stores">What a PagedAttention block stores</a></li><li><a href="#how-block-hashes-bind-a-block-to-its-prefix">How block hashes bind a block to its prefix</a></li><li><a href="#radix-tree-lookup-and-the-block-size-trade-off">Radix-tree lookup and the block-size trade-off</a></li><li><a href="#eviction-admission-and-cache-isolation">Eviction, admission, and cache isolation</a></li><li><a href="#measuring-token-level-hit-rate-and-uncached-prefill-throughput">Measuring token-level hit rate and uncached prefill throughput</a></li></ul></nav>
+
+<article class="prose">
+<p>A support bot answers a familiar question. The system prompt is identical to the last call. The user's question differs by a sentence. The engine receives the prompt, tokenizes it, and begins prefill. If it recomputes the system prompt from scratch, it has wasted most of the work. The second request should be cheaper because the keys and values for the shared prefix are already known, but only under conditions the mechanism must make explicit.</p>
+<h3 id="when-a-shared-prefix-is-actually-reusable">When a shared prefix is actually reusable</h3>
+<p>Start with the condition. In a decoder-only transformer, prefill processes the prompt tokens through every layer. At each layer, each token produces a query, a key, and a value. The key and value for token <span class="math"><i class="m-var">i</i></span> depend on tokens <span class="math">1</span> through <span class="math"><i class="m-var">i</i></span>. Attention is causal, so token <span class="math"><i class="m-var">i</i></span> never sees tokens after <span class="math"><i class="m-var">i</i></span>. If two requests have the same token sequence up to position <span class="math"><i class="m-var">i</i></span>, then the key and value at position <span class="math"><i class="m-var">i</i></span> are identical in both requests, layer by layer. The computation is deterministic; there is no randomness in the forward pass. The KV cache stores those tensors so decode can attend to them without recomputing. The same storage can be shared across requests when the prefix matches.</p>
+
+<figure class="chapter-figure" data-fig-id="prefix-reuse-refcount">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Shared prefix blocks are reused and kept alive by refcount">
+<svg class="fig-svg" viewBox="0 0 900 330" width="100%" role="img" aria-labelledby="fig-title-8a257501" aria-describedby="fig-desc-8a257501" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-8a257501" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-8a257501" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="330" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-8a257501">Shared prefix blocks are reused and kept alive by refcount</title><desc id="fig-desc-8a257501">A&#x27;s prefill builds the system-prompt blocks S1 and S2 with refcount 1. B&#x27;s lookup matches both, raises them to 2, and prefills only its own suffix. When A finishes, S1 and S2 drop to 1 and U_A becomes evictable; only when B finishes do the shared blocks reach 0. Block-level refcounts keep the prefix alive across the gap between the two requests.</desc><text x="16.00" y="24.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">A request-level LRU would evict S1 and S2 when A finishes and destroy the prefix B is still using;</text><text x="16.00" y="43.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">block-level LRU with refcounts keeps them until both requests are done.</text><text x="215.50" y="97.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle" data-part="prefix">A arrives</text><text x="406.50" y="97.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle" data-part="reuse">B arrives</text><text x="597.50" y="97.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle" data-part="evict">A finishes</text><text x="788.50" y="97.47" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle" data-part="evict">B finishes</text><text x="16.00" y="133.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start" data-part="prefix">prefix</text><line x1="16.00" y1="163.20" x2="884.00" y2="163.20" stroke="var(--color-rule, #b8bcc4)" stroke-width="1" data-part="prefix"/><rect x="121.00" y="99.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="prefix"/><text x="215.50" y="129.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="prefix">built</text><rect x="312.00" y="99.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="reuse prefix"/><text x="406.50" y="129.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="reuse prefix">reused</text><rect x="503.00" y="99.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="prefix"/><text x="597.50" y="129.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="prefix">held</text><text x="16.00" y="203.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start" data-part="suffix">suffix</text><line x1="16.00" y1="233.20" x2="884.00" y2="233.20" stroke="var(--color-rule, #b8bcc4)" stroke-width="1" data-part="suffix"/><rect x="121.00" y="169.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="suffix"/><text x="215.50" y="199.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="suffix">U_A built</text><rect x="312.00" y="169.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="suffix"/><text x="406.50" y="199.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="suffix">U_B built</text><rect x="503.00" y="169.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1.1" data-part="evict suffix"/><text x="597.50" y="199.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="evict suffix">U_A freed</text><rect x="694.00" y="169.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1.1" data-part="evict suffix"/><text x="788.50" y="199.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="evict suffix">U_B freed</text><text x="16.00" y="273.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start" data-part="refcount">refcount</text><line x1="16.00" y1="303.20" x2="884.00" y2="303.20" stroke="var(--color-rule, #b8bcc4)" stroke-width="1" data-part="refcount"/><rect x="121.00" y="239.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="refcount"/><text x="215.50" y="269.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="refcount">1</text><rect x="312.00" y="239.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="refcount"/><text x="406.50" y="269.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="refcount">2</text><rect x="503.00" y="239.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="refcount"/><text x="597.50" y="269.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="refcount">1</text><rect x="694.00" y="239.20" width="189.00" height="58.00" rx="0" fill="none" stroke="var(--color-accent, #8a3324)" stroke-width="1.1" data-part="refcount"/><text x="788.50" y="269.83" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle" data-part="refcount">0</text></svg>
+</div>
+<figcaption><strong>Shared prefix blocks are reused and kept alive by refcount</strong> A's prefill builds the system-prompt blocks S1 and S2 with refcount 1. B's lookup matches both, raises them to 2, and prefills only its own suffix. When A finishes, S1 and S2 drop to 1 and U_A becomes evictable; only when B finishes do the shared blocks reach 0. Block-level refcounts keep the prefix alive across the gap between the two requests.</figcaption>
+<div class="fig-controls" data-fig-controls>
+<button type="button" data-play>Play</button>
+<button type="button" data-pause>Pause</button>
+<button type="button" data-prev aria-label="Previous step">Previous</button>
+<button type="button" data-next aria-label="Next step">Next</button>
+<button type="button" data-reset>Reset</button>
+<span class="fig-label" aria-live="polite"></span>
+</div>
+<script type="application/json" class="fig-anim">{"mode": "step", "interval": 1400, "intro": "Follow two requests through one shared system prompt.", "steps": [{"label": "A's prefill computes the system-prompt blocks S1 and S2; each has refcount 1.", "highlight": ["prefix", "refcount"]}, {"label": "B's lookup matches S1 and S2, raises both to refcount 2, and prefills only its suffix.", "highlight": ["reuse", "refcount"]}, {"label": "A finishes: S1 and S2 drop to 1 and U_A becomes an eviction candidate.", "highlight": ["evict", "refcount"]}, {"label": "B finishes: the shared blocks drop to 0 and can be evicted.", "highlight": ["evict"]}]}</script>
+</figure>
+
+<p>The match is stricter than “same tokens.” With rotary position embeddings, the key at a position depends on the absolute position through the RoPE rotation. The same token sequence at a different absolute position produces different keys. A prefix cache therefore requires the shared prefix to start at the same absolute position, usually position <span class="math">0</span>, because prompts begin there, and the cache key must include the model weights/version, tokenizer, adapter or LoRA identity, dtype, block size, and starting position or block index. If any of those differ, the cached KV is not valid. A fixed system prompt is not literally free. The engine still pays for hash computation, tree lookup, block-table updates, and reference-count bookkeeping, and the cached blocks must still be resident and not invalidated. It is nearly free in prefill compute only while those conditions hold.</p>
+<h3 id="what-a-pagedattention-block-stores">What a PagedAttention block stores</h3>
+<p>The storage unit is the PagedAttention block. In PagedAttention, the KV cache is divided into fixed-size physical blocks, or pages, in GPU memory. A request’s block table maps each logical block index in its token sequence to a physical block ID. For each layer and each head, the cache stores key and value vectors for every token position in the block. A block is therefore a slice across every layer and every head. For layer <span class="math"><i class="m-var">l</i></span>, head <span class="math"><i class="m-var">h</i></span>, and offset <span class="math"><i class="m-var">o</i></span> inside the block, the cache holds a key vector and a value vector of dimension <span class="math"><i class="m-var">d</i><sub><span class="m-text">head</span></sub></span>. A physical block ID refers to the same offset in every layer/head’s K and V arrays. PagedAttention gave the KV cache fixed-size blocks and a block table; prefix caching reuses those blocks across requests by pointing a new request’s block table at the same physical pages and incrementing the blocks’ reference counts.</p>
+<h3 id="how-block-hashes-bind-a-block-to-its-prefix">How block hashes bind a block to its prefix</h3>
+<p>In block-based prefix caching, the lookup uses fixed-size token blocks and a hash table keyed by block content plus the prefix hash; radix-tree caches such as RadixAttention instead match variable-length token sequences along tree edges Take a block of consecutive tokens. Hash the token IDs in the block together with the hash of the previous block and the cache-key namespace fields above. The previous-block hash binds the block to its prefix, so the same tokens at a different place in a document do not collide. The hash table maps the hash to one or more candidate physical KV blocks; implementations may use a fast non-cryptographic hash such as xxHash or a cryptographic hash such as SHA-256, trading lookup speed against collision resistance.</p>
+
+<figure class="chapter-figure" data-fig-id="hash-and-radix-lookup">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Two lookup structures that bind a block to its exact prefix">
+<svg class="fig-svg" viewBox="0 0 900 298" width="100%" role="img" aria-labelledby="fig-title-7db1bfdd" aria-describedby="fig-desc-7db1bfdd" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-7db1bfdd" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-7db1bfdd" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="298" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-7db1bfdd">Two lookup structures that bind a block to its exact prefix</title><desc id="fig-desc-7db1bfdd">A block is reusable only if every token before it matches. vLLM chains hashes, folding the previous block&#x27;s hash into the next so the same tokens after a different prefix hash differently. SGLang walks a radix tree, splitting an edge where tokens diverge; both reuse whole blocks only.</desc><text x="16.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">Chained block hash</text><line x1="16.00" y1="51.20" x2="436.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="16.00" y="61.20" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="78.65" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">h1 = H(S1 tokens | namespace)</text><rect x="16.00" y="100.80" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="118.25" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">h2 = H(S2 tokens | h1)</text><rect x="16.00" y="140.40" width="420.00" height="53.20" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="159.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">same tokens after a different prefix hash</text><text x="226.00" y="178.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">differently</text><text x="16.00" y="219.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Namespace: weights, tokenizer, adapter, dtype,</text><text x="16.00" y="237.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">block size, and starting position. Two requests</text><text x="16.00" y="255.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">share a block only if the whole chain matches.</text><text x="464.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">Radix-tree walk</text><line x1="464.00" y1="51.20" x2="884.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="464.00" y="61.20" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="78.65" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">root to edge S1 to node to edge S2</text><rect x="464.00" y="100.80" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="118.25" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">split the edge where tokens diverge</text><rect x="464.00" y="140.40" width="420.00" height="53.20" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="159.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">reuse full blocks only; a partial tail is</text><text x="674.00" y="178.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">recomputed</text><text x="464.00" y="219.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Divergence inside a block recomputes the whole</text><text x="464.00" y="237.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">block, so block size trades lookup metadata against</text><text x="464.00" y="255.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">recomputation; 16 is the common default.</text></svg>
+</div>
+<figcaption><strong>Two lookup structures that bind a block to its exact prefix</strong> A block is reusable only if every token before it matches. vLLM chains hashes, folding the previous block's hash into the next so the same tokens after a different prefix hash differently. SGLang walks a radix tree, splitting an edge where tokens diverge; both reuse whole blocks only.</figcaption>
+
+
+</figure>
+
+<p>Because collisions are possible, the cache stores the full token IDs, or a strong fingerprint, for each block and verifies the incoming tokens against the stored tokens before reuse. If the stored tokens differ, the entry is a collision and is skipped; a new entry is inserted. The hash is a lookup accelerator; the tree walk and token verification are the correctness check.</p>
+<p>A worked example distinguishes the two cases. Suppose the block size is two tokens. Request A has prefix <span class="math">[<i class="m-var">A</i><sub>1</sub>, <i class="m-var">A</i><sub>2</sub>][<i class="m-var">B</i><sub>1</sub>, <i class="m-var">B</i><sub>2</sub>]</span>, and Request B has prefix <span class="math">[<i class="m-var">C</i><sub>1</sub>, <i class="m-var">C</i><sub>2</sub>][<i class="m-var">B</i><sub>1</sub>, <i class="m-var">B</i><sub>2</sub>]</span>. The second block contains the same tokens <span class="math"><i class="m-var">B</i><sub>1</sub>, <i class="m-var">B</i><sub>2</sub></span> in both requests, but its hash includes the previous-block hash: <span class="math"><i class="m-var">h</i>(<i class="m-var">A</i><sub>1</sub>,<i class="m-var">A</i><sub>2</sub>)</span> for A and <span class="math"><i class="m-var">h</i>(<i class="m-var">C</i><sub>1</sub>,<i class="m-var">C</i><sub>2</sub>)</span> for B. The block hashes differ, so B’s second block is not reused from A. Now suppose Request C has prefix <span class="math">[<i class="m-var">A</i><sub>1</sub>, <i class="m-var">A</i><sub>2</sub>][<i class="m-var">B</i><sub>1</sub>, <i class="m-var">B</i><sub>2</sub>]</span>, exactly matching A. Its first block hash matches A’s first block, and its second block hash matches A’s second block, so both blocks are reused.</p>
+<p>Separately, if the same tokens <span class="math"><i class="m-var">B</i><sub>1</sub>, <i class="m-var">B</i><sub>2</sub></span> appear at position <span class="math">0</span> in one prompt and position <span class="math">4</span> in another, the chained previous-block hash prevents reuse, because the block is bound to its prefix; if the same tokens appeared at a different position, RoPE and the different preceding context would also make the KV values differ.</p>
+<h3 id="radix-tree-lookup-and-the-block-size-trade-off">Radix-tree lookup and the block-size trade-off</h3>
+<p>The radix tree stores token sequences as edges, with each node representing a shared prefix. On a new request, the engine computes block hashes incrementally and walks the tree from the root. At each node, it compares the incoming tokens to the child edges. If the tokens match an edge, the walk follows it and reuses the KV blocks along that path. If the tokens match part of an edge, the tree splits the edge at the divergence point: the matched prefix becomes a node, and the unmatched suffix becomes a new edge. If the tokens diverge, the walk stops. The engine computes only the remainder, but “remainder” is block-aligned. KV blocks are fixed-size and atomic; the cache does not reuse a partial block’s KV. If divergence falls inside a block, the entire block containing the divergence is recomputed, even if some of its tokens matched.</p>
+<p>If the prompt ends inside a block, that partial block is computed for the request but is not shared as a reusable block. The tree split may happen at token granularity for lookup, but reuse happens only for complete blocks whose hashes and stored tokens match. The new request’s block table is updated accordingly. Matched logical blocks point to existing physical block IDs with incremented reference counts. The remainder gets newly allocated physical blocks, the engine writes their K/V, and the block table entries are appended.</p>
+<p>Block size is a trade-off. Larger blocks reduce hash-table entries and block-table metadata, and they reduce lookup overhead at block granularity; they do not reduce token-level radix-tree nodes when the tree splits at token granularity. and they improve contiguous reuse, but a divergence inside a large block wastes more recomputation and makes memory allocation coarser. Smaller blocks reduce wasted recomputation at divergence and allow finer sharing, but they increase metadata, hashing, lookup, and block-table overhead. The right size depends on prompt-length distribution and divergence patterns; a common choice is 16 tokens, but it is not universal.</p>
+<h3 id="eviction-admission-and-cache-isolation">Eviction, admission, and cache isolation</h3>
+<p>Eviction is where the design gets subtle. The cache cannot hold every block forever. The engine must evict blocks to admit new requests. The eviction policy is least recently used on blocks, not on requests. Each block has a reference count. A live request holds a reference to every block in its KV. When the request finishes, the engine decrements the counts. Blocks with zero references become eviction candidates. The least recently used zero-reference candidate is evicted first. Shared blocks are counted per block-table reference, not per token: if two requests both hold the same physical block, its reference count is two; when one request finishes, the count drops to one and the block remains.</p>
+<p>A concrete refcount/LRU example follows. Request A arrives with system-prompt blocks <span class="math"><i class="m-var">S</i><sub>1</sub>, <i class="m-var">S</i><sub>2</sub></span> and unique suffix block <span class="math"><i class="m-var">U</i><sub><i class="m-var">A</i></sub></span>. <span class="math"><i class="m-var">S</i><sub>1</sub></span> and <span class="math"><i class="m-var">S</i><sub>2</sub></span> have refcount 1; <span class="math"><i class="m-var">U</i><sub><i class="m-var">A</i></sub></span> has refcount 1. Request B arrives with the same system prompt and a different suffix <span class="math"><i class="m-var">U</i><sub><i class="m-var">B</i></sub></span>. The lookup matches <span class="math"><i class="m-var">S</i><sub>1</sub>, <i class="m-var">S</i><sub>2</sub></span>, so their refcounts become 2, and <span class="math"><i class="m-var">U</i><sub><i class="m-var">B</i></sub></span> is allocated with refcount 1. Request A finishes: <span class="math"><i class="m-var">S</i><sub>1</sub>, <i class="m-var">S</i><sub>2</sub></span> drop to 1, and <span class="math"><i class="m-var">U</i><sub><i class="m-var">A</i></sub></span> drops to 0, so <span class="math"><i class="m-var">U</i><sub><i class="m-var">A</i></sub></span> becomes an eviction candidate. Request B finishes: <span class="math"><i class="m-var">S</i><sub>1</sub>, <i class="m-var">S</i><sub>2</sub></span> drop to 0 and become candidates. A request-level LRU would have evicted <span class="math"><i class="m-var">S</i><sub>1</sub>, <i class="m-var">S</i><sub>2</sub></span> when A finished, destroying the shared prefix while B still needed it. Block-level LRU separates the shared prefix from the unique suffix. The system-prompt blocks stay because they are touched by every request. The unique suffix goes because it is touched once.</p>
+<p>The radix tree imposes an order. A child block’s KV is only meaningful with its parent prefix. The cache enforces this by evicting leaves first. A parent block cannot be evicted while a child block is live. The enforcement is mechanical. Eviction considers only zero-reference leaf nodes. If a parent has zero references but a live child, the parent remains. If a parent must be invalidated, its descendants are invalidated first. Concurrency safety requires atomic reference-count updates under a per-block lock or a global cache lock. A lookup that finds a candidate must increment the block’s reference count before attaching it to the request’s block table; eviction checks that the count is zero and that the node is a leaf, and it cannot race with an attach. If admission fails after a partial attach, the engine decrements the counts it incremented.</p>
+<p>Admission control reserves blocks before admitting a request. The scheduler estimates the prompt blocks plus the reply budget; if free blocks are insufficient, it evicts zero-reference leaves; if still insufficient, it queues or rejects the request rather than admitting it and later evicting live blocks. Scheduling and batching interact with the cache. A high hit rate reduces the number of prefill tokens in a batch, so the scheduler can batch more requests or admit longer prompts. But cache lookup and block-table updates add CPU overhead, and eviction during scheduling can change the hit estimate. Continuous batching must account for both effects.</p>
+<p>Cache invalidation and isolation are part of correctness. When the model, tokenizer, adapter, dtype, block size, or position scheme changes, the cache namespace changes; old entries are not reused and may be cleared. If prompts from different tenants can share a cache, a tenant may infer another tenant’s prompt through hit timing or reuse. Production systems either include a tenant ID in the cache key, isolate caches per tenant, or disable cross-tenant sharing; they also verify stored tokens before reuse and clear a tenant’s entries on deletion.</p>
+<h3 id="measuring-token-level-hit-rate-and-uncached-prefill-throughput">Measuring token-level hit rate and uncached prefill throughput</h3>
+<p>The metrics must match the mechanism. The token-level hit rate is <span class="math"> <span class="m-text">cached tokens</span> / <span class="m-text">queried tokens</span> </span>. The request-level hit rate is <span class="math"> <span class="m-text">requests with at least one cached token</span> / <span class="m-text">requests</span> </span>. A numeric example follows. Request A has 100 prompt tokens and 90 are cached. Request B has 10 prompt tokens and 0 are cached. The token-level hit rate is <span class="math">90/110 = 81.8%</span>; the request-level hit rate is <span class="math">1/2 = 50%</span>. A request with one cached token counts as a request-level hit but saves almost no compute. That is why the useful metric is token-level. It tells what fraction of prompt tokens skipped query-token processing; it is not the fraction of total prefill work removed, since uncached tokens still attend over cached KVs and other overhead remains.</p>
+
+<figure class="chapter-figure" data-fig-id="hit-rate-metrics">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Token-level hit rate is the one that tracks prefill work">
+<svg class="fig-svg" viewBox="0 0 760 169" width="100%" role="img" aria-labelledby="fig-title-a912aabc" aria-describedby="fig-desc-a912aabc" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-a912aabc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-a912aabc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="760" height="169" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-a912aabc">Token-level hit rate is the one that tracks prefill work</title><desc id="fig-desc-a912aabc">In the worked example 90 of 110 prompt tokens are cached, a token-level rate of 81.8 percent, while only 1 of 2 requests hits, 50 percent. A request with one cached token counts as a request-level hit but saves almost no compute, which is why the token-level rate is the one that tracks prefill work.</desc><text x="16.00" y="14.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">The counters are per prompt token: increment the query counter for every token considered for</text><text x="16.00" y="30.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">matching and the hit counter for every reused KV block. Request-level counts a request as a hit even</text><text x="16.00" y="46.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">when one token matched.</text><text x="16.00" y="108.28" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">token-level, example</text><rect x="188.00" y="93.72" width="366.00" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.34)" stroke="var(--color-accent, #8a3324)" stroke-width="1"/><text x="560.00" y="108.28" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">81.8%, 90 of 110</text><text x="16.00" y="142.28" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">request-level, example</text><rect x="188.00" y="127.72" width="223.72" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="417.72" y="142.28" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">50%, 1 of 2</text></svg>
+</div>
+<figcaption><strong>Token-level hit rate is the one that tracks prefill work</strong> In the worked example 90 of 110 prompt tokens are cached, a token-level rate of 81.8 percent, while only 1 of 2 requests hits, 50 percent. A request with one cached token counts as a request-level hit but saves almost no compute, which is why the token-level rate is the one that tracks prefill work.</figcaption>
+
+
+</figure>
+
+<p>The counters are collected during lookup. For every prompt token considered for prefix matching, increment the query-token counter. For every token whose KV block is reused, increment the hit-token counter. The prefill timer wraps only the prefill kernel. Cached tokens are not processed as queries in the prefill kernel, but their KV blocks are read as attention context when prefilling uncached tokens; prefill time therefore excludes cached-token query computation but not attention over cached KV. so the prefill-time denominator excludes them. Therefore the uncached prefill throughput uses prompt tokens minus cached tokens divided by prefill seconds. The naive ratio of all prompt tokens divided by prefill seconds is an effective throughput that includes cache savings and overstates kernel compute throughput; it does not measure cache lookup For a sample window, take the prompt-token count, the cached-token count, and the prefill kernel time for the uncached tokens.</p>
+<p>The uncached throughput is the uncached token count divided by that time. A benchmark that reports prefill throughput without the hit rate is reporting the cache’s effect. The same applies to latency. Time to first token includes lookup, prefill of uncached tokens, and scheduling, so comparisons across engines need the hit rate and the uncached prefill throughput.</p>
+<p>The second request is cheaper because the first request paid to build a path in the tree. SGLang’s RadixAttention is described in Lianmin Zheng et al. “SGLang: Efficient Execution of Structured Language Model Programs,” NeurIPS 2024; vLLM’s PagedAttention memory manager is described in Woosuk Kwon et al. “Efficient Memory Management for Large Language Model Serving with PagedAttention,” SOSP 2023, and vLLM’s serving stack implements automatic prefix caching with block hashes. Prefix caching is implemented in several serving engines, but it is not universal and it is not free. The honest report gives uncached prefill throughput and token-level hit rate separately, with the cache-key conditions and eviction policy stated. The accounting can obscure the mechanism; the mechanism should be stated first.</p>
+</article>
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <p class="prov-note">13 sourced values in this chapter. The origin column is the
+  file or command each one was read from.</p>
+  <table>
+    <thead><tr><th>value</th><th>what it is</th><th>origin</th></tr></thead>
+    <tbody><tr><td class="pv">2023</td><td class="pc">Context extension for RoPE models.</td><td class="ps">Peng et al., 'YaRN: Efficient Context Window Extension of Large Language Models'</td></tr><tr><td class="pv">2023</td><td class="pc">Grouped-query attention.</td><td class="ps">Ainslie et al., 'GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints'</td></tr><tr><td class="pv">2024</td><td class="pc">Multi-head latent attention (MLA).</td><td class="ps">DeepSeek-AI, 'DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model'</td></tr><tr><td class="pv">2023</td><td class="pc">Second-generation Flash Attention.</td><td class="ps">Dao, 'FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning'</td></tr><tr><td class="pv">2023</td><td class="pc">Sliding window attention in a production model.</td><td class="ps">Jiang et al., 'Mistral 7B'</td></tr><tr><td class="pv">2023</td><td class="pc">PagedAttention and vLLM.</td><td class="ps">Kwon et al., 'Efficient Memory Management for Large Language Model Serving with PagedAttention', SOSP</td></tr><tr><td class="pv">2023</td><td class="pc">AWQ activation-aware quantization.</td><td class="ps">Lin et al., 'AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration'</td></tr><tr><td class="pv">2023</td><td class="pc">Independent derivation of speculative sampling.</td><td class="ps">Chen et al., 'Accelerating Large Language Model Decoding with Speculative Sampling'</td></tr></tbody>
+  </table>
+  <details class="prov-more"><summary>5 more values</summary><table><tbody><tr><td class="pv">2023</td><td class="pc">Multiple draft heads on one model.</td><td class="ps">Cai et al., 'Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads'</td></tr><tr><td class="pv">2024</td><td class="pc">Feature-level speculative drafting.</td><td class="ps">Li et al., 'EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty'</td></tr><tr><td class="pv">2023</td><td class="pc">Llama 1.</td><td class="ps">Touvron et al., 'LLaMA: Open and Efficient Foundation Language Models'</td></tr><tr><td class="pv">2024</td><td class="pc">Llama 3.</td><td class="ps">Dubey et al., 'The Llama 3 Herd of Models'</td></tr><tr><td class="pv">2024</td><td class="pc">DeepSeek-V3 MoE model.</td><td class="ps">DeepSeek-AI, 'DeepSeek-V3 Technical Report'</td></tr></tbody></table></details>
+</section>
+
+
+<nav class="chapter-nav" aria-label="Previous and next chapter">
+<a href="12-paged-attention.html"><span class="dir">Previous</span>Virtual memory for the KV cache</a><a class="next" href="14-flash-attention.html"><span class="dir">Next</span>Attention that never builds the matrix</a>
+</nav>
+
+</div>
+<aside class="chapter-rail" aria-label="In this chapter">
+<h2>In this chapter</h2>
+<ul><li><a href="#when-a-shared-prefix-is-actually-reusable" title="When a shared prefix is actually reusable">When a shared prefix is actually reusable</a></li><li><a href="#what-a-pagedattention-block-stores" title="What a PagedAttention block stores">What a PagedAttention block stores</a></li><li><a href="#how-block-hashes-bind-a-block-to-its-prefix" title="How block hashes bind a block to its prefix">How block hashes bind a block to its prefix</a></li><li><a href="#radix-tree-lookup-and-the-block-size-trade-off" title="Radix-tree lookup and the block-size trade-off">Radix-tree lookup and the block-size trade-off</a></li><li><a href="#eviction-admission-and-cache-isolation" title="Eviction, admission, and cache isolation">Eviction, admission, and cache isolation</a></li><li><a href="#measuring-token-level-hit-rate-and-uncached-prefill-throughput" title="Measuring token-level hit rate and uncached prefill throughput">Measuring token-level hit rate and uncached prefill throughput</a></li></ul>
+<p class="progress"><span id="read-pct">Read 0%</span><span class="bar"><span id="read-bar"></span></span></p>
+</aside>
+</div>
+</div>
+<div class="search-dialog" id="search" role="dialog" aria-modal="true" aria-labelledby="search-label">
+<div class="search-box">
+<div class="search-head">
+<label class="visually-hidden" id="search-label" for="search-input">Search the book</label>
+<input id="search-input" type="search" placeholder="Search the book" autocomplete="off" spellcheck="false">
+<button class="close" type="button" data-close-search>Close</button>
+</div>
+<p class="search-status" id="search-status" aria-live="polite">Type a word, a term, or a number.</p>
+<ol class="search-results" id="search-results"></ol>
+</div>
+</div>
+<script>window.__SEARCH_INDEX__ = "../search-index.json";</script>
+<script src="../figures.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

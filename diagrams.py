@@ -693,7 +693,7 @@ def render_panels(spec):
                    spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         gap = 28
-        pw = (w - 2 * pad - gap) / len(panels)
+        pw = (w - 2 * pad - gap * (len(panels) - 1)) / len(panels)
         top = 26
         tallest = 0
         item_parts = parts.get("items") or []
@@ -1420,7 +1420,7 @@ def render_slab(spec):
                    spec.get("why") or spec.get("caption") or spec.get("title", ""))
         pad = 16
         gap = 40
-        pw = (w - 2 * pad - gap) / len(panels)
+        pw = (w - 2 * pad - gap * (len(panels) - 1)) / len(panels)
         small = size * 0.82
         tiny = size * 0.74
         lh = round(small * 1.22)

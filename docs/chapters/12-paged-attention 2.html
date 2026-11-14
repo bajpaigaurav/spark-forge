@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual memory for the KV cache</title>
+<script>(function(){try{var t=localStorage.getItem("sft-theme");
+if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<meta name="description" content="The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.">
+<meta property="og:description" content="The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.">
+<meta property="og:title" content="Virtual memory for the KV cache">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://bajpaigaurav.github.io/spark-forge/chapters/12-paged-attention.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%238a3324%22/><path d=%22M9 12h14M9 16h14M9 20h9%22 stroke=%22%23f6f3ec%22 stroke-width=%222.2%22 stroke-linecap=%22round%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>
+/* ---- tokens: Almanac, the reference-book register ---- */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
+  /* the gap between major blocks on a page */
+  --section-gap: clamp(4rem, 8vw, 7.5rem);
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
+  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+  --color-paper: oklch(84% 0.012 245); --color-paper-2: oklch(81% 0.012 245); --color-paper-3: oklch(77% 0.012 245);
+  --color-ink: oklch(16% 0.020 245); --color-ink-2: oklch(24% 0.018 245); --color-muted: oklch(38% 0.016 245);
+  --color-rule: oklch(73% 0.013 240); --color-rule-2: oklch(32% 0.018 240);
+  --color-accent: oklch(45% 0.180 350); --color-accent-2: oklch(37% 0.160 350); --color-accent-ink: oklch(97% 0.006 245); --color-focus: oklch(46% 0.190 350);
+  --color-sheet: oklch(93.5% 0.008 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 7%, var(--color-sheet));
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader", ui-serif, Georgia, serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 0; --radius-pill: 2px; --rule-hair: 1px; --rule-bar: 2px; --rule-heavy: 4px; --shadow-card: none;
+  --tracking-display: -0.02em; --display-weight: 600;
+  --container: 1440px; --gutter: 64px;
+  --z-sticky-nav: 300; --z-modal: 400;
+  --rail-w: 18rem; --chapter-rail-w: 15rem; --read-measure: 34rem; --topbar-h: 3.25rem;
+  /* how far a figure may reach past the prose column */
+  --figure-bleed: clamp(0rem, 22vw, 22rem);
+  /* how wide a figure may get: the page column minus its right-hand padding.
+     The chapter rail is part of that column, so this keeps the figure clear of it. */
+  --figure-max: calc(100vw - var(--rail-w) - 2 * var(--space-xl) - var(--chapter-rail-w) - var(--space-md));
+  --measure: var(--read-measure);
+}
+
+/* ---- dark: the same stock read by lamplight; magenta lifts one step ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(24% 0.016 245); --color-paper-2: oklch(21% 0.016 245); --color-paper-3: oklch(18% 0.016 245);
+  --color-ink: oklch(95% 0.008 245); --color-ink-2: oklch(88% 0.010 245); --color-muted: oklch(74% 0.014 245);
+  --color-rule: oklch(36% 0.016 240); --color-rule-2: oklch(62% 0.018 240);
+  --color-accent: oklch(70% 0.165 350); --color-accent-2: oklch(78% 0.150 350); --color-accent-ink: oklch(17% 0.016 245); --color-accent-text: oklch(82% 0.130 350); --color-focus: oklch(76% 0.175 350);
+  --color-sheet: oklch(30% 0.014 245);
+  --color-wash: color-mix(in oklab, var(--color-accent) 14%, var(--color-sheet));
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-muted) var(--color-paper); scroll-padding-top: calc(var(--topbar-h) + var(--space-md)); }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink-2); font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.62; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-synthesis: none; letter-spacing: var(--tracking-display); line-height: 1.05; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+img, video, svg { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+.num, td.num { font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+
+/* ---- frontispiece ---- */
+.frontis { margin: 0 0 var(--space-2xl); }
+.frontis p { max-width: 66ch; margin: 0 0 var(--space-md); }
+.frontis p.lead { font-size: var(--text-lead); line-height: 1.4; color: var(--color-ink); max-width: 52ch; }
+.frontis .drop::first-letter { font-size: 1em; float: none; color: inherit; }
+.rule-short { width: 4rem; border: 0; border-top: var(--rule-bar) solid var(--color-accent); margin: var(--space-xl) 0; }
+
+/* ---- masthead ---- */
+/* ---- cover: one screen, then the contents ---- */
+.cover { min-height: min(78vh, 40rem); display: flex; flex-direction: column; justify-content: center; padding: var(--space-2xl) 0; margin-bottom: var(--space-2xl); border-bottom: var(--rule-heavy) solid var(--color-rule-2); }
+.cover-rule { display: block; margin: 0 0 var(--space-xl); }
+.cover-rule span { display: block; width: 6rem; height: var(--rule-heavy); background: var(--color-accent); }
+.cover-title { font-size: var(--text-display-s); line-height: 0.95; letter-spacing: -0.035em; color: var(--color-ink); max-width: 22ch; text-wrap: balance; margin: 0 0 var(--space-md); }
+.cover-stand { font-family: var(--font-display); font-weight: 500; font-size: var(--text-lg); line-height: 1.4; color: var(--color-ink-2); max-width: 42ch; margin: 0 0 var(--space-xl); }
+.cover-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-sm); margin: var(--space-xl) 0 0; }
+.cover-actions a, .cover-actions button { display: inline-flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 52px; padding: 6px var(--space-md); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-pill); cursor: pointer; text-align: left; }
+.cover-actions .sub { font-weight: 500; font-size: var(--text-xs); opacity: 0.75; line-height: 1.2; }
+.btn-primary { background: var(--color-accent); border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent-ink); }
+.btn-primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.btn-quiet { background: transparent; border: var(--rule-hair) solid var(--color-rule-2); color: var(--color-ink); }
+.btn-quiet:hover { background: var(--color-wash); }
+.cover-gap { font-family: var(--font-body); font-size: var(--text-lead); line-height: 1.45; color: var(--color-ink-2); max-width: 54ch; margin: 0; }
+.cover-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-lg); margin: var(--space-2xl) 0 0; padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.cover-facts div { margin: 0; }
+.cover-facts dt { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); margin: 0 0 2px; }
+.cover-facts dd { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.02em; color: var(--color-ink); margin: 0; }
+
+/* ---- the contents, set as a printed index ---- */
+.contents { margin: var(--section-gap) 0 0; }
+.contents > h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; max-width: none; margin: 0 0 var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.contents .part { margin-bottom: var(--space-2xl); }
+.contents .part:last-child { margin-bottom: 0; }
+.contents .part > ol { margin: 0; }
+.contents .part-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule-2); padding-bottom: var(--space-sm); }
+.contents .part-head h3 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0; max-width: none; letter-spacing: -0.01em; }
+.contents .part-head .count { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.contents ol { list-style: none; margin: 0; padding: 0; }
+.contents li { border-top: 0; }
+.contents li:last-child { border-bottom: 0; }
+.contents li a { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.contents li a:hover { background: var(--color-wash); }
+.contents li a:hover .t { color: var(--color-accent-text); }
+.contents li a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.contents li a .t { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.contents li a .d { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; max-width: 62ch; }
+.contents li a .m { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+
+/* ---- live numbers: the book's own measurements, set as a strip ---- */
+.figures { margin: var(--section-gap) 0 0; }
+.figures > h3 { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-sm); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-ink); }
+.fig .u { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); margin-top: 2px; }
+.fig .l { font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: var(--space-2xs); }
+
+/* ---- colophon block ---- */
+.colophon-block { margin: var(--section-gap) 0 var(--space-3xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.colophon-block h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 600; color: var(--color-ink); letter-spacing: -0.02em; margin: 0 0 var(--space-sm); max-width: none; }
+.colophon-block p { font-family: var(--font-body); font-size: var(--text-md); color: var(--color-ink-2); max-width: 62ch; margin: 0 0 var(--space-md); }
+.gate-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--space-md) var(--space-lg); margin: 0 0 var(--space-lg); }
+.gate-row > div { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.gate-row .gate-v { display: block; font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-xl); letter-spacing: -0.03em; color: var(--color-accent); }
+.gate-row .gate-l { display: block; font-family: var(--font-body); font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+.colophon-links { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-lg); font-family: var(--font-display); font-size: var(--text-sm); }
+.colophon-links a { color: var(--color-ink); text-decoration: none; border-bottom: var(--rule-hair) solid var(--color-accent); padding-bottom: 1px; }
+.colophon-links a:hover { color: var(--color-accent); }
+
+.masthead { padding: var(--space-xl) 0 var(--space-lg); border-bottom: var(--rule-bar) solid var(--color-rule-2); margin-bottom: var(--space-xl); }
+.masthead .kicker { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.masthead h1 { font-size: var(--text-3xl); color: var(--color-ink); margin: 0 0 var(--space-xs); }
+.masthead .standfirst { font-size: var(--text-lg); color: var(--color-muted); line-height: 1.4; margin: 0; max-width: 52ch; }
+.masthead .facts { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-md); font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.masthead .facts strong { color: var(--color-ink); font-weight: 500; }
+
+/* ---- parts ---- */
+.part { margin: 0 0 var(--space-xl); }
+.part-title { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-2xs); }
+.part-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-md); }
+
+/* ---- chapter list ---- */
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { border-top: var(--rule-hair) solid var(--color-rule); }
+.toc li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.toc a { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: var(--space-md); padding: var(--space-sm) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.toc a:hover { background: var(--color-wash); }
+.toc a:hover .t-title { color: var(--color-ink); }
+.t-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.t-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); letter-spacing: -0.01em; }
+.toc a.pending .t-title { color: var(--color-muted); }
+
+/* ---- chapter page ---- */
+.chapter-head { max-width: var(--read-measure); margin: 0 0 var(--space-2xl); padding: var(--space-lg) 0 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+/* the head owns no bottom padding: the margin alone sets the gap after the rule */
+.chapter-head > *:last-child { margin-bottom: var(--space-lg); }
+.chapter-head .num { font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--color-accent); display: block; margin-bottom: var(--space-md); }
+.chapter-head h1 { font-size: var(--text-2xl); line-height: 1.15; letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 var(--space-md); max-width: 26ch; text-wrap: balance; }
+.chapter-head .thesis { font-family: var(--font-body); font-size: var(--text-lg); color: var(--color-ink-2); line-height: 1.5; margin: 0; max-width: 52ch; }
+.chapter-head .meta-line { display: block; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.7; color: var(--color-muted); margin: var(--space-lg) 0 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); max-width: none; }
+.chapter-head .prereq, .chapter-head .terms { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); margin: 0; }
+.chapter-head .prereq a, .chapter-head .terms a { color: var(--color-ink-2); text-decoration-color: var(--color-accent); }
+.chapter-head .prereq a:hover, .chapter-head .terms a:hover { color: var(--color-accent); }
+.chapter-head .xref { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+
+.mini-toc { display: none; margin: var(--space-lg) 0 0; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); border-bottom: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-sm); grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc h2 { font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-2xs); grid-column: 1 / -1; }
+.mini-toc ul { list-style: none; margin: 0; padding: 0; grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.mini-toc li { margin: 0; }
+.mini-toc li:first-child a { border-top: 0; }
+.mini-toc a { color: var(--color-ink-2); text-decoration: none; display: block; padding: 4px 0; line-height: 1.3; overflow-wrap: break-word; border-top: var(--rule-hair) solid var(--color-rule); }
+.mini-toc a:hover { color: var(--color-accent); }
+.prose h3 { scroll-margin-top: calc(var(--topbar-h) + var(--space-md)); }
+
+/* Glossary chips: same weight as the prerequisite strip, one line, never loud. */
+.glossary { max-width: var(--read-measure); }
+.glossary dl { margin: 0; }
+.glossary dt { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--color-ink); margin: 0; padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+.glossary dd + dt { margin-top: var(--space-md); }
+.glossary dt a { color: var(--color-ink); text-decoration: none; }
+.glossary dt a:hover { color: var(--color-accent); }
+.glossary dd { margin: var(--space-xs) 0 0; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; max-width: 62ch; }
+.glossary dd .src { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.glossary dd .src a { color: var(--color-accent); text-decoration: none; }
+.glossary dd .src a:hover { text-decoration: underline; }
+
+/* ---- reading paths ---- */
+.paths-strip { margin: var(--section-gap) 0 0; }
+.paths-strip > h2 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); max-width: none; margin: 0 0 var(--space-md); padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.paths-strip ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 var(--space-lg); }
+.paths-strip li { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-sm) 0; }
+.paths-strip a { display: block; text-decoration: none; }
+.paths-strip a:hover .p-what { color: var(--color-accent); }
+.paths-kicker { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.p-when { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-accent); }
+.p-what { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--color-ink); display: block; margin-top: 2px; }
+
+.paths-intro { max-width: var(--read-measure); }
+.path { max-width: var(--read-measure); margin: var(--space-2xl) 0 0; }
+.path-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: 0 0 var(--space-sm); max-width: none; line-height: 1.25; }
+.path-who { font-size: var(--text-md); color: var(--color-ink-2); margin: 0 0 var(--space-xs); line-height: 1.5; }
+.path-when { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent-text); margin: 0 0 var(--space-lg); }
+.path-list { list-style: none; padding: 0; margin: 0 0 var(--space-md); }
+.path-list li { border-top: var(--rule-hair) solid var(--color-rule); }
+.path-list li:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.path-list a { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs); text-decoration: none; color: var(--color-ink-2); align-items: baseline; }
+.path-list a:hover { background: var(--color-wash); }
+.path-list a:hover .p-title { color: var(--color-ink); }
+.p-num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); }
+.p-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-md); color: var(--color-ink-2); }
+.path-why { font-size: var(--text-sm); line-height: 1.55; color: var(--color-muted); margin: 0; }
+
+/* ---- reproduce-this page ---- */
+
+/* ---- math ---- */
+/* LaTeX is typeset in the body serif rather than a separate math font, so an
+   equation reads as part of the sentence around it. Variables are italic and
+   the whole span is nudged up slightly to sit on the prose baseline. */
+.math { font-family: var(--font-display); font-style: normal; font-size: 1.06em;
+  white-space: nowrap; color: var(--color-ink); }
+.math .m-var { font-style: italic; }
+.math .m-text { font-style: normal; }
+.math .m-bb { font-weight: 600; }
+.math sup, .math sub { font-size: 0.72em; line-height: 0; }
+.math sup { vertical-align: 0.55em; }
+.math sub { vertical-align: -0.28em; }
+/* a stacked fraction, sized to the surrounding text */
+.math .m-frac { display: inline-flex; flex-direction: column; vertical-align: -0.55em;
+  text-align: center; margin: 0 0.12em; }
+.math .m-num { border-bottom: var(--rule-hair) solid currentColor; padding: 0 0.2em; }
+.math .m-den { padding: 0 0.2em; }
+/* a radical: the glyph carries the bar, drawn as a border on the body */
+.math .m-sqrt { border-top: var(--rule-hair) solid currentColor; padding-top: 0.06em; }
+.math .m-rad { margin-right: 0.02em; }
+.math .m-vec { position: relative; display: inline-block; }
+.math .m-vec-arrow { position: absolute; left: 50%; top: -0.62em; transform: translateX(-50%);
+  font-size: 0.8em; }
+
+/* A whole paragraph of $$...$$ becomes a display equation: centred, set apart,
+   with air above and below so it reads as a statement rather than a sentence. */
+.math-block { font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5;
+  text-align: center; color: var(--color-ink); margin: var(--space-xl) 0;
+  padding: var(--space-md) 0; overflow-x: auto; }
+.math-block .m-frac { font-size: 0.95em; }
+
+/* ---- prose ---- */
+.prose { font-size: 1.0625rem; line-height: 1.66; color: var(--color-ink-2); max-width: 68ch; }
+.prose p { margin: 0 0 var(--space-md); max-width: 68ch; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; color: var(--color-ink); margin: var(--space-2xl) 0 var(--space-md); max-width: none; line-height: 1.25; }
+.prose h3 { font-size: var(--text-lg); color: var(--color-ink); margin: var(--space-xl) 0 var(--space-sm); line-height: 1.3; padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.prose > :first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 var(--space-md); padding-left: 1.35rem; }
+.prose li { margin: 0 0 var(--space-xs); }
+.prose li > p:last-child { margin-bottom: 0; }
+.prose code { font-family: var(--font-outlier); font-size: 0.875em; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.prose pre { font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.5; background: var(--color-paper-2); border-left: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-sm) var(--space-md); overflow-x: auto; margin: 0 0 var(--space-md); }
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.prose a { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 0.15em; }
+.prose a:hover { text-decoration-thickness: 2px; }
+.prose strong { color: var(--color-ink); font-weight: 600; }
+.prose > p:first-of-type::first-letter { font-size: 1em; float: none; color: inherit; }
+
+/* ---- figures: on the sheet, full measure, centred ---- */
+/* Figures are wider than the prose: a diagram needs the room the text does not.
+   The page column is the figure's measure; the prose keeps its 34rem. */
+.chapter-figure { margin: var(--space-2xl) 0; padding: var(--space-lg) var(--space-lg) var(--space-md);
+  background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink);
+  border-radius: 2px; }
+/* On a wide screen a figure may reach past the prose measure into the page
+   column: the diagram needs the room the text does not. The width is measured
+   from the column, so it never overflows and never leaves a ragged edge. */
+@media (min-width: 75rem) {
+  /* .prose caps at 34rem, so a child cannot widen beyond it unless the figure
+     is taken out of that constraint. The page column is the real bound: the
+     figure may use everything between the prose's left edge and the right
+     edge of the page, never the chapter rail. */
+  .chapter-figure {
+    /* The page column is the bound. At >=75rem the column is
+       min(container, viewport) - rail - chapter-rail - page padding; the figure
+       may use everything from the prose's left edge to the column's right edge. */
+    width: calc(var(--read-measure) + var(--figure-bleed));
+    max-width: var(--figure-max);
+    margin-right: 0;
+  }
+}
+.chapter-figure .fig-svg { display: block; width: 100%; height: auto; color: var(--color-ink); }
+.chapter-figure figcaption { border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-sm); margin-top: var(--space-md); }
+.chapter-figure .fig-svg text { font-family: var(--font-display); }
+.chapter-figure .fig-svg text.mono { font-family: var(--font-outlier); }
+.chapter-figure figcaption { margin-top: var(--space-sm); font-family: var(--font-display); font-size: var(--text-sm); line-height: 1.45; color: var(--color-muted); max-width: 60ch; }
+.chapter-figure figcaption strong { display: block; color: var(--color-ink); font-weight: 600; margin-bottom: 2px; }
+.fig-svg text { font-family: var(--font-display); }
+.fig-controls { display: none; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-top: var(--space-sm); }
+.chapter-figure.is-animated .fig-controls { display: flex; }
+.fig-controls button { min-height: 44px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; }
+.fig-controls button:hover { border-color: var(--color-accent); }
+.fig-controls button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.fig-label { flex: 1 1 18rem; min-width: 12rem; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.chapter-figure .fig-svg [data-part] { transition: opacity .2s ease; }
+.chapter-figure.is-animated .fig-svg [data-part].is-dim { opacity: .22; }
+.chapter-figure.is-animated .fig-svg [data-part].is-active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .chapter-figure .fig-svg [data-part] { transition: none; } }
+@media print { .fig-controls { display: none !important; } .chapter-figure .fig-scroll { overflow: visible; } .chapter-figure .fig-scroll .fig-svg { min-width: 0; } }
+
+/* ---- data figures ---- */
+.figures h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-md); max-width: none; padding-bottom: var(--space-xs); border-bottom: var(--rule-bar) solid var(--color-rule-2); }
+.fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-md) var(--space-lg); }
+.fig { display: flex; flex-direction: column; border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-xs); }
+.fig .v { font-family: var(--font-outlier); font-weight: 500; font-variant-numeric: tabular-nums; font-size: var(--text-lg); color: var(--color-ink); letter-spacing: -0.02em; }
+.fig .u { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.fig .l { font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
+
+/* ---- nav ---- */
+.chapter-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-2xl); padding-top: var(--space-md); border-top: var(--rule-bar) solid var(--color-rule-2); font-family: var(--font-display); font-size: var(--text-sm); }
+.chapter-nav a { color: var(--color-ink); text-decoration: none; padding: var(--space-sm) var(--space-md); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; white-space: normal; }
+.chapter-nav a .dir { display: block; font-size: var(--text-xs); color: var(--color-muted); margin-bottom: 2px; }
+.chapter-nav a:hover { border-color: var(--color-rule-2); background: var(--color-wash); }
+.chapter-nav a.next { text-align: right; }
+.chapter-nav a:nth-child(3) { grid-column: 1 / -1; }
+
+/* ---- interactive devices ---- */
+.interactive { margin: var(--space-2xl) 0; padding: var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); max-width: none; }
+.interactive h3 { margin-top: 0; }
+.interactive .lede { font-size: var(--text-sm); color: var(--color-muted); max-width: 62ch; }
+.interactive input, .interactive button, .interactive select { font-family: var(--font-display); font-size: var(--text-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); padding: var(--space-2xs) var(--space-sm); background: var(--color-sheet); color: var(--color-ink); min-height: 44px; }
+.interactive button { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; cursor: pointer; }
+.interactive button:hover { background: var(--color-accent-2); }
+.forest-svg, .attn-svg, .kv-svg { display: block; margin-bottom: var(--space-md); }
+#token-forest-host { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.forest-svg text, .attn-svg text, .kv-svg text { font-family: var(--font-display); }
+.forest-svg text.mono { font-family: var(--font-outlier); }
+.forest-controls { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+.forest-controls .step-count { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.forest-rankline { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); margin: 0 0 var(--space-sm); min-height: 1.2em; }
+.forest-rankline .pair { color: var(--color-ink); }
+.forest-rankline .merged { color: var(--color-accent); font-weight: 600; }
+.interactive table { width: 100%; border-collapse: collapse; font-family: var(--font-outlier); font-size: var(--text-xs); margin-top: var(--space-sm); }
+.interactive th { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs); }
+.interactive td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-2xs); font-variant-numeric: tabular-nums; }
+.slider-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+.slider-row label { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }
+.slider-row input[type=text] { flex: 1; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--color-accent); }
+.readout { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); }
+.readout strong { color: var(--color-ink); font-weight: 600; }
+.steps { list-style: none; padding: 0; margin: 0 0 var(--space-md); font-family: var(--font-display); font-size: var(--text-sm); }
+.steps li { display: grid; grid-template-columns: 5rem 1fr; gap: var(--space-sm); padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.steps li .k { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); }
+.steps li.wait { opacity: 0.3; }
+.steps li.now .k { color: var(--color-accent); }
+.steps li.done .k { color: var(--color-muted); }
+.btn { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 500; background: transparent; border: var(--rule-hair) solid var(--color-accent); color: var(--color-accent); padding: var(--space-2xs) var(--space-sm); cursor: pointer; border-radius: var(--radius-pill); }
+.btn:hover { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn[data-state=running] { opacity: 0.5; pointer-events: none; }
+
+/* ---- provenance table ---- */
+.provenance { margin: var(--space-2xl) 0; }
+.provenance + .provenance { border-top: var(--rule-bar) solid var(--color-rule); padding-top: var(--space-2xl); }
+.provenance h3 { font-size: var(--text-lg); color: var(--color-ink); margin: 0 0 var(--space-sm); }
+.provenance table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.provenance thead th { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--color-muted); text-align: left; border-bottom: var(--rule-bar) solid var(--color-rule-2); padding: var(--space-2xs) var(--space-xs); }
+.provenance td { border-top: var(--rule-hair) solid var(--color-rule); padding: var(--space-xs); vertical-align: top; }
+.provenance td.pv { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-ink); }
+.provenance td.ps { color: var(--color-muted); }
+.provenance td.pc { color: var(--color-ink-2); }
+.provenance .prov-note { font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-muted); margin: 0 0 var(--space-sm); }
+.provenance details.prov-more { display: block; }
+.provenance details.prov-more summary { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-accent); cursor: pointer; padding: var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); }
+.provenance details.prov-more table { margin-top: var(--space-2xs); }
+/* provenance is a 3-column table; on a phone let it scroll rather than push the page wide */
+.provenance { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.provenance table { min-width: 30rem; }
+@media (max-width: 40rem) { .provenance table { min-width: 26rem; } }
+
+/* ---- margin rail ---- */
+.prose { position: relative; }
+.prose .sidenote { display: none; }
+@media (min-width: 1100px) {
+  .prose .sidenote { display: block; position: absolute; left: calc(var(--read-measure) + 2.5rem); width: 13rem; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.5; color: var(--color-muted); border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-sm); }
+}
+
+/* ---- reader shell: contents rail, top bar, chapter rail ---- */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; max-width: var(--container); margin-inline: auto; min-height: 100vh; }
+.shell--wide { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); grid-column: 1 / span 2; grid-row: 1; display: flex; align-items: center; gap: var(--space-md); height: var(--topbar-h); padding: 0 var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.topbar .wordmark { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); letter-spacing: -0.01em; color: var(--color-ink); text-decoration: none; white-space: nowrap; display: flex; align-items: baseline; gap: var(--space-xs); }
+.topbar .wordmark .part { color: var(--color-muted); font-weight: 500; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.topbar .spacer { flex: 1 1 auto; }
+.topbar .folio { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; padding-right: var(--space-xs); border-right: var(--rule-hair) solid var(--color-rule); margin-right: var(--space-2xs); }
+/* the topbar must never push the page wide: let it shrink, not overflow */
+.topbar { flex-wrap: nowrap; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+.topbar .wordmark { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+@media (max-width: 68rem) {
+  .topbar .folio { display: none; }
+  .topbar .wordmark .part { display: none; }
+  .topbar { gap: var(--space-sm); padding: 0 var(--space-md); }
+}
+.topbar .tool { display: inline-flex; align-items: center; gap: var(--space-2xs); height: 2rem; padding: 0 var(--space-sm); font-family: var(--font-display); font-weight: 500; font-size: var(--text-xs); color: var(--color-ink); background: transparent; border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); cursor: pointer; }
+.topbar .tool:hover { background: var(--color-paper-2); }
+.topbar .tool kbd { font-family: var(--font-outlier); font-size: 0.6875rem; color: var(--color-muted); border: var(--rule-hair) solid var(--color-rule); border-radius: 2px; padding: 0 3px; }
+.rail-toggle { display: none; }
+.rail { grid-column: 1; grid-row: 2; position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-lg) var(--space-lg) var(--space-3xl); border-right: var(--rule-hair) solid var(--color-rule); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; }
+.rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); letter-spacing: 0; margin: 0 0 var(--space-sm); max-width: none; }
+.rail .part { margin: 0 0 var(--space-lg); }
+.rail .part > h3 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-2xs); max-width: none; line-height: 1.3; }
+.rail ol { list-style: none; margin: 0; padding: 0; }
+.rail a { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: var(--space-2xs); align-items: baseline; padding: var(--space-2xs) var(--space-xs); margin-left: calc(-1 * var(--space-xs)); color: var(--color-ink-2); text-decoration: none; border-radius: var(--radius-pill); }
+.rail a > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail a:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.rail a .n { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; font-size: 0.6875rem; color: var(--color-muted); text-align: right; }
+.rail a[aria-current="page"] { background: var(--color-wash); color: var(--color-ink); font-weight: 600; }
+.rail a[aria-current="page"] .n { color: var(--color-accent-text); }
+.rail .meta { margin-top: var(--space-xl); }
+.rail .meta a { display: block; padding: var(--space-2xs) 0; margin-left: 0; color: var(--color-muted); }
+.rail .meta a:hover { background: none; color: var(--color-accent); }
+.main { grid-column: 2; grid-row: 2; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--chapter-rail-w); }
+.main--single { grid-template-columns: minmax(0, 1fr); }
+.page { min-width: 0; padding: var(--space-lg) var(--space-xl) var(--space-3xl); }
+.page:has(.cover) { padding-top: 0; }
+.prose, .frontis, .masthead, .chapter-head, .mini-toc { max-width: var(--read-measure); }
+.chapter-rail { position: sticky; top: calc(var(--topbar-h) + var(--space-2xl)); align-self: start; padding: var(--space-md) 0 var(--space-xl); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; border-left: var(--rule-hair) solid var(--color-rule); padding-left: var(--space-lg); margin-left: var(--space-lg); }
+.chapter-rail h2 { font-size: 0.6875rem; font-weight: 500; color: var(--color-muted); margin: 0 0 var(--space-sm); max-width: none; }
+.chapter-rail ul { list-style: none; margin: 0; padding: 0; }
+.chapter-rail li { margin: 0 0 var(--space-2xs); }
+.chapter-rail a { color: var(--color-muted); text-decoration: none; display: block; padding: 3px 0; line-height: 1.35; overflow-wrap: break-word; hyphens: auto; }
+.chapter-rail li { min-width: 0; }
+.chapter-rail a:hover { color: var(--color-ink); }
+.chapter-rail a.active { color: var(--color-accent-text); font-weight: 600; }
+/* not colour alone: a rule and a bullet mark the section you are in */
+.chapter-rail a.active::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: 2px; background: var(--color-accent-text); border-radius: 50%; }
+.chapter-rail .progress { margin-top: var(--space-lg); color: var(--color-muted); font-size: 0.6875rem; }
+.chapter-rail .progress .bar { height: 2px; background: var(--color-rule); margin-top: var(--space-2xs); }
+.chapter-rail .progress .bar > span { display: block; height: 2px; background: var(--color-accent); width: 0; }
+
+
+/* ---- search dialog ---- */
+.search-dialog { position: fixed; inset: 0; z-index: var(--z-modal); display: none; background: color-mix(in oklab, var(--color-ink) 42%, transparent); padding: 8vh var(--space-md) var(--space-md); }
+.search-dialog[open] { display: block; }
+.search-box { max-width: 44rem; margin: 0 auto; background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); box-shadow: 0 24px 60px color-mix(in oklab, var(--color-ink) 30%, transparent); max-height: 84vh; display: flex; flex-direction: column; }
+.search-head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.search-head input { flex: 1; font-family: var(--font-display); font-size: var(--text-lg); border: 0; background: transparent; color: var(--color-ink); outline: none; }
+.search-head input::placeholder { color: var(--color-muted); }
+.search-head .close { font-family: var(--font-display); font-size: var(--text-xs); border: var(--rule-hair) solid var(--color-rule-2); background: transparent; color: var(--color-ink); border-radius: var(--radius-pill); padding: 2px var(--space-xs); cursor: pointer; }
+.search-status { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); padding: var(--space-xs) var(--space-md); }
+.search-results { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.search-results li { border-top: var(--rule-hair) solid var(--color-rule); }
+.search-results a { display: block; padding: var(--space-sm) var(--space-md); text-decoration: none; color: var(--color-ink-2); }
+.search-results a:hover, .search-results a[aria-selected="true"] { background: var(--color-wash); }
+.search-results .r-ch { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-accent); }
+.search-results .r-t { font-family: var(--font-display); font-weight: 600; color: var(--color-ink); display: block; margin-top: 2px; }
+.search-results .r-s { font-size: var(--text-sm); color: var(--color-muted); margin-top: 2px; }
+.search-results mark { background: color-mix(in oklab, var(--color-accent) 24%, transparent); color: var(--color-ink); }
+.search-empty { padding: var(--space-lg) var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+
+/* ---- small screens ---- */
+@media (max-width: 68rem) {
+  .mini-toc { display: grid; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .chapter-rail { display: none; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* the rail is an overlay here, so it must not reserve a column */
+  .rail { grid-column: auto; }
+  .topbar { grid-column: 1 / span 2; }
+  .rail { grid-column: 1; grid-row: 2; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: var(--z-sticky-nav); background: var(--color-paper); height: auto; border-right: 0; display: none; padding-bottom: var(--space-3xl); }
+  .rail[data-open="true"] { display: block; }
+  .rail-toggle { display: inline-flex; }
+  .page { padding: var(--space-xl) var(--space-md) var(--space-2xl); }
+  .prose pre, .prose code { overflow-wrap: anywhere; }
+  .prose pre { white-space: pre-wrap; }
+  .provenance { overflow-x: auto; }
+  .prose pre { max-width: 100%; }
+  .provenance, .provenance table, .interactive table { max-width: 100%; }
+  .chapter-figure { padding: var(--space-sm); }
+  /* below 68rem the figure gets a floor: it scrolls sideways rather than
+     shrinking its labels under 11px */
+  /* Under 75rem the figure does not bleed, so it must fit the prose column and
+     let its scroll box carry any excess width. */
+  .chapter-figure { width: 100%; max-width: 100%; }
+  .chapter-figure .fig-scroll { overflow-x: auto; overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .chapter-figure .fig-svg { min-width: 46rem; }
+  /* the merge tree carries 12px mono labels; below this width it scrolls
+     instead of shrinking them, same floor as the static figures */
+  #token-forest-host .forest-svg { min-width: 34rem; }
+  .chapter-nav { grid-template-columns: 1fr; }
+  .chapter-nav a.next { text-align: left; }
+  .contents li a { grid-template-columns: 2rem minmax(0, 1fr); }
+  .contents li a .m { display: none; }
+}
+@media (max-width: 40rem) {
+  .topbar { padding-inline: var(--space-md); }
+  .page { padding-inline: var(--space-sm); }
+  .topbar .wordmark .part { display: none; }
+  .topbar .tool .label { display: none; }
+  .masthead h1 { font-size: var(--text-2xl); }
+  .chapter-head h1 { font-size: var(--text-2xl); }
+  .search-dialog { padding: 0; }
+  .search-box { max-height: 100vh; min-height: 100vh; }
+  .mini-toc a { font-size: 0.75rem; }
+  .topbar .tool .label { display: none; }
+  .topbar .tool { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+<button class="tool rail-toggle" type="button" data-rail-toggle aria-controls="rail" aria-expanded="false">Contents</button>
+<a class="wordmark" href="../index.html">The Shape of a Token<span class="part">12 &middot; Virtual memory for the KV cache</span></a>
+<span class="spacer"></span>
+<span class="folio">12 / 31</span>
+<button class="tool" type="button" data-open-search aria-keyshortcuts="/">
+<span class="label">Search</span><kbd>/</kbd>
+</button>
+<button class="tool" type="button" data-theme-toggle aria-label="Switch between light and dark">
+<span class="label">Theme</span>
+</button>
+</header>
+<nav class="rail" id="rail" aria-label="Contents"><h2>Contents</h2><div class="part"><h3>I. The raw material</h3><ol><li><a href="../chapters/01-tokens.html" title="Text is not numbers yet"><span class="n">01</span><span>Text is not numbers yet</span></a></li><li><a href="../chapters/02-embeddings.html" title="A vector is a coordinate, not a meaning"><span class="n">02</span><span>A vector is a coordinate, not a meaning</span></a></li><li><a href="../chapters/03-residual-stream.html" title="The one lane everything writes into"><span class="n">03</span><span>The one lane everything writes into</span></a></li></ol></div><div class="part"><h3>II. Attention</h3><ol><li><a href="../chapters/04-before-attention.html" title="The bottleneck attention was invented to fix"><span class="n">04</span><span>The bottleneck attention was invented to fix</span></a></li><li><a href="../chapters/05-scaled-dot-product.html" title="The 2017 move: drop the recurrence"><span class="n">05</span><span>The 2017 move: drop the recurrence</span></a></li><li><a href="../chapters/06-multi-head.html" title="Why many small heads beat one large one"><span class="n">06</span><span>Why many small heads beat one large one</span></a></li><li><a href="../chapters/07-softmax.html" title="The function that turns scores into shares"><span class="n">07</span><span>The function that turns scores into shares</span></a></li><li><a href="../chapters/08-positions.html" title="Attention has no idea where it is"><span class="n">08</span><span>Attention has no idea where it is</span></a></li><li><a href="../chapters/09-quadratic-wall.html" title="The cost that defines the field"><span class="n">09</span><span>The cost that defines the field</span></a></li></ol></div><div class="part"><h3>III. The cache</h3><ol><li><a href="../chapters/10-kv-cache.html" title="Why generation is slow and memory-hungry"><span class="n">10</span><span>Why generation is slow and memory-hungry</span></a></li><li><a href="../chapters/11-mqa-gqa-mla.html" title="Three generations of sharing the cache"><span class="n">11</span><span>Three generations of sharing the cache</span></a></li><li><a href="../chapters/12-paged-attention.html" aria-current="page" title="Virtual memory for the KV cache"><span class="n">12</span><span>Virtual memory for the KV cache</span></a></li><li><a href="../chapters/13-prefix-caching.html" title="Why the second request is cheaper"><span class="n">13</span><span>Why the second request is cheaper</span></a></li><li><a href="../chapters/14-flash-attention.html" title="Attention that never builds the matrix"><span class="n">14</span><span>Attention that never builds the matrix</span></a></li><li><a href="../chapters/15-sparse-sliding.html" title="Not every token needs to see every token"><span class="n">15</span><span>Not every token needs to see every token</span></a></li></ol></div><div class="part"><h3>IV. The rest of the block</h3><ol><li><a href="../chapters/16-ffn.html" title="Where most of the parameters actually live"><span class="n">16</span><span>Where most of the parameters actually live</span></a></li><li><a href="../chapters/17-activations.html" title="ReLU, GELU, and the gated turn"><span class="n">17</span><span>ReLU, GELU, and the gated turn</span></a></li><li><a href="../chapters/18-normalization.html" title="Keeping the residual stream in range"><span class="n">18</span><span>Keeping the residual stream in range</span></a></li><li><a href="../chapters/19-moe.html" title="More parameters without more arithmetic"><span class="n">19</span><span>More parameters without more arithmetic</span></a></li></ol></div><div class="part"><h3>V. Precision</h3><ol><li><a href="../chapters/20-precision.html" title="From fp32 to bf16 to fp8"><span class="n">20</span><span>From fp32 to bf16 to fp8</span></a></li><li><a href="../chapters/21-quantization.html" title="Four bits and the outlier problem"><span class="n">21</span><span>Four bits and the outlier problem</span></a></li><li><a href="../chapters/22-why-4bit-works.html" title="Why four bits is enough"><span class="n">22</span><span>Why four bits is enough</span></a></li></ol></div><div class="part"><h3>VI. Producing a token</h3><ol><li><a href="../chapters/23-logits.html" title="From a vector to a word"><span class="n">23</span><span>From a vector to a word</span></a></li><li><a href="../chapters/24-sampling.html" title="Temperature, top-k, top-p, and what each one does"><span class="n">24</span><span>Temperature, top-k, top-p, and what each one does</span></a></li><li><a href="../chapters/25-speculative.html" title="Guessing ahead and checking cheaply"><span class="n">25</span><span>Guessing ahead and checking cheaply</span></a></li></ol></div><div class="part"><h3>VII. Serving</h3><ol><li><a href="../chapters/26-prefill-decode.html" title="Two regimes in one machine"><span class="n">26</span><span>Two regimes in one machine</span></a></li><li><a href="../chapters/27-batching.html" title="Continuous batching and the scheduler"><span class="n">27</span><span>Continuous batching and the scheduler</span></a></li><li><a href="../chapters/28-parallelism.html" title="Splitting a model across devices"><span class="n">28</span><span>Splitting a model across devices</span></a></li><li><a href="../chapters/29-roofline.html" title="What the hardware actually allows"><span class="n">29</span><span>What the hardware actually allows</span></a></li></ol></div><div class="part"><h3>VIII. Grounding it</h3><ol><li><a href="../chapters/30-measurement.html" title="How to know any of this is true"><span class="n">30</span><span>How to know any of this is true</span></a></li><li><a href="../chapters/31-local-numbers.html" title="Two small machines, by arithmetic"><span class="n">31</span><span>Two small machines, by arithmetic</span></a></li></ol></div><div class="meta"><a href="../paths.html">Reading paths</a><a href="../glossary.html">Glossary</a><a href="../about.html">How this was made</a></div></nav>
+<div class="main">
+<div class="page">
+
+<header class="chapter-head">
+  <span class="num">Chapter 12 &middot; III. The cache</span>
+  <h1>Virtual memory for the KV cache</h1>
+  <p class="thesis">The KV cache was being allocated like a bad malloc; PagedAttention fixed it by stealing the operating system's best idea.</p>
+  <p class="meta-line">Assumes <a class="xref" href="10-kv-cache.html">10 &middot; Why generation is slow and memory-hungry</a>. Terms: <a href="../glossary.html#kv-cache">KV cache</a> &middot; <a href="../glossary.html#token">token</a> &middot; <a href="../glossary.html#decode">decode</a> &middot; <a href="../glossary.html#continuous-batching">continuous batching</a> &middot; <a href="../glossary.html#throughput">throughput</a> &middot; <a href="../glossary.html#pagedattention">PagedAttention</a> &middot; <a href="../glossary.html#softmax">softmax</a> &middot; <a href="../glossary.html#prefix-caching">prefix caching</a></p>
+</header>
+
+<nav class="mini-toc" aria-label="In this chapter"><h2>In this chapter</h2><ul><li><a href="#the-worst-case-reservation-and-its-arithmetic">The worst-case reservation and its arithmetic</a></li><li><a href="#decode-is-bandwidth-bound">Decode is bandwidth-bound</a></li><li><a href="#from-page-tables-to-pagedattention">From page tables to PagedAttention</a></li><li><a href="#what-the-gather-costs-the-kernel">What the gather costs the kernel</a></li><li><a href="#copy-on-write-sharing-and-prefix-caching">Copy-on-write sharing and prefix caching</a></li><li><a href="#admission-block-size-and-where-paging-stops-paying">Admission, block size, and where paging stops paying</a></li></ul></nav>
+
+<article class="prose">
+<h3 id="the-worst-case-reservation-and-its-arithmetic">The worst-case reservation and its arithmetic</h3>
+<p>Orca, the serving system Yu and colleagues described at OSDI in 2022, made a promise on every request it admitted. The scheduler reserved a contiguous stretch of GPU memory sized for the longest sequence the model could produce, and handed that stretch to the request for its entire life. The reservation happened before the first token existed. Nobody knew how long the answer would be. The engine had little choice. Keys and values accumulate one position per generated token, and a buffer cannot grow in place when the bytes after it belong to another request.</p>
+
+<figure class="chapter-figure" data-fig-id="reservation-versus-paging">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Contiguous reservation wastes the tail; paged blocks waste only the last block">
+<svg class="fig-svg" viewBox="0 0 900 319" width="100%" role="img" aria-labelledby="fig-title-cbe7fcfc" aria-describedby="fig-desc-cbe7fcfc" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-cbe7fcfc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-cbe7fcfc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="319" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-cbe7fcfc">Contiguous reservation wastes the tail; paged blocks waste only the last block</title><desc id="fig-desc-cbe7fcfc">Orca-style contiguous allocation holds the worst-case share for a sequence&#x27;s whole life, so a 100-token reply reserves 65,536 positions and leaves 65,436 idle. PagedAttention allocates 16-position blocks on demand: the same request takes seven blocks, 112 positions, with 12 positions of tail waste.</desc><text x="16.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">Contiguous reservation</text><line x1="16.00" y1="51.20" x2="436.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="16.00" y="61.20" width="420.00" height="53.20" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="79.95" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">65,536 positions per stream, held from</text><text x="226.00" y="98.95" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">admission</text><rect x="16.00" y="122.40" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="139.85" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">a 100-token reply still holds the full share</text><rect x="16.00" y="162.00" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="226.00" y="179.45" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">65,436 positions idle for its whole life</text><text x="16.00" y="219.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Internal fragmentation. Between 20 and 40 percent</text><text x="16.00" y="237.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">of reserved KV memory actually held token state in</text><text x="16.00" y="255.60" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">the vLLM measurements.</text><text x="464.00" y="26.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="16.2" font-weight="600" fill="var(--color-accent, #8a3324)" text-anchor="start">Paged blocks</text><line x1="464.00" y1="51.20" x2="884.00" y2="51.20" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><rect x="464.00" y="61.20" width="420.00" height="53.20" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="79.95" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">16-position physical blocks, allocated on</text><text x="674.00" y="98.95" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">demand</text><rect x="464.00" y="122.40" width="420.00" height="53.20" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="141.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">100 tokens take 7 blocks: six full, one with 4</text><text x="674.00" y="160.15" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">tokens</text><rect x="464.00" y="183.60" width="420.00" height="31.60" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="674.00" y="201.05" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">12 positions of tail waste</text><text x="464.00" y="241.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">External fragmentation collapses to the unused tail</text><text x="464.00" y="259.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">of the last block; a growing sequence allocates one</text><text x="464.00" y="277.20" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">more block and writes one more pointer.</text></svg>
+</div>
+<figcaption><strong>Contiguous reservation wastes the tail; paged blocks waste only the last block</strong> Orca-style contiguous allocation holds the worst-case share for a sequence's whole life, so a 100-token reply reserves 65,536 positions and leaves 65,436 idle. PagedAttention allocates 16-position blocks on demand: the same request takes seven blocks, 112 positions, with 12 positions of tail waste.</figcaption>
+
+
+</figure>
+
+<p>Take a reserving engine. Its KV pool holds 262,144 positions and it admits four streams at a time. The admission rule divides the pool equally, so each stream is entitled to 65,536 positions. From that share it subtracts three config constants. The first is the default reply budget, 32,768 tokens, because the rule reserves room for a reply that names no length. The second is the decode round batch width, 16 rows, the widest row kernel the scheduler can assemble. The third is two positions of slack for the position counter's boundary bookkeeping. 65,536 − 32,768 − 16 − 2 = 32,750. A request is admitted against that ceiling whether or not it intends to use it, and it holds the whole 65,536-position share for as long as it runs.</p>
+<p>The model's native window is 1,048,576 positions. A pool of 262,144 positions covers a quarter of it. Raising the pool to the full window would add three quarters of the cache's full size, so the cost scales linearly with positions and nothing else. The per-stream ceiling then becomes 1,048,576 / 4 − 32,768 − 16 − 2 = 229,358 tokens. The ceiling is a function of the pool divided by the number of streams. It has almost nothing to do with what any particular request needs.</p>
+<p>Two kinds of waste follow. Internal fragmentation is the gap between what a sequence reserved and what it used. A request that finishes at 100 tokens still held its whole 65,536-position share until it finished, so 65,436 positions sat idle for its whole life. External fragmentation is the gap between buffers. Each sequence needs one contiguous run, so a hole left by a departing request can only be reused by a new request whose worst-case length fits inside it. Large holes are rare, since they require a large request to leave first, and the allocator ends up holding plenty of free memory in pieces too small to admit anything.</p>
+<p>Kwon and his coauthors at Berkeley measured the cost in 2023, running against FasterTransformer and Orca. Between 20 and 40 percent of the memory reserved for KV cache actually held token state. The rest was a reservation against a future that mostly did not arrive. Orca had already introduced continuous batching, which admits new requests as old ones finish and raises utilization considerably. Continuous batching fixed <em>when</em> memory was allocated. It did not fix <em>how much</em>.</p>
+<h3 id="decode-is-bandwidth-bound">Decode is bandwidth-bound</h3>
+<p>That distinction matters because decoding is bandwidth-bound. HBM3 on an H100 moves 3,350 GB/s. Every decode step reads the weights once and the KV cache of every active sequence. Write W for the bytes of weights, k for the KV bytes per token per sequence, and n for the batch. A step reads W + nk bytes and cannot finish faster than (W + nk) / 3,350×10⁹ seconds. The weights term is fixed; the cache term scales with n. Adding one more sequence adds k / 3,350×10⁹ seconds to the step and one more share of a weight read you were going to pay for anyway. Memory wasted on reservations is throughput you cannot buy back.</p>
+<p>Concurrency behaves the way the bandwidth arithmetic predicts. Four sequential 400-token requests pay four full weight reads, one after another. The same four fired concurrently share a single weight read across the batch, so the step is shorter than four steps would be. The gain is real and sublinear, because each sequence still reads its own cache and the attention kernel walks rows one at a time.</p>
+<h3 id="from-page-tables-to-pagedattention">From page tables to PagedAttention</h3>
+<p>The fix came from an operating system textbook. In virtual memory a process sees a flat, contiguous address space that has nothing to do with where its bytes live. Physical memory is divided into frames of a fixed size. A per-process page table maps each virtual page number to a physical frame number, and the hardware translates every access, consulting a TLB of recent translations and walking the table only on a miss. Because frames need not be adjacent, allocation means finding any free frame rather than finding a contiguous run, and fragmentation collapses to the unused tail of the last page (<a class="xref" href="10-kv-cache.html">Why generation is slow and memory-hungry</a> sizes the buffer this replaces).</p>
+
+<figure class="chapter-figure" data-fig-id="block-table-cow">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="A block table is the indirection that makes sharing and copy-on-write cheap">
+<svg class="fig-svg" viewBox="0 0 900 509" width="100%" role="img" aria-labelledby="fig-title-4c1f71d2" aria-describedby="fig-desc-4c1f71d2" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-4c1f71d2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-4c1f71d2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="900" height="509" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-4c1f71d2">A block table is the indirection that makes sharing and copy-on-write cheap</title><desc id="fig-desc-4c1f71d2">A 100-token prompt fills seven 16-position blocks whose physical ids are 7, 12, 3, 19, 22, 8, and 41. After B forks, both block tables point at the same blocks with refcount 2; when B writes into logical block 6, the engine copies physical block 41 into free block 55 and drops 41 to refcount 1.</desc><text x="16.00" y="24.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">The strip is a 64-block window of a pool that holds 262,144 positions, 16 per block. Scattered</text><text x="16.00" y="43.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">physical blocks are free placement; the table is what turns them back into a contiguous logical</text><text x="16.00" y="62.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="15.48" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">sequence.</text><rect x="16.00" y="120.80" width="868.00" height="46.00" rx="0" fill="none" stroke="var(--color-ink, #1a1d24)" stroke-width="1.4"/><rect x="56.69" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="110.94" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="124.50" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="178.75" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="273.69" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="314.38" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="572.06" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><rect x="761.94" y="120.80" width="13.56" height="46.00" rx="0" fill="rgba(138, 51, 36, 0.34)" stroke="var(--color-accent, #8a3324)" stroke-width="1.1"/><line x1="16.00" y1="188.40" x2="884.00" y2="188.40" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><line x1="16.00" y1="184.40" x2="16.00" y2="192.40" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><text x="16.00" y="208.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">0</text><line x1="450.00" y1="184.40" x2="450.00" y2="192.40" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><text x="450.00" y="208.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="middle">32</text><line x1="884.00" y1="184.40" x2="884.00" y2="192.40" stroke="var(--color-ink, #1a1d24)" stroke-width="1"/><text x="884.00" y="208.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.4" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="end">64</text><text x="16.00" y="250.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">A&#x27;s block table: logical to physical to refcount</text><rect x="16.00" y="276.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="292.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">0</text><rect x="72.00" y="276.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="292.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">7</text><rect x="128.00" y="276.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="292.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="304.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="320.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">1</text><rect x="72.00" y="304.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="320.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">12</text><rect x="128.00" y="304.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="320.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="332.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="348.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="72.00" y="332.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="348.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">3</text><rect x="128.00" y="332.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="348.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="360.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="376.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">3</text><rect x="72.00" y="360.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="376.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">19</text><rect x="128.00" y="360.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="376.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="388.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="404.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">4</text><rect x="72.00" y="388.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="404.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">22</text><rect x="128.00" y="388.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="404.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="416.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="432.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">5</text><rect x="72.00" y="416.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="432.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">8</text><rect x="128.00" y="416.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="432.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="444.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="460.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">6</text><rect x="72.00" y="444.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="460.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">41</text><rect x="128.00" y="444.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="460.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">2</text><rect x="16.00" y="472.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="44.00" y="488.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">6 (B)</text><rect x="72.00" y="472.40" width="56.00" height="24.00" rx="0" fill="none" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="100.00" y="488.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="middle">55</text><rect x="128.00" y="472.40" width="56.00" height="24.00" rx="0" fill="rgba(138, 51, 36, 0.10)" stroke="var(--color-rule, #b8bcc4)" stroke-width="0.9"/><text x="156.00" y="488.40" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="14.76" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="middle">1</text></svg>
+</div>
+<figcaption><strong>A block table is the indirection that makes sharing and copy-on-write cheap</strong> A 100-token prompt fills seven 16-position blocks whose physical ids are 7, 12, 3, 19, 22, 8, and 41. After B forks, both block tables point at the same blocks with refcount 2; when B writes into logical block 6, the engine copies physical block 41 into free block 55 and drops 41 to refcount 1.</figcaption>
+
+
+</figure>
+
+<p>PagedAttention, published by Kwon and colleagues at SOSP in October 2023 and shipped as vLLM, applies that arrangement to the KV cache. Physical memory is carved at startup into blocks holding a fixed number of token positions. Each physical block ID indexes the KV storage for those positions across all layers, with one per-layer slice per block, for one sequence. A sequence owns a single block table, an array indexed by logical block number whose entries are physical block numbers Growing a sequence past a block boundary means allocating one more block and writing one more pointer. Nothing is copied, and no contiguity is required. Internal fragmentation is bounded by the unused tail of a single block per sequence.</p>
+<p>The kernel that reads this layout works one query at a time. For a query at position p, the logical block is p / B and the offset within it is p mod B. The kernel walks the sequence's logical blocks in order, reads each physical block number from the table, loads that block's K and V, and computes Q·Kᵀ over at most B keys. Softmax has to span blocks, so the kernel carries a running maximum m and a running normalizer l, the online-softmax trick from Milakov and Gimelshein in 2018 and Dao's FlashAttention in 2022. For each block it computes the block's local max, rescales the accumulator by exp(m_old − m_new), adds the block's exponentials, and moves on. The final block is usually partial, so the kernel masks positions past the sequence length before taking the max.</p>
+<p>Block boundaries never split an attention computation; they only split the loop.</p>
+<h3 id="what-the-gather-costs-the-kernel">What the gather costs the kernel</h3>
+<p>Gathering through a table costs something. Each block is a separate memory transaction, and the table read is a dependent load that must complete before the K/V load can start. A contiguous run lets the prefetcher stream and lets the compiler emit one wide vectorized load; a gather cannot. The first paged kernels paid for this. One rewrite hoisted the block-table read into shared memory once per block per warp instead of once per query. Another double-buffered the next block's K/V while computing the current one, to hide the dependent-load latency. A third replaced a separate tail kernel with in-kernel masking of the partial block. In the reported benchmarks, those changes brought the paged kernel to parity with the contiguous one; parity is workload- and block-size-dependent, and small blocks or high concurrency can still make the dependent block-table gather lose</p>
+<h3 id="copy-on-write-sharing-and-prefix-caching">Copy-on-write sharing and prefix caching</h3>
+<p>The block table made sharing cheap. Two sequences that branch from the same prompt have block tables whose entries point at the same physical blocks, and each block carries a reference count. Take a prompt of 100 tokens with 16-position blocks. It occupies seven blocks, six full and one holding four tokens. Sequence A's table reads [7, 12, 3, 19, 22, 8, 41], and every one of those blocks has refcount 1. Fork into A and B, and both tables point at the same seven blocks with refcount 2. B generates token 101, which lands in logical block 6, physical block 41. Its refcount is 2, so the engine takes a free block, say 55, copies 41's contents into it, rewrites B's entry 6 to 55, and decrements 41 to 1. A's table is untouched. The copy is one block, not the prefix.</p>
+<p>This is <code>fork()</code> and copy-on-write, transplanted, and it is what makes parallel sampling and beam search affordable.</p>
+<p>The same mechanism extends across requests that were never related. vLLM added automatic prefix caching in 2024. The hash granularity is one block, and each block's hash is chained to the hash of the block before it, so a hash identifies the whole prefix up to that block rather than the block alone. On a hit the engine compares the stored token IDs against the incoming ones before reusing the block, which is how collisions are caught; a 64-bit hash by itself would not be enough. Only full blocks are cached. A partial tail block is never shared, because its contents change as tokens are appended. Eviction is LRU over blocks whose refcount has fallen to zero, and a cached block stays in the hash map until it is evicted or reused, at which point its refcount goes back to 1.</p>
+<p>When many requests share a long system prompt or a retrieved document, most of their prompt tokens are served from cache. A hash and a pointer chase replace the forward pass for every block that matches, and the saving grows with how much traffic shares a prefix. The cache does not change the model; it just avoids computing the same numbers twice.</p>
+<h3 id="admission-block-size-and-where-paging-stops-paying">Admission, block size, and where paging stops paying</h3>
+<p>Admission in a paged engine looks different from the reserved engine's ceiling. The scheduler admits a request when the free-block count covers the blocks its prompt needs; the next token may fit in the last partial block, and a new block is allocated only if that block is full. It does not reserve the reply budget. If the pool runs dry, the scheduler preempts the lowest-priority sequence, either swapping its blocks to CPU memory or dropping them and recomputing the prefix later. The ceiling becomes the pool itself, and no per-stream division applies.</p>
+
+<figure class="chapter-figure" data-fig-id="block-size-tradeoff">
+<div class="fig-scroll" tabindex="0" role="group" aria-label="Block size trades tail waste against table entries">
+<svg class="fig-svg" viewBox="0 0 760 219" width="100%" role="img" aria-labelledby="fig-title-0c2e94da" aria-describedby="fig-desc-0c2e94da" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow-0c2e94da" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-muted, #5a6070)"/></marker><marker id="arrow-accent-0c2e94da" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--color-accent, #8a3324)"/></marker></defs><rect x="0" y="0" width="760" height="219" fill="var(--color-sheet, #f2f1ed)"/><title id="fig-title-0c2e94da">Block size trades tail waste against table entries</title><desc id="fig-desc-0c2e94da">On the same 100-token sequence, smaller blocks cut waste and multiply table entries: 8-position blocks waste 4 positions and need 13 entries, 16-position blocks waste 12 and need 7, and 64-position blocks waste 28 and need 2. The kernel walks every entry to gather a sequence&#x27;s blocks, so 16 is the common default.</desc><text x="16.00" y="14.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Tail waste is the unused tail of the last block; entries are the block-table rows the gather walks.</text><text x="16.00" y="30.00" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-muted, #5a6070)" text-anchor="start">Sixteen positions is the common default.</text><text x="16.00" y="90.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">B = 8</text><rect x="188.00" y="75.48" width="52.29" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="246.29" y="90.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">4 wasted, 13 entries</text><text x="16.00" y="124.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">B = 16</text><rect x="188.00" y="109.48" width="156.86" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.34)" stroke="var(--color-accent, #8a3324)" stroke-width="1"/><text x="350.86" y="124.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">12 wasted, 7 entries</text><text x="16.00" y="158.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">B = 32</text><rect x="188.00" y="143.48" width="366.00" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="560.00" y="158.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">28 wasted, 4 entries</text><text x="16.00" y="192.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="13.072" font-weight="400" fill="var(--color-ink, #1a1d24)" text-anchor="start">B = 64</text><rect x="188.00" y="177.48" width="366.00" height="20.00" rx="0" fill="rgba(138, 51, 36, 0.20)" stroke="var(--color-rule, #b8bcc4)" stroke-width="1"/><text x="560.00" y="192.04" font-family="'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif" font-size="12.767999999999999" font-weight="600" fill="var(--color-ink, #1a1d24)" text-anchor="start">28 wasted, 2 entries</text></svg>
+</div>
+<figcaption><strong>Block size trades tail waste against table entries</strong> On the same 100-token sequence, smaller blocks cut waste and multiply table entries: 8-position blocks waste 4 positions and need 13 entries, 16-position blocks waste 12 and need 7, and 64-position blocks waste 28 and need 2. The kernel walks every entry to gather a sequence's blocks, so 16 is the common default.</figcaption>
+
+
+</figure>
+
+<p>Block size is the tuning knob, and the trade fits in a short list. Take a 100-token sequence and count the blocks a paged engine allocates: - Block size 8: 100 / 8 = 12.5, so 13 blocks. Twelve are full and the last holds the remaining 4 tokens, so 4 of tail waste and 13 table entries. - Block size 16: 100 / 16 = 6.25, so 7 blocks. 7 × 16 = 112 positions, so 112 - 100 = 12 of tail waste, and 7 entries. - Block size 32: 100 / 32 = 3.125, so 4 blocks. 4 × 32 = 128 positions, so 128 - 100 = 28 of tail waste, and 4 entries. - Block size 64: 100 / 64 = 1.5625, so 2 blocks. Two blocks cover 128 positions, and 128 - 100 = 28 of tail waste, with 2 entries.</p>
+<p>Small blocks cut the tail waste and multiply the table entries the kernel must chase; large blocks do the reverse. Sixteen positions is the common default because it keeps the table small enough to cache and the waste small enough to ignore.</p>
+<p>The virtual-memory analogy has limits worth naming. There is no page fault. Blocks come from a pool allocated at startup, and the engine never migrates a block to disk mid-step. There is no TLB. The block table is read from global memory on each kernel launch and cached in shared memory or registers by hand, which is why the hoisting rewrite mattered. And the indirection has a real cost that reservation does not pay. When sequences are short and uniform, reservation waste is small and the gather overhead dominates, so a contiguous allocator can win. Paging pays when lengths vary widely, which is the normal case for chat traffic.</p>
+<p>Against FasterTransformer and Orca, the vLLM paper reported two to four times the throughput on the same hardware. Memory capacity bounds the batch size, and in the bandwidth-bound decode regime batch size is the dominant throughput lever — though compute or attention bandwidth can cap it sooner. Paging cuts the waste per sequence from most of a worst-case buffer to at most one block, and a larger batch amortizes each weight read over more tokens.</p>
+<p>NVIDIA's TensorRT-LLM ships paged KV blocks, and SGLang's RadixAttention, described by Zheng and colleagues in 2024, manages the KV cache as a radix tree of token prefixes, a different allocation abstraction from vLLM’s fixed-size paged block table, so that shared prefixes are found by tree walk rather than by hash. The idea changed the KV cache from a private buffer into an addressable resource, and once memory is reached through a table, sharing, eviction, offloading and defragmentation become ordinary allocator problems rather than special cases.</p>
+<p>A reserving engine still caps what a request can ask for. Its per-stream ceiling sits at 32,750 tokens while the model's window is 1,048,576, and the gap is a line in a config file. Raising the pool lifts the ceiling to 229,358, still well short of the full window, and the pool stops wherever memory runs out. The ceiling moves until it hits that floor. The silicon sits far above it.</p>
+</article>
+
+
+
+
+<section class="provenance">
+  <h3>Where these numbers came from</h3>
+  <p class="prov-note">31 sourced values in this chapter. The origin column is the
+  file or command each one was read from.</p>
+  <table>
+    <thead><tr><th>value</th><th>what it is</th><th>origin</th></tr></thead>
+    <tbody><tr><td class="pv">2018</td><td class="pc">Relative position encoding for attention.</td><td class="ps">Shaw, Uszkoreit and Vaswani, 'Self-Attention with Relative Position Representations'</td></tr><tr><td class="pv">2023</td><td class="pc">Context extension for RoPE models.</td><td class="ps">Peng et al., 'YaRN: Efficient Context Window Extension of Large Language Models'</td></tr><tr><td class="pv">2023</td><td class="pc">Grouped-query attention.</td><td class="ps">Ainslie et al., 'GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints'</td></tr><tr><td class="pv">2024</td><td class="pc">Multi-head latent attention (MLA).</td><td class="ps">DeepSeek-AI, 'DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model'</td></tr><tr><td class="pv">2022</td><td class="pc">IO-aware tiled attention.</td><td class="ps">Dao et al., 'FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness'</td></tr><tr><td class="pv">2023</td><td class="pc">Second-generation Flash Attention.</td><td class="ps">Dao, 'FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning'</td></tr><tr><td class="pv">2023</td><td class="pc">Sliding window attention in a production model.</td><td class="ps">Jiang et al., 'Mistral 7B'</td></tr><tr><td class="pv">2022</td><td class="pc">Iteration-level scheduling and continuous batching.</td><td class="ps">Yu et al., 'Orca: A Distributed Serving System for Transformer-Based Generative Models'</td></tr></tbody>
+  </table>
+  <details class="prov-more"><summary>23 more values</summary><table><tbody><tr><td class="pv">2023</td><td class="pc">PagedAttention and vLLM.</td><td class="ps">Kwon et al., 'Efficient Memory Management for Large Language Model Serving with PagedAttention', SOSP</td></tr><tr><td class="pv">2022</td><td class="pc">GPTQ layer-wise quantization.</td><td class="ps">Frantar et al., 'GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers'</td></tr><tr><td class="pv">2023</td><td class="pc">AWQ activation-aware quantization.</td><td class="ps">Lin et al., 'AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration'</td></tr><tr><td class="pv">group size 128</td><td class="pc">Weights are scaled per group of 128 rather than per tensor.</td><td class="ps">common quantization group size in GPTQ/AWQ and GGUF k-quants</td></tr><tr><td class="pv">2022</td><td class="pc">Speculative decoding with a draft model.</td><td class="ps">Leviathan, Kalman and Matias, 'Fast Inference from Transformers via Speculative Decoding'</td></tr><tr><td class="pv">2023</td><td class="pc">Independent derivation of speculative sampling.</td><td class="ps">Chen et al., 'Accelerating Large Language Model Decoding with Speculative Sampling'</td></tr><tr><td class="pv">2023</td><td class="pc">Multiple draft heads on one model.</td><td class="ps">Cai et al., 'Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads'</td></tr><tr><td class="pv">2024</td><td class="pc">Feature-level speculative drafting.</td><td class="ps">Li et al., 'EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty'</td></tr><tr><td class="pv">2018</td><td class="pc">Pipeline parallelism with micro-batches.</td><td class="ps">Huang et al., 'GPipe: Efficient Training of Giant Neural Networks using Pipeline Parallelism'</td></tr><tr><td class="pv">2022</td><td class="pc">Sequence parallelism.</td><td class="ps">Korthikanti et al., 'Reducing Activation Recomputation in Large Transformer Models'</td></tr><tr><td class="pv">2018</td><td class="pc">The roofline model.</td><td class="ps">Williams, Waterman and Patterson, 'Roofline: An Insightful Visual Performance Model for Multicore Architectures'</td></tr><tr><td class="pv">3,350 GB/s</td><td class="pc">HBM3 bandwidth of an H100 SXM.</td><td class="ps">NVIDIA H100 SXM memory bandwidth</td></tr><tr><td class="pv">128 dimensions</td><td class="pc">Per-head width in most current models.</td><td class="ps">standard head dimension in modern LLMs</td></tr><tr><td class="pv">2022</td><td class="pc">InstructGPT and RLHF.</td><td class="ps">Ouyang et al., 'Training language models to follow instructions with human feedback'</td></tr><tr><td class="pv">2023</td><td class="pc">Llama 1.</td><td class="ps">Touvron et al., 'LLaMA: Open and Efficient Foundation Language Models'</td></tr><tr><td class="pv">2024</td><td class="pc">Llama 3.</td><td class="ps">Dubey et al., 'The Llama 3 Herd of Models'</td></tr><tr><td class="pv">2024</td><td class="pc">DeepSeek-V3 MoE model.</td><td class="ps">DeepSeek-AI, 'DeepSeek-V3 Technical Report'</td></tr><tr><td class="pv">2018</td><td class="pc">BERT.</td><td class="ps">Devlin et al., 'BERT: Pre-training of Deep Bidirectional Transformers'</td></tr><tr><td class="pv">2022</td><td class="pc">Chinchilla scaling.</td><td class="ps">Hoffmann et al., 'Training Compute-Optimal Large Language Models'</td></tr><tr><td class="pv">1,048,576 positions</td><td class="pc">Upper bound on positions a single sequence can occupy.</td><td class="ps">2^20 positions: a 1M-token context window, the largest window claimed by recent models</td></tr><tr><td class="pv">65,536 positions</td><td class="pc">Even split of a fixed KV pool across four request slots.</td><td class="ps">Derived: 262,144 pool positions / 4 concurrent streams</td></tr><tr><td class="pv">32,750 positions</td><td class="pc">Prompt tokens a stream can admit from an even share of a four-way KV pool.</td><td class="ps">Derived: 65,536 pool share - 32,768 reply budget - 16 round rows - 2 slack</td></tr><tr><td class="pv">229,358 positions</td><td class="pc">Admission ceiling for a single stream that owns the whole KV pool.</td><td class="ps">Derived: 262,144 pool - 32,768 reply budget - 16 round rows - 2 slack</td></tr></tbody></table></details>
+</section>
+
+
+<nav class="chapter-nav" aria-label="Previous and next chapter">
+<a href="11-mqa-gqa-mla.html"><span class="dir">Previous</span>Three generations of sharing the cache</a><a class="next" href="13-prefix-caching.html"><span class="dir">Next</span>Why the second request is cheaper</a>
+</nav>
+
+</div>
+<aside class="chapter-rail" aria-label="In this chapter">
+<h2>In this chapter</h2>
+<ul><li><a href="#the-worst-case-reservation-and-its-arithmetic" title="The worst-case reservation and its arithmetic">The worst-case reservation and its arithmetic</a></li><li><a href="#decode-is-bandwidth-bound" title="Decode is bandwidth-bound">Decode is bandwidth-bound</a></li><li><a href="#from-page-tables-to-pagedattention" title="From page tables to PagedAttention">From page tables to PagedAttention</a></li><li><a href="#what-the-gather-costs-the-kernel" title="What the gather costs the kernel">What the gather costs the kernel</a></li><li><a href="#copy-on-write-sharing-and-prefix-caching" title="Copy-on-write sharing and prefix caching">Copy-on-write sharing and prefix caching</a></li><li><a href="#admission-block-size-and-where-paging-stops-paying" title="Admission, block size, and where paging stops paying">Admission, block size, and where paging stops paying</a></li></ul>
+<p class="progress"><span id="read-pct">Read 0%</span><span class="bar"><span id="read-bar"></span></span></p>
+</aside>
+</div>
+</div>
+<div class="search-dialog" id="search" role="dialog" aria-modal="true" aria-labelledby="search-label">
+<div class="search-box">
+<div class="search-head">
+<label class="visually-hidden" id="search-label" for="search-input">Search the book</label>
+<input id="search-input" type="search" placeholder="Search the book" autocomplete="off" spellcheck="false">
+<button class="close" type="button" data-close-search>Close</button>
+</div>
+<p class="search-status" id="search-status" aria-live="polite">Type a word, a term, or a number.</p>
+<ol class="search-results" id="search-results"></ol>
+</div>
+</div>
+<script>window.__SEARCH_INDEX__ = "../search-index.json";</script>
+<script src="../figures.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,251 +1,381 @@
 {
- "needed": true,
- "spine": "cache",
- "figures": [
-  {
-   "id": "decode-loop-cache",
-   "title": "Prefill writes the cache once; every decode step reads it",
-   "caption": "Prefill computes keys and values for all 100,000 prompt positions once. Each of the 600 decode steps then computes one new position and reads the stored cache instead of re-feeding the prefix. Without the cache, the final pass would re-feed 100,599 tokens and recompute keys and values it already had.",
-   "alt": "A five-column timeline: prefill, decode 1, decode 2, an ellipsis, and decode 600. The new-tokens lane shows 100,000 at prefill and 1 at each decode step. The K/V-computed lane shows 100,000 at prefill and 1 at each decode step. The cache-read lane is empty at prefill and shows 100,000, 100,001, and 100,599 at the decode steps.",
-   "anchor": "why-decode-advances-one-token-at-a-time",
-   "kind": "timeline",
-   "data": {
-    "steps": [
-     "prefill",
-     "decode 1",
-     "decode 2",
-     "...",
-     "decode 600"
-    ],
-    "lanes": [
-     {
-      "name": "new tokens",
-      "cells": [
-       {
-        "kind": "solid",
-        "label": "100,000"
-       },
-       {
-        "kind": "solid",
-        "label": "1"
-       },
-       {
-        "kind": "solid",
-        "label": "1"
-       },
-       null,
-       {
-        "kind": "solid",
-        "label": "1"
-       }
-      ]
-     },
-     {
-      "name": "K/V writes",
-      "cells": [
-       {
-        "kind": "new",
-        "label": "100,000"
-       },
-       {
-        "kind": "new",
-        "label": "1"
-       },
-       {
-        "kind": "new",
-        "label": "1"
-       },
-       null,
-       {
-        "kind": "new",
-        "label": "1"
-       }
-      ]
-     },
-     {
-      "name": "cache read",
-      "cells": [
-       null,
-       {
-        "kind": "cache",
-        "label": "100,000"
-       },
-       {
-        "kind": "cache",
-        "label": "100,001"
-       },
-       null,
-       {
-        "kind": "cache",
-        "label": "100,599"
-       }
-      ]
-     }
-    ],
-    "note": "Without the cache, pass 600 would re-feed 100,599 tokens and recompute keys and values it already had.",
-    "parts": {
-     "steps": [
-      "prefill",
-      "decode",
-      "decode",
-      "decode",
-      "decode"
-     ],
-     "lanes": [
-      "new-tokens",
-      "kv-write",
-      "cache-read"
-     ],
-     "cells": [
-      [
-       "prefill new-tokens",
-       "new-tokens decode",
-       "new-tokens decode",
-       null,
-       "new-tokens decode"
-      ],
-      [
-       "prefill kv-write",
-       "kv-write decode",
-       "kv-write decode",
-       null,
-       "kv-write decode"
-      ],
-      [
-       null,
-       "cache-read decode",
-       "cache-read decode",
-       null,
-       "cache-read decode"
-      ]
-     ]
+  "needed": true,
+  "spine": "cache",
+  "figures": [
+    {
+      "id": "decode-loop-cache",
+      "title": "Prefill writes the cache once; every decode step reads it",
+      "caption": "Prefill computes keys and values for all 100,000 prompt positions once. Each of the 600 decode steps then computes one new position and reads the stored cache instead of re-feeding the prefix. Without the cache, the final pass would re-feed 100,599 tokens and recompute keys and values it already had.",
+      "alt": "A five-column timeline: prefill, decode 1, decode 2, an ellipsis, and decode 600. The new-tokens lane shows 100,000 at prefill and 1 at each decode step. The K/V-computed lane shows 100,000 at prefill and 1 at each decode step. The cache-read lane is empty at prefill and shows 100,000, 100,001, and 100,599 at the decode steps.",
+      "anchor": "why-decode-advances-one-token-at-a-time",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "prefill",
+          "decode 1",
+          "decode 2",
+          "...",
+          "decode 600"
+        ],
+        "lanes": [
+          {
+            "name": "new tokens",
+            "cells": [
+              {
+                "kind": "solid",
+                "label": "100,000"
+              },
+              {
+                "kind": "solid",
+                "label": "1"
+              },
+              {
+                "kind": "solid",
+                "label": "1"
+              },
+              null,
+              {
+                "kind": "solid",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "name": "K/V writes",
+            "cells": [
+              {
+                "kind": "new",
+                "label": "100,000"
+              },
+              {
+                "kind": "new",
+                "label": "1"
+              },
+              {
+                "kind": "new",
+                "label": "1"
+              },
+              null,
+              {
+                "kind": "new",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "name": "cache read",
+            "cells": [
+              null,
+              {
+                "kind": "cache",
+                "label": "100,000"
+              },
+              {
+                "kind": "cache",
+                "label": "100,001"
+              },
+              null,
+              {
+                "kind": "cache",
+                "label": "100,599"
+              }
+            ]
+          }
+        ],
+        "note": "Without the cache, pass 600 would re-feed 100,599 tokens and recompute keys and values it already had.",
+        "parts": {
+          "steps": [
+            "col-prefill",
+            "col-d1",
+            "col-d2",
+            null,
+            "col-d600"
+          ],
+          "cells": [
+            [
+              "col-prefill",
+              "col-d1",
+              "col-d2",
+              null,
+              "col-d600"
+            ],
+            [
+              "col-prefill",
+              "col-d1",
+              "col-d2",
+              null,
+              "col-d600"
+            ],
+            [
+              null,
+              "col-d1",
+              "col-d2",
+              null,
+              "col-d600"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Step through one prefill and the decode loop that follows it.",
+        "steps": [
+          {
+            "label": "Prefill projects all 100,000 prompt positions into K and V and writes them to the pool once.",
+            "highlight": [
+              "col-prefill"
+            ]
+          },
+          {
+            "label": "Decode step 1 computes one new query, key, and value, then reads the 100,000 cached keys.",
+            "highlight": [
+              "col-prefill",
+              "col-d1"
+            ]
+          },
+          {
+            "label": "Decode step 2 appends one position; the cache is now 100,001 keys wide.",
+            "highlight": [
+              "col-prefill",
+              "col-d1",
+              "col-d2"
+            ]
+          },
+          {
+            "label": "Step 600 reads a 100,599-position cache: 100,000 prompt positions plus 599 already generated.",
+            "highlight": [
+              "col-prefill",
+              "col-d1",
+              "col-d2",
+              "col-d600"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cache-size-stack",
+      "title": "The cache bill as a product across three scales",
+      "caption": "The cache bill multiplies across scales. Llama 2 70B keeps 163,840 key and value numbers per position across 80 layers, which at two bytes each is 327,680 bytes per position. A 100,000-token prompt needs 100,000 x 327,680 bytes = 32.77 GB, and 131,072 positions need 42.9 GB, most of what a 192 GB H100 has left after 140 GB of FP16 weights. Four concurrent 100,000-token streams would need 4 x 32.77 GB = 131.1 GB, more than the card has spare.",
+      "alt": "Three aligned panels. Panel one, one position across all layers, shows 8 KV heads at 128 dimensions giving 1,024 values per layer, 2 x 80 x 1,024 = 163,840 values per position, and 327,680 bytes at two bytes each. Panel two, one request, multiplies 100,000 positions by 327,680 bytes for 32.77 GB, and 131,072 positions for 42.9 GB. Panel three, four concurrent streams, multiplies 4 by 32.77 GB for 131.1 GB, more than the 52 GB left after 140 GB of FP16 weights on a 192 GB H100.",
+      "anchor": "the-arithmetic-behind-the-cache-size",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "One position, all layers",
+            "items": [
+              "8 KV heads x 128 dimensions = 1,024 values per layer",
+              "2 x 80 x 1,024 = 163,840 values per position",
+              "163,840 x 2 bytes = 327,680 bytes per position"
+            ],
+            "note": "The query vector is not cached; only keys and values are. At a third of a megabyte per position, context length is the whole bill."
+          },
+          {
+            "title": "One request on one card",
+            "items": [
+              "100,000 positions x 327,680 bytes = 32.77 GB",
+              "131,072 positions x 327,680 bytes = 42.9 GB",
+              "140 GB of FP16 weights leave 52 GB free on a 192 GB H100"
+            ],
+            "note": "The 42.9 GB cache fits beside the weights at 131,072 positions; a 262,144-position context would need 85.9 GB and would not."
+          },
+          {
+            "title": "Four concurrent streams",
+            "items": [
+              "4 x 32.77 GB = 131.1 GB of cache",
+              "more than the 52 GB left after the weights",
+              "which is why admission reserves the pool, not the request"
+            ],
+            "note": "The pool is what makes concurrency possible: a shared 262,144-position pool costs 85.9 GB once, instead of four private caches."
+          }
+        ],
+        "parts": {
+          "panels": [
+            "pos",
+            "req",
+            "streams"
+          ],
+          "items": [
+            [
+              "v-layer",
+              "v-position",
+              "v-bytes"
+            ],
+            [
+              "bytes-100k",
+              "bytes-131k",
+              "room"
+            ],
+            [
+              "four-streams",
+              "over-room",
+              "shared-pool"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to build the cache bill from one layer to four streams.",
+        "steps": [
+          {
+            "label": "Each layer holds 8 KV heads x 128 dimensions = 1,024 values per position.",
+            "highlight": [
+              "pos",
+              "v-layer"
+            ]
+          },
+          {
+            "label": "Keys and values across 80 layers: 2 x 80 x 1,024 = 163,840 values per position.",
+            "highlight": [
+              "pos",
+              "v-layer",
+              "v-position"
+            ]
+          },
+          {
+            "label": "At two bytes each that is 163,840 x 2 = 327,680 bytes per position, a third of a megabyte.",
+            "highlight": [
+              "pos",
+              "v-layer",
+              "v-position",
+              "v-bytes"
+            ]
+          },
+          {
+            "label": "A 100,000-token prompt needs 100,000 x 327,680 = 32.77 GB.",
+            "highlight": [
+              "req",
+              "bytes-100k"
+            ]
+          },
+          {
+            "label": "A 131,072-token context needs 42.9 GB, and 140 GB of FP16 weights leave 52 GB free on a 192 GB H100, so it fits.",
+            "highlight": [
+              "req",
+              "bytes-100k",
+              "bytes-131k"
+            ]
+          },
+          {
+            "label": "A 262,144-position context would need 85.9 GB and would not fit in the 52 GB left.",
+            "highlight": [
+              "req",
+              "bytes-100k",
+              "bytes-131k",
+              "room"
+            ]
+          },
+          {
+            "label": "Four concurrent 100,000-token streams need 4 x 32.77 GB = 131.1 GB, more than the 52 GB left after the weights.",
+            "highlight": [
+              "streams",
+              "four-streams"
+            ]
+          },
+          {
+            "label": "A shared 262,144-position pool costs 85.9 GB once instead of four private caches, which is why admission reserves the pool rather than the request.",
+            "highlight": [
+              "streams",
+              "four-streams",
+              "over-room",
+              "shared-pool"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cache-versus-context",
+      "title": "Cache bytes grow linearly with positions",
+      "caption": "At 327,680 bytes per position the cache is a straight line in context length: 100,000 positions give 32.77 GB, 131,072 give 42.9 GB, the 262,144-position pool gives 85.9 GB, and a 1,048,576-position window would need 343.6 GB, more than a 192 GB H100 holds. Bar values are those multiplications, not separately measured sizes.",
+      "alt": "Four horizontal bars of cache size for Llama 2 70B in FP16. A 100,000-token prompt is 32.77 GB. A 131,072-token context is 42.9 GB. The 262,144-position pool is 85.9 GB. The 1,048,576-position window is 343.6 GB, more than the 192 GB of an H100. The bars grow in proportion to the position count.",
+      "anchor": "positions-rows-and-admission",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "100,000 prompt",
+            "value": 32.77,
+            "display": "32.77 GB = 100,000 x 327,680 B"
+          },
+          {
+            "label": "131,072 context",
+            "value": 42.9,
+            "display": "42.9 GB = 131,072 x 327,680 B"
+          },
+          {
+            "label": "262,144 pool",
+            "value": 85.9,
+            "display": "85.9 GB = 262,144 x 327,680 B"
+          },
+          {
+            "label": "1,048,576 window",
+            "value": 343.6,
+            "display": "343.6 GB, more than 192 GB of HBM",
+            "accent": true
+          }
+        ],
+        "note": "327,680 bytes per position: 2 x 80 layers x 8 KV heads x 128 dimensions x 2 bytes. The pool holds 262,144 positions in four 65,536-position shares; the last bar is a hypothetical 1,048,576-position window, which at the same 327,680 bytes per position would be 1,048,576 × 327,680 = 343.6 GB.",
+        "parts": {
+          "bars": [
+            "b-100k",
+            "b-131k",
+            "b-pool",
+            "b-window"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to grow the cache one context length at a time.",
+        "steps": [
+          {
+            "label": "100,000 positions x 327,680 bytes = 32.77 GB.",
+            "highlight": [
+              "b-100k"
+            ]
+          },
+          {
+            "label": "131,072 positions x 327,680 bytes = 42.9 GB.",
+            "highlight": [
+              "b-100k",
+              "b-131k"
+            ]
+          },
+          {
+            "label": "The 262,144-position pool x 327,680 bytes = 85.9 GB.",
+            "highlight": [
+              "b-100k",
+              "b-131k",
+              "b-pool"
+            ]
+          },
+          {
+            "label": "The native 1,048,576-position window would need 343.6 GB, more than the 192 GB of HBM on the card.",
+            "highlight": [
+              "b-100k",
+              "b-131k",
+              "b-pool",
+              "b-window"
+            ]
+          }
+        ]
+      }
     }
-   },
-   "anim": {
-    "mode": "step",
-    "interval": 1400,
-    "intro": "Step through one prefill and the decode loop that follows it.",
-    "steps": [
-     {
-      "label": "Prefill projects all 100,000 prompt positions into K and V and writes them to the pool once.",
-      "highlight": [
-       "prefill",
-       "kv-write"
-      ]
-     },
-     {
-      "label": "Decode step 1 computes one new query, key, and value.",
-      "highlight": [
-       "decode",
-       "kv-write"
-      ]
-     },
-     {
-      "label": "The new query attends over 100,000 cached keys; no prefix token is recomputed.",
-      "highlight": [
-       "cache-read",
-       "decode"
-      ]
-     },
-     {
-      "label": "Each later step appends one position; step 600 reads a 100,599-position cache.",
-      "highlight": [
-       "cache-read",
-       "decode"
-      ]
-     },
-     {
-      "label": "Every decode step appends one position, so the cache grows by one row and no prefix token is recomputed.",
-      "highlight": [
-       "cache-read",
-       "kv-write"
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "cache-size-stack",
-   "title": "The cache bill as a product across three scales",
-   "caption": "The cache bill multiplies across scales. Llama 2 70B keeps 163,840 key and value numbers per position across 80 layers, which at two bytes each is 327,680 bytes per position. A 100,000-token prompt needs 100,000 x 327,680 bytes = 32.77 GB, and 131,072 positions need 42.9 GB, most of what a 192 GB H100 has left after 140 GB of FP16 weights. Four concurrent 100,000-token streams would need 4 x 32.77 GB = 131.1 GB, more than the card has spare.",
-   "alt": "Three aligned panels. Panel one, one position across all layers, shows 8 KV heads at 128 dimensions giving 1,024 values per layer, 2 x 80 x 1,024 = 163,840 values per position, and 327,680 bytes at two bytes each. Panel two, one request, multiplies 100,000 positions by 327,680 bytes for 32.77 GB, and 131,072 positions for 42.9 GB. Panel three, four concurrent streams, multiplies 4 by 32.77 GB for 131.1 GB, more than the 52 GB left after 140 GB of FP16 weights on a 192 GB H100.",
-   "anchor": "the-arithmetic-behind-the-cache-size",
-   "kind": "panels",
-   "data": {
-    "panels": [
-     {
-      "title": "One position, all layers",
-      "items": [
-       "8 KV heads x 128 dimensions = 1,024 values per layer",
-       "2 x 80 x 1,024 = 163,840 values per position",
-       "163,840 x 2 bytes = 327,680 bytes per position"
-      ],
-      "note": "The query vector is not cached; only keys and values are. At a third of a megabyte per position, context length is the whole bill."
-     },
-     {
-      "title": "One request on one card",
-      "items": [
-       "100,000 positions x 327,680 bytes = 32.77 GB",
-       "131,072 positions x 327,680 bytes = 42.9 GB",
-       "140 GB of FP16 weights leave 52 GB free on a 192 GB H100"
-      ],
-      "note": "The 42.9 GB cache fits beside the weights at 131,072 positions; a 262,144-position context would need 85.9 GB and would not."
-     },
-     {
-      "title": "Four concurrent streams",
-      "items": [
-       "4 x 32.77 GB = 131.1 GB of cache",
-       "more than the 52 GB left after the weights",
-       "which is why admission reserves the pool, not the request"
-      ],
-      "note": "The pool is what makes concurrency possible: a shared 262,144-position pool costs 85.9 GB once, instead of four private caches."
-     }
-    ]
-   }
-  },
-  {
-   "id": "cache-versus-context",
-   "title": "Cache bytes grow linearly with positions",
-   "caption": "At 327,680 bytes per position the cache is a straight line in context length: 100,000 positions give 32.77 GB, 131,072 give 42.9 GB, the 262,144-position pool gives 85.9 GB, and a 1,048,576-position window would need 343.6 GB, more than a 192 GB H100 holds. Bar values are those multiplications, not separately measured sizes.",
-   "alt": "Four horizontal bars of cache size for Llama 2 70B in FP16. A 100,000-token prompt is 32.77 GB. A 131,072-token context is 42.9 GB. The 262,144-position pool is 85.9 GB. The 1,048,576-position window is 343.6 GB, more than the 192 GB of an H100. The bars grow in proportion to the position count.",
-   "anchor": "positions-rows-and-admission",
-   "kind": "bars",
-   "data": {
-    "bars": [
-     {
-      "label": "100,000 prompt",
-      "value": 32.77,
-      "display": "32.77 GB = 100,000 x 327,680 B"
-     },
-     {
-      "label": "131,072 context",
-      "value": 42.9,
-      "display": "42.9 GB = 131,072 x 327,680 B"
-     },
-     {
-      "label": "262,144 pool",
-      "value": 85.9,
-      "display": "85.9 GB = 262,144 x 327,680 B"
-     },
-     {
-      "label": "1,048,576 window",
-      "value": 343.6,
-      "display": "343.6 GB, more than 192 GB of HBM",
-      "accent": true
-     }
-    ],
-    "note": "327,680 bytes per position: 2 x 80 layers x 8 KV heads x 128 dimensions x 2 bytes. The pool holds 262,144 positions in four 65,536-position shares; the last bar is a hypothetical 1,048,576-position window, which at the same 327,680 bytes per position would be 1,048,576 × 327,680 = 343.6 GB."
-   }
-  }
- ],
- "sources": [
-  {
-   "url": "https://arxiv.org/abs/2309.06180",
-   "note": "Kwon et al., PagedAttention and vLLM: KV cache size, block tables, and the 2-4x serving throughput."
-  },
-  {
-   "url": "https://arxiv.org/abs/1911.02150",
-   "note": "Shazeer, Fast Transformer Decoding: the multi-query cache that makes the per-position bill smaller."
-  }
- ]
+  ],
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2309.06180",
+      "note": "Kwon et al., PagedAttention and vLLM: KV cache size, block tables, and the 2-4x serving throughput."
+    },
+    {
+      "url": "https://arxiv.org/abs/1911.02150",
+      "note": "Shazeer, Fast Transformer Decoding: the multi-query cache that makes the per-position bill smaller."
+    }
+  ]
 }
