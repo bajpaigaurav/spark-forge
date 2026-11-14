@@ -42,63 +42,111 @@
           ],
           "items": [
             [
-              "project",
-              "softmax",
-              "softmax",
-              "concat",
-              "project"
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "one-wo"
             ],
             [
-              "split",
-              "softmax",
-              "eight-heads",
-              "eight-heads",
-              "concat",
-              "concat project"
+              "eight-qkv",
+              "eight-softmax",
+              "head-prev",
+              "head-ant",
+              "eight-out",
+              "eight-concat"
             ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
+        "interval": 1600,
         "intro": "Press Play or Next to split the layer into heads and put it back together.",
         "steps": [
           {
-            "label": "Start with one 512-wide head and one softmax.",
+            "label": "Start with one 512-wide head: Q, K, V are 512 × 512, one softmax over the sequence.",
             "highlight": [
-              "one-head"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output"
             ]
           },
           {
-            "label": "Split d_model = 512 into eight heads of d_head = 64.",
+            "label": "Split d_model = 512 into eight heads of d_head = 64: Q_h, K_h, V_h are 512 × 64 each.",
             "highlight": [
-              "split",
-              "eight-heads"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "eight-heads",
+              "eight-qkv"
             ]
           },
           {
-            "label": "Each head runs its own softmax over the sequence.",
+            "label": "Each head runs its own softmax, so each head gets its own unit of mass.",
             "highlight": [
-              "softmax"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "eight-heads",
+              "eight-qkv",
+              "eight-softmax"
             ]
           },
           {
-            "label": "Head 1 puts 0.984 on the previous token; head 2 puts 0.984 on the antecedent.",
+            "label": "Head 1 puts 0.984 on the previous token; head 2 puts 0.984 on the antecedent. The wide head had to split 0.497 and 0.458.",
             "highlight": [
-              "eight-heads"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "eight-heads",
+              "eight-qkv",
+              "eight-softmax",
+              "head-prev",
+              "head-ant"
             ]
           },
           {
             "label": "Concatenate the eight 64-vectors into a 512-vector.",
             "highlight": [
-              "concat"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "eight-heads",
+              "eight-qkv",
+              "eight-softmax",
+              "head-prev",
+              "head-ant",
+              "eight-out",
+              "eight-concat"
             ]
           },
           {
-            "label": "W_O maps the concatenation back into the residual stream.",
+            "label": "W_O is 512 × 512 either way: 8 × 512 × 64 = 512 × 512 = 262,144 per projection.",
             "highlight": [
-              "project"
+              "one-head",
+              "one-qkv",
+              "one-softmax",
+              "one-shared-mass",
+              "one-output",
+              "eight-heads",
+              "eight-qkv",
+              "eight-softmax",
+              "head-prev",
+              "head-ant",
+              "eight-out",
+              "eight-concat",
+              "one-wo"
             ]
           }
         ]
@@ -135,7 +183,190 @@
             "display": "48"
           }
         ],
-        "note": "Voita et al. 2019 kept these heads in their sparse model after L0 head gating. The last bar is the budget, not a pruned model."
+        "note": "Voita et al. 2019 kept these heads in their sparse model after L0 head gating. The last bar is the budget, not a pruned model.",
+        "parts": {
+          "bars": [
+            "bar-encoder",
+            "bar-decoder-self",
+            "bar-decoder-cross",
+            "bar-budget"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to count what survived head pruning.",
+        "steps": [
+          {
+            "label": "Encoder self-attention: 14 of 48 heads survive L0 gating and pruning.",
+            "highlight": [
+              "bar-encoder"
+            ]
+          },
+          {
+            "label": "Decoder self-attention is less prunable: 31 of 48 survive.",
+            "highlight": [
+              "bar-encoder",
+              "bar-decoder-self"
+            ]
+          },
+          {
+            "label": "Decoder-encoder attention keeps 30 of 48.",
+            "highlight": [
+              "bar-encoder",
+              "bar-decoder-self",
+              "bar-decoder-cross"
+            ]
+          },
+          {
+            "label": "The last bar is the 48-head budget, not a pruned model.",
+            "highlight": [
+              "bar-encoder",
+              "bar-decoder-self",
+              "bar-decoder-cross",
+              "bar-budget"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "induction-head-circuit",
+      "title": "How a previous-token head becomes an induction head",
+      "caption": "Two layers on one column grid. Layer 1's previous-token head attends from i to i−1 and writes c_i, a copy of x_{i−1}, into position i. Layer 2's query is q_i = W_Q(x_i + c_i + r_i); the composition W_Q c_i is a 64-vector produced by the 64×64 matrix W_Q W_O^{h1}. A parallel shift puts x_{j−1} at position j's key, so the query matches wherever x_{j−1} = x_i, and the value there is x_j, the token that followed the earlier occurrence.",
+      "alt": "Two chains on a shared grid of six columns: x_i, attend i−1, c_i, q_i, keys x_{j−1}, value x_j. The first chain, layer 1, has boxes at x_i, attend to i−1, and c_i = copy of x_{i−1}. The second chain, layer 2, starts with a dashed box at c_i from layer 1, then q_i = W_Q(x_i + c_i + r_i), then key holds x_{j−1}, then lands on j: value x_j. Each chain carries a note naming the head type.",
+      "anchor": "what-a-head-writes-versus-where-it-looks",
+      "kind": "wiring",
+      "columns": [
+        "x_i",
+        "attend i−1",
+        "c_i",
+        "q_i",
+        "keys x_{j−1}",
+        "value x_j"
+      ],
+      "chains": [
+        {
+          "label": "layer 1",
+          "cells": [
+            {
+              "col": 0,
+              "text": "x_i at position i"
+            },
+            {
+              "col": 1,
+              "text": "attends to i−1"
+            },
+            {
+              "col": 2,
+              "text": "c_i = copy of x_{i−1}",
+              "accent": true
+            }
+          ],
+          "note": "A previous-token head: it attends from i to i−1 and writes a copy of x_{i−1} into position i's residual."
+        },
+        {
+          "label": "layer 2",
+          "cells": [
+            {
+              "col": 2,
+              "text": "c_i from layer 1",
+              "ghost": true
+            },
+            {
+              "col": 3,
+              "text": "q_i = W_Q(x_i + c_i + r_i)",
+              "accent": true
+            },
+            {
+              "col": 4,
+              "text": "key holds x_{j−1}"
+            },
+            {
+              "col": 5,
+              "text": "lands on j: value x_j",
+              "accent": true
+            }
+          ],
+          "note": "An induction head: W_Q c_i is a 64-vector produced by the 64×64 matrix W_Q W_O^{h1}. The key shift by one turns a match into a next-token prediction."
+        }
+      ],
+      "parts": {
+        "chains": [
+          "chain-layer1",
+          "chain-layer2"
+        ],
+        "cells": [
+          [
+            "cell-x-i",
+            "cell-attend",
+            "cell-copy"
+          ],
+          [
+            "",
+            "",
+            "ghost-c",
+            "cell-query",
+            "cell-key",
+            "cell-value"
+          ]
+        ]
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to compose two layers into an induction head.",
+        "steps": [
+          {
+            "label": "Layer 1: a previous-token head attends from i to i−1.",
+            "highlight": [
+              "chain-layer1",
+              "cell-x-i",
+              "cell-attend",
+              "cell-copy"
+            ]
+          },
+          {
+            "label": "It writes c_i into position i; layer 2's query reads it, q_i = W_Q(x_i + c_i + r_i).",
+            "highlight": [
+              "chain-layer1",
+              "cell-x-i",
+              "cell-attend",
+              "cell-copy",
+              "chain-layer2",
+              "ghost-c",
+              "cell-query"
+            ]
+          },
+          {
+            "label": "On the key side a parallel shift puts x_{j−1} at position j.",
+            "highlight": [
+              "chain-layer1",
+              "cell-x-i",
+              "cell-attend",
+              "cell-copy",
+              "chain-layer2",
+              "ghost-c",
+              "cell-query",
+              "cell-key"
+            ]
+          },
+          {
+            "label": "The query matches where x_{j−1} = x_i, so attention lands on j and the value is x_j.",
+            "highlight": [
+              "chain-layer1",
+              "cell-x-i",
+              "cell-attend",
+              "cell-copy",
+              "chain-layer2",
+              "ghost-c",
+              "cell-query",
+              "cell-key",
+              "cell-value"
+            ]
+          }
+        ]
       }
     }
   ],
