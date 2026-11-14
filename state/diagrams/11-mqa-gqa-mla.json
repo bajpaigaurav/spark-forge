@@ -64,94 +64,36 @@
         "note": "Schematic: 8 query heads and G = 4 shown. The chapter's model has 32 query heads; GQA with G = 8 puts four query heads in each group.",
         "parts": {
           "cols": [
-            "cache mha",
-            "cache gqa",
-            "cache mqa"
-          ],
-          "rows": [
-            "cache",
-            "cache",
-            "cache",
-            "cache",
-            "cache",
-            "cache",
-            "cache",
-            "cache"
-          ],
-          "cells": [
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ],
-            [
-              "cache mha",
-              "cache gqa",
-              "cache mqa"
-            ]
-          ],
-          "corner": "cache",
-          "headers": "cache",
-          "note": "cache"
+            "col-mha",
+            "col-gqa",
+            "col-mqa"
+          ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Switch the sharing scheme and watch the key/value heads collapse.",
+        "interval": 1500,
+        "intro": "Press Play or Next to collapse the key/value heads scheme by scheme.",
         "steps": [
           {
-            "label": "MHA: every query head has its own key and value head, so the cache holds one KV head per query head.",
+            "label": "MHA: every query head has its own key and value head, so the cache holds one KV head per query head — eight here.",
             "highlight": [
-              "mha"
+              "col-mha"
             ]
           },
           {
-            "label": "GQA: query heads are divided into G groups, each with one KV head; G = 4 is shown.",
+            "label": "GQA with G = 4: four query heads share each KV head, so eight query heads need four KV heads.",
             "highlight": [
-              "gqa"
+              "col-mha",
+              "col-gqa"
             ]
           },
           {
-            "label": "MQA: a single KV head serves every query head.",
+            "label": "MQA: one KV head serves all eight query heads.",
             "highlight": [
-              "mqa"
-            ]
-          },
-          {
-            "label": "The cache scales with distinct KV heads, so MQA pays one eighth of MHA on this schematic.",
-            "highlight": [
-              "cache"
+              "col-mha",
+              "col-gqa",
+              "col-mqa"
             ]
           }
         ]
@@ -188,7 +130,52 @@
             "accent": true
           }
         ],
-        "note": "2 x 32 layers x g x 128 x 2 bytes. MQA reads 512 bytes per token per layer where MHA reads 16,384."
+        "note": "2 x 32 layers x g x 128 x 2 bytes. MQA reads 512 bytes per token per layer where MHA reads 16,384.",
+        "parts": {
+          "bars": [
+            "b-mha",
+            "b-gqa",
+            "b-mqa",
+            "b-mla"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to read the bill for one token at each sharing scheme.",
+        "steps": [
+          {
+            "label": "MHA with 32 KV heads: 2 x 32 x 32 x 128 x 2 = 524,288 bytes = 512 KiB per token, 2 GiB at 4,096 tokens.",
+            "highlight": [
+              "b-mha"
+            ]
+          },
+          {
+            "label": "GQA with 8 KV heads: 2 x 32 x 8 x 128 x 2 = 131,072 bytes = 128 KiB per token, one quarter of MHA, 512 MiB at 4,096 tokens.",
+            "highlight": [
+              "b-mha",
+              "b-gqa"
+            ]
+          },
+          {
+            "label": "MQA with 1 KV head: 2 x 32 x 1 x 128 x 2 = 16,384 bytes = 16 KiB per token, 64 MiB at 4,096 tokens: 32x below MHA.",
+            "highlight": [
+              "b-mha",
+              "b-gqa",
+              "b-mqa"
+            ]
+          },
+          {
+            "label": "MLA caches a 512-dimension latent plus 64 rotary values: 576 x 2 x 32 = 36 KiB per token, 144 MiB at 4,096 tokens, about 14.2x below MHA.",
+            "highlight": [
+              "b-mha",
+              "b-gqa",
+              "b-mqa",
+              "b-mla"
+            ]
+          }
+        ]
       }
     },
     {
@@ -217,6 +204,64 @@
               "MHA for the same model gives 2 GiB"
             ],
             "note": "About 14.2x smaller than MHA. The 64 rotary elements stay separate because rotation cannot be folded into the latent."
+          }
+        ],
+        "parts": {
+          "panels": [
+            "cached",
+            "bill"
+          ],
+          "items": [
+            [
+              "latent",
+              "bytes",
+              "rebuild"
+            ],
+            [
+              "bill-token",
+              "bill-4096",
+              "bill-mha"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to build MLA's per-token cache from the latent up.",
+        "steps": [
+          {
+            "label": "The cache holds a 512-dimension latent plus a 64-element rotary key: 576 elements per token per layer.",
+            "highlight": [
+              "cached",
+              "latent"
+            ]
+          },
+          {
+            "label": "At two bytes each that is 1,152 bytes per layer, and 576 x 2 x 32 layers = 36 KiB per token.",
+            "highlight": [
+              "cached",
+              "latent",
+              "bytes"
+            ]
+          },
+          {
+            "label": "Every head rebuilds its own k and v from the latent with W_UK and W_UV at d_head = 128; nothing per-head is stored.",
+            "highlight": [
+              "cached",
+              "latent",
+              "bytes",
+              "rebuild"
+            ]
+          },
+          {
+            "label": "At 4,096 tokens that is 36 KiB x 4,096 = 144 MiB, against 2 GiB for MHA: about 14.2x smaller.",
+            "highlight": [
+              "bill",
+              "bill-token",
+              "bill-4096",
+              "bill-mha"
+            ]
           }
         ]
       }
