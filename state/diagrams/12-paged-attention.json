@@ -29,6 +29,71 @@
             ],
             "note": "External fragmentation collapses to the unused tail of the last block; a growing sequence allocates one more block and writes one more pointer."
           }
+        ],
+        "parts": {
+          "panels": [
+            "contig",
+            "paged"
+          ],
+          "items": [
+            [
+              "share",
+              "idle-share",
+              "idle-tail"
+            ],
+            [
+              "blocks",
+              "seven-blocks",
+              "tail-waste"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to compare a worst-case reservation with 16-position blocks.",
+        "steps": [
+          {
+            "label": "A reserving engine gives each of four streams an equal 262,144 / 4 = 65,536 positions, held from admission for the request's whole life.",
+            "highlight": [
+              "contig",
+              "share"
+            ]
+          },
+          {
+            "label": "A 100-token reply still holds its full 65,536-position share, so 65,536 − 100 = 65,436 positions sit idle.",
+            "highlight": [
+              "contig",
+              "share",
+              "idle-share",
+              "idle-tail"
+            ]
+          },
+          {
+            "label": "Paging allocates 16-position physical blocks on demand instead.",
+            "highlight": [
+              "paged",
+              "blocks"
+            ]
+          },
+          {
+            "label": "100 tokens take 100 / 16 = 6.25, so 7 blocks: six full and one holding 4 tokens.",
+            "highlight": [
+              "paged",
+              "blocks",
+              "seven-blocks"
+            ]
+          },
+          {
+            "label": "7 x 16 = 112 positions against 100 tokens leaves 112 − 100 = 12 positions of tail waste, and the waste cannot exceed one block.",
+            "highlight": [
+              "paged",
+              "blocks",
+              "seven-blocks",
+              "tail-waste"
+            ]
+          }
         ]
       }
     },
@@ -142,7 +207,48 @@
             ]
           ]
         },
-        "note": "The strip is a 64-block window of a pool that holds 262,144 positions, 16 per block. Scattered physical blocks are free placement; the table is what turns them back into a contiguous logical sequence."
+        "note": "The strip is a 64-block window of a pool that holds 262,144 positions, 16 per block. Scattered physical blocks are free placement; the table is what turns them back into a contiguous logical sequence.",
+        "parts": {
+          "spans": [
+            "a-blocks",
+            "a-blocks",
+            "a-blocks",
+            "a-blocks",
+            "a-blocks",
+            "a-blocks",
+            "a-blocks",
+            "b-copy"
+          ],
+          "table": "table"
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to fork a sequence and watch the reference count force one copy.",
+        "steps": [
+          {
+            "label": "A's 100-token prompt occupies seven 16-position blocks: logical blocks 0 to 6 map to physical 7, 12, 3, 19, 22, 8, and 41, scattered anywhere in the pool.",
+            "highlight": [
+              "a-blocks"
+            ]
+          },
+          {
+            "label": "Fork into A and B: both block tables point at those same seven physical blocks, so every refcount rises from 1 to 2 and nothing is copied.",
+            "highlight": [
+              "a-blocks",
+              "table"
+            ]
+          },
+          {
+            "label": "B generates token 101 in logical block 6. Its refcount is 2, so the engine takes a free block, 55, copies block 41 into it, rewrites B's entry 6, and decrements 41 to 1; A's table is untouched.",
+            "highlight": [
+              "a-blocks",
+              "table",
+              "b-copy"
+            ]
+          }
+        ]
       }
     },
     {
@@ -176,7 +282,52 @@
             "display": "28 wasted, 2 entries"
           }
         ],
-        "note": "Tail waste is the unused tail of the last block; entries are the block-table rows the gather walks. Sixteen positions is the common default."
+        "note": "Tail waste is the unused tail of the last block; entries are the block-table rows the gather walks. Sixteen positions is the common default.",
+        "parts": {
+          "bars": [
+            "b-8",
+            "b-16",
+            "b-32",
+            "b-64"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to trade tail waste against table entries for a 100-token sequence.",
+        "steps": [
+          {
+            "label": "Block size 8: 100 / 8 = 12.5, so 13 blocks; twelve are full and the last holds 4 tokens, leaving 4 positions of tail waste and 13 entries to chase.",
+            "highlight": [
+              "b-8"
+            ]
+          },
+          {
+            "label": "Block size 16: 100 / 16 = 6.25, so 7 blocks; 7 x 16 = 112, leaving 12 of tail waste and 7 entries.",
+            "highlight": [
+              "b-8",
+              "b-16"
+            ]
+          },
+          {
+            "label": "Block size 32: 100 / 32 = 3.125, so 4 blocks; 4 x 32 = 128, leaving 28 of tail waste and 4 entries.",
+            "highlight": [
+              "b-8",
+              "b-16",
+              "b-32"
+            ]
+          },
+          {
+            "label": "Block size 64: 100 / 64 = 1.5625, so 2 blocks covering 128 positions, the same 28 of tail waste with only 2 entries.",
+            "highlight": [
+              "b-8",
+              "b-16",
+              "b-32",
+              "b-64"
+            ]
+          }
+        ]
       }
     }
   ],
