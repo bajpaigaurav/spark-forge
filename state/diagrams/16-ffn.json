@@ -53,38 +53,48 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to walk the feed-forward sublayer.",
+        "interval": 1500,
+        "intro": "Press Play or Next to walk the feed-forward sublayer matrix by matrix.",
         "steps": [
           {
-            "label": "Read one position's residual vector x, width d_model.",
+            "label": "Read one position's residual vector x of width d_model = 4,096; the sublayer mixes nothing across positions.",
             "highlight": [
               "input"
             ]
           },
           {
-            "label": "Project up: d_model → m = 4d_model.",
+            "label": "W1 projects up to m = 4d_model = 16,384, so the pair holds d_model x m + m x d_model = 2dm = 8d_model^2 entries.",
             "highlight": [
+              "input",
               "up"
             ]
           },
           {
-            "label": "Bend each coordinate; no mixing across positions.",
+            "label": "Bend each of the 16,384 coordinates separately with the nonlinearity; still no mixing across positions.",
             "highlight": [
+              "input",
+              "up",
               "bend"
             ]
           },
           {
-            "label": "Project back down: m → d_model.",
+            "label": "W2 contracts back to d_model = 4,096: 8 x 16,777,216 = 134,217,728 parameters, twice attention's 4d_model^2 = 67,108,864.",
             "highlight": [
+              "input",
+              "up",
+              "bend",
               "down"
             ]
           },
           {
-            "label": "Add the result to x; the identity path is unbroken.",
+            "label": "Add the result to x at the same position; the residual path itself is never rewritten.",
             "highlight": [
-              "residual",
-              "add"
+              "input",
+              "up",
+              "bend",
+              "down",
+              "add",
+              "residual"
             ]
           }
         ]
@@ -116,7 +126,42 @@
             "display": "1,048,576,000"
           }
         ],
-        "note": "d_model = 4,096, L = 32, V = 128,000. Untied total 7,491,026,944, feed-forward share 57.3%. Tied embeddings halve the embedding term to 524,288,000: total 6,966,738,944, share 61.7%. A gated FFN keeps the same 8L·d_model² by setting m = 8d_model/3, so 3·d_model·m = 8d_model²."
+        "note": "d_model = 4,096, L = 32, V = 128,000. Untied total 7,491,026,944, feed-forward share 57.3%. Tied embeddings halve the embedding term to 524,288,000: total 6,966,738,944, share 61.7%. A gated FFN keeps the same 8L·d_model² by setting m = 8d_model/3, so 3·d_model·m = 8d_model².",
+        "parts": {
+          "bars": [
+            "b-ffn",
+            "b-attn",
+            "b-emb"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to stack the three parameter terms at d_model = 4,096, L = 32, V = 128,000.",
+        "steps": [
+          {
+            "label": "Attention: 32 x 4 x 16,777,216 = 2,147,483,648 parameters, from four d by d projections per layer.",
+            "highlight": [
+              "b-attn"
+            ]
+          },
+          {
+            "label": "Feed-forward: 32 x 8 x 16,777,216 = 4,294,967,296, twice attention, because m = 4d makes the pair 8d^2 per layer.",
+            "highlight": [
+              "b-attn",
+              "b-ffn"
+            ]
+          },
+          {
+            "label": "Untied embeddings add 2 x 128,000 x 4,096 = 1,048,576,000, for 7,491,026,944 in total and a feed-forward share of 57.3%. Tying them halves that term to 524,288,000, giving 6,966,738,944 and 61.7%: the share climbs toward two thirds as d grows, since the per-layer terms scale with d^2 and the embedding term with d.",
+            "highlight": [
+              "b-attn",
+              "b-ffn",
+              "b-emb"
+            ]
+          }
+        ]
       }
     }
   ]
