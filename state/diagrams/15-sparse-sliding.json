@@ -150,187 +150,154 @@
         "highlight_row": 9,
         "note": "Schematic 10 x 10 grid with W = 4. In the deployment W = 4,096; the band has 4,096 cells per row and the mask is applied tile by tile.",
         "parts": {
-          "cols": [
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal"
-          ],
-          "rows": [
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal",
-            "causal"
-          ],
           "cells": [
             [
-              "causal window global",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              "early",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              "early",
+              "early",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              "early",
+              "early",
+              "early",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              "early",
+              "early",
+              "early",
+              "early",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal",
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              null,
+              "band-a",
+              "band-a",
+              "band-a",
+              "band-a",
+              null,
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal",
-              "causal",
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked",
-              "masked"
+              null,
+              null,
+              "band-a",
+              "band-a",
+              "band-a",
+              "band-a",
+              null,
+              null,
+              null,
+              null
             ],
             [
-              "causal",
-              "causal",
-              "causal",
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked",
-              "masked"
+              null,
+              null,
+              null,
+              "band-a",
+              "band-a",
+              "band-a",
+              "band-a",
+              null,
+              null,
+              null
             ],
             [
-              "causal",
-              "causal",
-              "causal",
-              "causal",
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked",
-              "masked"
+              null,
+              null,
+              null,
+              null,
+              "band-b",
+              "band-b",
+              "band-b",
+              "band-b",
+              null,
+              null
             ],
             [
-              "causal",
-              "causal",
-              "causal",
-              "causal",
-              "causal",
-              "causal window",
-              "causal window",
-              "causal window",
-              "causal window",
-              "masked"
+              null,
+              null,
+              null,
+              null,
+              null,
+              "band-b",
+              "band-b",
+              "band-b",
+              "band-b",
+              null
             ],
             [
-              "causal slide",
-              "causal slide",
-              "causal slide",
-              "causal slide",
-              "causal slide",
-              "causal slide",
-              "causal window slide",
-              "causal window slide",
-              "causal window slide",
-              "causal window slide"
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              "band-b",
+              "band-b",
+              "band-b",
+              "band-b"
             ]
-          ],
-          "corner": "causal",
-          "headers": "causal",
-          "note": "dilated"
+          ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Slide the window down the mask.",
+        "interval": 1500,
+        "intro": "Press Play or Next to slide the W = 4,096 band down the causal triangle.",
         "steps": [
           {
-            "label": "Full causal attention scores every earlier key for every query.",
+            "label": "Each token attends only to the W = 4,096 positions ending at itself, so the first rows score every key they have.",
             "highlight": [
-              "causal"
+              "early"
             ]
           },
           {
-            "label": "The window keeps only the last W = 4 keys; everything older is masked.",
+            "label": "The band slides down one row per token: row i keeps keys i - W + 1 through i and masks everything older.",
             "highlight": [
-              "window",
-              "masked"
+              "early",
+              "band-a"
             ]
           },
           {
-            "label": "The band slides down one row per token, so the cost per token is W, not n.",
+            "label": "Every row still scores at most W keys, so at n = 131,072 the window costs 131,072 x 4,096 = 536,870,912 pairs against 131,072 x 131,073 / 2 = 8,589,869,056 for full causal: about 16x fewer, and linear in n.",
             "highlight": [
-              "window",
-              "slide"
-            ]
-          },
-          {
-            "label": "Global tokens and dilation add back a few long-range edges without filling the matrix.",
-            "highlight": [
-              "global",
-              "dilated"
+              "early",
+              "band-a",
+              "band-b"
             ]
           }
         ]
@@ -363,6 +330,56 @@
             ],
             "note": "A full layer gives every token a direct edge; a local layer does not. That difference is what retrieval tests measure."
           }
+        ],
+        "parts": {
+          "panels": [
+            "full-window",
+            "sparse"
+          ],
+          "items": [
+            [
+              "full-cost",
+              "window-cost",
+              "field"
+            ],
+            [
+              "dilated",
+              "global",
+              "hybrid"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to price full attention against the sparse patterns built on it.",
+        "steps": [
+          {
+            "label": "Full causal attention at n = 131,072 costs 131,072 x 131,073 / 2 = 8,589,869,056 pairs.",
+            "highlight": [
+              "full-window",
+              "full-cost"
+            ]
+          },
+          {
+            "label": "A window of W = 4,096 costs at most 131,072 x 4,096 = 536,870,912 pairs, 16x fewer, and after L = 32 layers the receptive field is L(W - 1) + 1 = 32 x 4,095 + 1 = 131,041 positions.",
+            "highlight": [
+              "full-window",
+              "full-cost",
+              "window-cost",
+              "field"
+            ]
+          },
+          {
+            "label": "Dilation 2 lets 4,096 scores cover 8,191 positions, global tokens attend to and are attended by every token, and 16 full plus 16 local layers cost 51.6% of 32 full layers.",
+            "highlight": [
+              "sparse",
+              "dilated",
+              "global",
+              "hybrid"
+            ]
+          }
         ]
       }
     },
@@ -392,7 +409,41 @@
             "accent": true
           }
         ],
-        "note": "128 KiB per token = 32 layers x 8 KV heads x 128 x 2 (K/V) x 2 bytes. The rolling buffer writes token i to slot i mod W; position ids stay absolute so the mask still knows the true distance."
+        "note": "128 KiB per token = 32 layers x 8 KV heads x 128 x 2 (K/V) x 2 bytes. The rolling buffer writes token i to slot i mod W; position ids stay absolute so the mask still knows the true distance.",
+        "parts": {
+          "bars": [
+            "b-window",
+            "b-65536",
+            "b-131072"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to price a rolling window against a cache that holds the whole prompt.",
+        "steps": [
+          {
+            "label": "Mistral 7B's fp16 cache is 32 layers x 8 KV heads x 128 dims x 2 for K/V x 2 bytes = 128 KiB per token.",
+            "highlight": [
+              "b-window"
+            ]
+          },
+          {
+            "label": "A rolling buffer holds only W = 4,096 positions, so 4,096 x 128 KiB = 512 MiB per stream, whatever the prompt length.",
+            "highlight": [
+              "b-window"
+            ]
+          },
+          {
+            "label": "A cache holding every position instead would pay 65,536 x 128 KiB = 8 GiB, and a full 131,072-token prompt 131,072 x 128 KiB = 16 GiB: 32x the window's footprint.",
+            "highlight": [
+              "b-window",
+              "b-65536",
+              "b-131072"
+            ]
+          }
+        ]
       }
     }
   ],
