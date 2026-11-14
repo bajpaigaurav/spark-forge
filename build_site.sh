@@ -17,6 +17,13 @@ python3 diagrams.py
 python3 build.py
 ./verify_site.sh
 
+# The Desktop tree syncs, and a sync pass can drop a byte-identical "* 2.html"
+# or "* 3.svg" copy next to a file build.py just wrote. Nothing links to those,
+# but /bin/cp -a would carry them into docs/ and inflate the page count. Drop
+# them from the build output before the copy; no real page or figure name ends
+# in " <digit>".
+find site -name '* [0-9].*' -delete
+
 /bin/rm -rf docs
 mkdir -p docs
 /bin/cp -a site/. docs/
