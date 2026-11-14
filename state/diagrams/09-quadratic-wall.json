@@ -12,11 +12,11 @@
       "data": {
         "n": 10,
         "highlight_row": 8,
-        "note": "Schematic 10 × 10 causal grid, not to scale. At n = 131,072 the matrix has n² = 1.718 × 10^10 entries; the causal triangle has n(n+1)/2. Rounding to 10^10 entries at 2 bytes per fp16 entry, one head in one layer is 20 GB, about 10.4 percent of the 192 GB of HBM on an H100; all heads and layers pass that budget many times over.",
+        "note": "Schematic 10 × 10 causal grid, not to scale: the lower triangle holds 1 + 2 + … + 10 = 55 of the 100 cells. At n = 131,072 the matrix has n² = 1.718 × 10^10 entries; the causal triangle has n(n+1)/2. Rounding to 10^10 entries at 2 bytes per fp16 entry, one head in one layer is 20 GB, about 10.4 percent of the 192 GB of HBM on an H100; all heads and layers pass that budget many times over.",
         "parts": {
           "cells": [
             [
-              "scores",
+              "rows-0-1",
               "mask",
               "mask",
               "mask",
@@ -28,8 +28,8 @@
               "mask"
             ],
             [
-              "scores",
-              "scores",
+              "rows-0-1",
+              "rows-0-1",
               "mask",
               "mask",
               "mask",
@@ -40,9 +40,9 @@
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
               "mask",
               "mask",
               "mask",
@@ -52,10 +52,10 @@
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
               "mask",
               "mask",
               "mask",
@@ -64,11 +64,11 @@
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
+              "rows-2-4",
               "mask",
               "mask",
               "mask",
@@ -76,98 +76,111 @@
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
               "mask",
               "mask",
               "mask",
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
               "mask",
               "mask",
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
+              "rows-5-7",
               "mask",
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
               "mask"
             ],
             [
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores",
-              "scores"
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9",
+              "rows-8-9"
             ]
-          ],
-          "note": "memory",
-          "axis": "scores"
+          ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to fill the score matrix and count its cost.",
+        "interval": 1500,
+        "intro": "Press Play or Next to fill the causal triangle row by row, then price it.",
         "steps": [
           {
-            "label": "One query i scores every key j ≤ i.",
+            "label": "Query i scores every key j ≤ i: rows 0 and 1 hold 1 + 2 = 3 cells.",
             "highlight": [
-              "scores"
+              "rows-0-1"
             ]
           },
           {
-            "label": "The causal mask keeps the lower triangle: n(n+1)/2 entries.",
+            "label": "Rows 2 to 4 hold 3 + 4 + 5 = 12 cells.",
             "highlight": [
+              "rows-0-1",
+              "rows-2-4"
+            ]
+          },
+          {
+            "label": "Rows 5 to 7 hold 6 + 7 + 8 = 21 cells.",
+            "highlight": [
+              "rows-0-1",
+              "rows-2-4",
+              "rows-5-7"
+            ]
+          },
+          {
+            "label": "Rows 8 and 9 hold 9 + 10 = 19, so the triangle totals 3 + 12 + 21 + 19 = 55 of the 100 cells: n(n+1)/2.",
+            "highlight": [
+              "rows-0-1",
+              "rows-2-4",
+              "rows-5-7",
+              "rows-8-9"
+            ]
+          },
+          {
+            "label": "The upper triangle j > i is masked and never computed, so the bound is n² = 1.718 × 10^10 at n = 131,072; at 2 bytes per fp16 entry that is 20 GB for one head in one layer, 20 / 192 = 0.104 of the 192 GB on an H100.",
+            "highlight": [
+              "rows-0-1",
+              "rows-2-4",
+              "rows-5-7",
+              "rows-8-9",
               "mask"
-            ]
-          },
-          {
-            "label": "At n = 131,072, n² = 1.718 × 10^10 entries.",
-            "highlight": [
-              "scores",
-              "memory"
-            ]
-          },
-          {
-            "label": "At 2 bytes per fp16 entry, one head in one layer is 20 GB.",
-            "highlight": [
-              "memory"
             ]
           }
         ]
@@ -233,11 +246,52 @@
                 16
               ]
             ]
+          },
+          {
+            "kind": "point",
+            "x": 128,
+            "y": 1,
+            "label": "n = d = 128: the curves meet"
           }
         ],
         "x_label": "sequence length n",
         "y_label": "cost relative to n = 128",
-        "note": "Relative cost is illustrative: quadratic attention scales as (n/128)², linear attention as n/128; the crossover is at n = d = 128, which the chapter states. At n = 4096 the quadratic ratio is 1024 and the linear ratio is 32. Absolute figures at n = 131,072: 1.718 × 10^10 score entries; 2.199 × 10^12 multiply-adds for the scores per head per layer, and the same again for value aggregation, so 4.40 × 10^12; a 4,096-token window cuts entries to 536,870,912, 32× fewer; linear attention costs 2,147,483,648 operations."
+        "note": "Relative cost is illustrative: quadratic attention scales as (n/128)², linear attention as n/128; the crossover is at n = d = 128, which the chapter states. At n = 4096 the quadratic ratio is 1024 and the linear ratio is 32. Absolute figures at n = 131,072: 1.718 × 10^10 score entries; 2.199 × 10^12 multiply-adds for the scores per head per layer, and the same again for value aggregation, so 4.40 × 10^12; a 4,096-token window cuts entries to 536,870,912, 32× fewer; linear attention costs 2,147,483,648 operations.",
+        "parts": {
+          "series": [
+            "quadratic",
+            "linear",
+            "crossover"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to compare the two slopes on log-log axes.",
+        "steps": [
+          {
+            "label": "Quadratic attention costs (n/128)², so the line rises with slope 2.",
+            "highlight": [
+              "quadratic"
+            ]
+          },
+          {
+            "label": "Linear attention costs n/128, slope 1: at n = 4096 the ratios are 1024 and 32.",
+            "highlight": [
+              "quadratic",
+              "linear"
+            ]
+          },
+          {
+            "label": "The two meet at n = d = 128; past that point linear attention is the cheaper form.",
+            "highlight": [
+              "quadratic",
+              "linear",
+              "crossover"
+            ]
+          }
+        ]
       }
     }
   ],
