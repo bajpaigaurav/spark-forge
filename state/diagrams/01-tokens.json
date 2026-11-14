@@ -190,7 +190,8 @@
       "kind": "vocab_stack",
       "data": {
         "heading": "GPT-2's 50,257-token vocabulary",
-        "parts": [
+        "total": 50257,
+        "rows": [
           [
             "base byte tokens",
             256
@@ -204,7 +205,45 @@
             1
           ]
         ],
-        "total": 50257
+        "parts": {
+          "rows": [
+            "r-bytes",
+            "r-merges",
+            "r-eot"
+          ],
+          "total": "total",
+          "arith": "arith"
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to decompose the vocabulary.",
+        "steps": [
+          {
+            "label": "The base alphabet is bytes, not characters: 256 byte values cover every string that can exist, including emoji, Cyrillic and broken UTF-8.",
+            "highlight": [
+              "r-bytes"
+            ]
+          },
+          {
+            "label": "Byte-level BPE then learns 50,000 merges on top of those bytes, each one a pair of adjacent symbols collapsed into a new token.",
+            "highlight": [
+              "r-bytes",
+              "r-merges"
+            ]
+          },
+          {
+            "label": "One end-of-text marker closes the set, and 256 + 50,000 + 1 = 50,257. There is no unknown token, ever.",
+            "highlight": [
+              "r-bytes",
+              "r-merges",
+              "r-eot",
+              "total",
+              "arith"
+            ]
+          }
+        ]
       }
     }
   ]

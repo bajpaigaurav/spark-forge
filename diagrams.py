@@ -889,10 +889,11 @@ def render_grid(spec):
 
 def render_vocab_stack(spec):
     data = spec.get("data") or {}
-    parts = data.get("parts") or []
+    rows = data.get("rows") or []
     total = data.get("total")
-    if not parts or total is None:
+    if not rows or total is None:
         return None
+    parts = data.get("parts") or {}
 
     def build(w, size):
         c = Canvas(w, 0, spec.get("title", "Figure"),
@@ -904,25 +905,30 @@ def render_vocab_stack(spec):
         row_h = 42
         gap = 8
         y = 18
-        total_h = len(parts) * row_h + (len(parts) - 1) * gap
-        for i, (label, count) in enumerate(parts):
+        total_h = len(rows) * row_h + (len(rows) - 1) * gap
+        for i, (label, count) in enumerate(rows):
+            row_part = _part_at(parts, "rows", i)
             yy = y + i * (row_h + gap)
             c.add(c.rect(bar_x, yy, bar_w, row_h,
-                         fill=WASH_2 if i == 1 else WASH, stroke=RULE, rx=2))
+                         fill=WASH_2 if i == 1 else WASH, stroke=RULE, rx=2,
+                         part=row_part))
             c.add(c.text(pad, yy + row_h / 2 + size * 0.35, label, size,
-                         anchor="start", fill=INK, weight="500"))
+                         anchor="start", fill=INK, weight="500", part=row_part))
             c.add(c.text(bar_x + bar_w + 10, yy + row_h / 2 + size * 0.35,
                          f"{count:,}", size, anchor="start", fill=ACCENT,
-                         family=FONT_MONO, weight="600"))
+                         family=FONT_MONO, weight="600", part=row_part))
+        total_part = parts.get("total")
         bx = bar_x + bar_w + 82
-        c.add(c.line(bx, y, bx, y + total_h, stroke=MUTED, sw=1))
-        c.add(c.line(bx - 5, y, bx + 5, y, stroke=MUTED, sw=1))
-        c.add(c.line(bx - 5, y + total_h, bx + 5, y + total_h, stroke=MUTED, sw=1))
+        c.add(c.line(bx, y, bx, y + total_h, stroke=MUTED, sw=1, part=total_part))
+        c.add(c.line(bx - 5, y, bx + 5, y, stroke=MUTED, sw=1, part=total_part))
+        c.add(c.line(bx - 5, y + total_h, bx + 5, y + total_h, stroke=MUTED, sw=1,
+                     part=total_part))
         c.add(c.text(bx + 10, y + total_h / 2, f"{total:,} total", size,
-                     anchor="start", fill=INK, weight="600"))
-        arith = " + ".join(f"{count:,}" for _, count in parts) + f" = {total:,}"
+                     anchor="start", fill=INK, weight="600", part=total_part))
+        arith = " + ".join(f"{count:,}" for _, count in rows) + f" = {total:,}"
         arith_y = y + total_h + 24
-        c.add(c.note(pad, arith_y, arith, size * 0.9, w - 2 * pad))
+        c.add(c.note(pad, arith_y, arith, size * 0.9, w - 2 * pad,
+                     part=parts.get("arith")))
         note = ("Rows are schematic: 256 and 1 would be invisible beside 50,000. "
                 "Counts are exact.")
         note_y = arith_y + size * 1.5
