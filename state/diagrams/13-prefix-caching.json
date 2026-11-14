@@ -81,68 +81,66 @@
         "note": "A request-level LRU would evict S1 and S2 when A finishes and destroy the prefix B is still using; block-level LRU with refcounts keeps them until both requests are done.",
         "parts": {
           "steps": [
-            "prefix",
-            "reuse",
-            "evict",
-            "evict"
-          ],
-          "lanes": [
-            "prefix",
-            "suffix",
-            "refcount"
+            "col-a",
+            "col-b",
+            "col-a-done",
+            "col-b-done"
           ],
           "cells": [
             [
-              "prefix",
-              "reuse prefix",
-              "prefix",
+              "col-a",
+              "col-b",
+              "col-a-done",
               null
             ],
             [
-              "suffix",
-              "suffix",
-              "evict suffix",
-              "evict suffix"
+              "col-a",
+              "col-b",
+              "col-a-done",
+              "col-b-done"
             ],
             [
-              "refcount",
-              "refcount",
-              "refcount",
-              "refcount"
+              "col-a",
+              "col-b",
+              "col-a-done",
+              "col-b-done"
             ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Follow two requests through one shared system prompt.",
+        "interval": 1500,
+        "intro": "Follow two requests through one shared system prompt, block by block.",
         "steps": [
           {
-            "label": "A's prefill computes the system-prompt blocks S1 and S2; each has refcount 1.",
+            "label": "Request A arrives with system-prompt blocks S1 and S2 plus its unique suffix U_A. The prefix is built once, and every block starts at refcount 1.",
             "highlight": [
-              "prefix",
-              "refcount"
+              "col-a"
             ]
           },
           {
-            "label": "B's lookup matches S1 and S2, raises both to refcount 2, and prefills only its suffix.",
+            "label": "Request B arrives with the same system prompt and a different suffix U_B. The lookup matches S1 and S2, so their refcounts become 2 and only U_B is built.",
             "highlight": [
-              "reuse",
-              "refcount"
+              "col-a",
+              "col-b"
             ]
           },
           {
-            "label": "A finishes: S1 and S2 drop to 1 and U_A becomes an eviction candidate.",
+            "label": "A finishes: S1 and S2 drop from 2 to 1, and U_A drops to 0, so U_A alone becomes an eviction candidate while the shared prefix is held for B.",
             "highlight": [
-              "evict",
-              "refcount"
+              "col-a",
+              "col-b",
+              "col-a-done"
             ]
           },
           {
-            "label": "B finishes: the shared blocks drop to 0 and can be evicted.",
+            "label": "B finishes: S1 and S2 drop to 0 and become candidates. A request-level LRU would have destroyed the prefix when A finished; block-level LRU keeps it alive until the last holder leaves.",
             "highlight": [
-              "evict"
+              "col-a",
+              "col-b",
+              "col-a-done",
+              "col-b-done"
             ]
           }
         ]
@@ -175,6 +173,79 @@
             ],
             "note": "Divergence inside a block recomputes the whole block, so block size trades lookup metadata against recomputation; 16 is the common default."
           }
+        ],
+        "parts": {
+          "panels": [
+            "hash",
+            "radix"
+          ],
+          "items": [
+            [
+              "h1",
+              "h2",
+              "diverge"
+            ],
+            [
+              "walk",
+              "split",
+              "full-blocks"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to see how a chained hash and a radix walk both bind a block to its prefix.",
+        "steps": [
+          {
+            "label": "Hash block one together with the namespace fields, giving h1 = H(S1 tokens | namespace).",
+            "highlight": [
+              "hash",
+              "h1"
+            ]
+          },
+          {
+            "label": "Hash block two together with h1: h2 = H(S2 tokens | h1). The previous-block hash is what binds the block to its prefix.",
+            "highlight": [
+              "hash",
+              "h1",
+              "h2"
+            ]
+          },
+          {
+            "label": "So the same tokens after a different prefix hash differently and are not reused: block size 2, [A1,A2][B1,B2] against [C1,C2][B1,B2] shares B1,B2 but not the hash.",
+            "highlight": [
+              "hash",
+              "h1",
+              "h2",
+              "diverge"
+            ]
+          },
+          {
+            "label": "The radix tree instead walks from the root along child edges, reusing the KV blocks on the matched path.",
+            "highlight": [
+              "radix",
+              "walk"
+            ]
+          },
+          {
+            "label": "Where the tokens diverge it splits the edge at the divergence point: the matched prefix becomes a node and the unmatched suffix a new edge.",
+            "highlight": [
+              "radix",
+              "walk",
+              "split"
+            ]
+          },
+          {
+            "label": "KV blocks are atomic, so a divergence inside a block recomputes the whole block; only full blocks are ever reused, and 16 tokens is the common default.",
+            "highlight": [
+              "radix",
+              "walk",
+              "split",
+              "full-blocks"
+            ]
+          }
         ]
       }
     },
@@ -199,7 +270,40 @@
             "display": "50%, 1 of 2"
           }
         ],
-        "note": "The counters are per prompt token: increment the query counter for every token considered for matching and the hit counter for every reused KV block. Request-level counts a request as a hit even when one token matched."
+        "note": "The counters are per prompt token: increment the query counter for every token considered for matching and the hit counter for every reused KV block. Request-level counts a request as a hit even when one token matched.",
+        "parts": {
+          "bars": [
+            "b-token",
+            "b-request"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to compute the two hit rates on the same pair of requests.",
+        "steps": [
+          {
+            "label": "Token-level: cached tokens / queried tokens. Request A caches 90 of its 100 prompt tokens and B caches none, so 90 / 110 = 81.8%.",
+            "highlight": [
+              "b-token"
+            ]
+          },
+          {
+            "label": "Request-level: requests with at least one cached token / requests, which is 1 / 2 = 50%.",
+            "highlight": [
+              "b-token",
+              "b-request"
+            ]
+          },
+          {
+            "label": "A request with one cached token counts as a request-level hit while saving almost no compute, which is why the token-level rate is the one that tracks prefill work.",
+            "highlight": [
+              "b-token",
+              "b-request"
+            ]
+          }
+        ]
       }
     }
   ],
