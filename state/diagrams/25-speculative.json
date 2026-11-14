@@ -156,36 +156,46 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
+        "interval": 1600,
         "intro": "Press Play or Next to walk one draft-and-verify round.",
         "steps": [
           {
-            "label": "The drafter proposes k = 4 tokens at t_d each.",
+            "label": "The drafter proposes k = 4 tokens, x1 to x4, at t_d each. Its own decode is bandwidth-bound too, but its weights are smaller, so it runs faster than the target.",
             "highlight": [
               "draft"
             ]
           },
           {
-            "label": "The target scores all four positions in one batched forward pass.",
+            "label": "The target scores all four positions in one forward pass. The kernel loads each weight matrix once and multiplies it by a k-row activation matrix, so weight traffic matches a one-token decode while arithmetic grows by roughly k = 4.",
             "highlight": [
+              "draft",
               "verify"
             ]
           },
           {
-            "label": "Accept left to right with probability min(1, p/q).",
+            "label": "Accept left to right with probability min(1, p/q). A token the target believes in at least as much as the draft is always kept; otherwise it survives only part of the time.",
             "highlight": [
+              "draft",
+              "verify",
               "accept"
             ]
           },
           {
-            "label": "At the first rejection, sample the residual max(0, p − q).",
+            "label": "At the first rejection, sample the residual proportional to max(0, p - q) and stop. The accepted mass and the residual mass add up to p exactly, so the output stays target-distributed.",
             "highlight": [
+              "draft",
+              "verify",
+              "accept",
               "residual"
             ]
           },
           {
-            "label": "Keep the accepted prefix plus the bonus token; drop the rest of the draft's KV.",
+            "label": "Emit the accepted prefix plus one replacement or bonus token: between 1 and k + 1 = 5 tokens per round. Rejected drafts have their KV entries truncated to the accepted prefix length.",
             "highlight": [
+              "draft",
+              "verify",
+              "accept",
+              "residual",
               "emit"
             ]
           }
@@ -219,7 +229,48 @@
           }
         ],
         "group": "speedup over target decode, k = 4",
-        "note": "Each bar is the formula in the chapter: E = (1 − α^{k+1}) / (1 − α) over the round time k t_d + t_v, at k = 4. The first two bars differ only in α and t_d, so a drafter accepted less often can still lose ground even when it is cheaper. The third bar falls below 1.0 because verification costs more than the round saves."
+        "note": "Each bar is the formula in the chapter: E = (1 − α^{k+1}) / (1 − α) over the round time k t_d + t_v, at k = 4. The first two bars differ only in α and t_d, so a drafter accepted less often can still lose ground even when it is cheaper. The third bar falls below 1.0 because verification costs more than the round saves.",
+        "parts": {
+          "bars": [
+            "b-alpha07",
+            "b-alpha03",
+            "b-alpha01"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to price three drafters against the same verification pass.",
+        "steps": [
+          {
+            "label": "Expected tokens per round are E = 1 + α + α^2 + ... + α^k = (1 - α^(k+1))/(1 - α). With k = 4 and α = 0.7 that is 1 + 0.7 + 0.49 + 0.343 + 0.2401 = 2.7731.",
+            "highlight": [
+              "b-alpha07"
+            ]
+          },
+          {
+            "label": "Round time is k·t_d + t_v = 4 x 0.2 t_t + 1.0 t_t = 1.8 t_t, so speedup is 2.7731/1.8 = 1.54x.",
+            "highlight": [
+              "b-alpha07"
+            ]
+          },
+          {
+            "label": "A faster drafter at α = 0.3 and t_d = 0.05 t_t gives E = 1.4251 over a round of 4 x 0.05 t_t + 1.0 t_t = 1.2 t_t, so speedup is 1.4251/1.2 = 1.19x. It loses to the slower, higher-acceptance drafter.",
+            "highlight": [
+              "b-alpha07",
+              "b-alpha03"
+            ]
+          },
+          {
+            "label": "At t_v = 1.2 t_t and α = 0.1, E = 1.1111 over a round of 1.24 t_t gives 0.896x. Verification costs more than the round saves, so this drafter loses to no speculation at all.",
+            "highlight": [
+              "b-alpha07",
+              "b-alpha03",
+              "b-alpha01"
+            ]
+          }
+        ]
       }
     }
   ],
