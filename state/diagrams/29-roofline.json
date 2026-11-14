@@ -1,133 +1,243 @@
 {
- "needed": true,
- "spine": "serving",
- "figures": [
-  {
-   "id": "bandwidth-roof-loglog",
-   "title": "The 3,350 GB/s roof, with model ceilings on it",
-   "caption": "The bandwidth roof is 3,350 GB/s divided by the bytes read per token, so attainable throughput falls as the read grows. Every point is computed from that number; none is measured. A 70B model at FP16 reads 140 GB and tops out at 23.9 tok/s, at four bits 35 GB and 95.7; a 7B model at FP16 14 GB and 239, at four bits 3.5 GB and 957; GPT-3 at FP16 350 GB and 9.57. The roof line is sampled at 4, 8, 16, 32, 64, 128 and 256 GB per token, each sample 3,350 ÷ that read, and it enters the plot at 837.5 tokens per second.",
-   "alt": "A log-log plot. The x axis is gigabytes read per token from 1 to 10,000; the y axis is tokens per second from 1 to 1,000. A descending straight line labelled 3,350 GB/s roof enters at 837.5 tokens per second for 4 GB and passes through 209.4 at 16 GB and 13.1 at 256 GB. Five points sit on it: 7B four-bit at 3.5 GB and 957 tokens per second; 7B FP16 at 14 GB and 239; 70B four-bit at 35 GB and 95.7; 70B FP16 at 140 GB and 23.9; GPT-3 FP16 at 350 GB and 9.57.",
-   "anchor": "the-roofline-model-and-decode-s-intensity",
-   "kind": "logaxes",
-   "data": {
-    "series": [
-     {
-      "kind": "line",
-      "label": "roof: 3,350 GB/s ÷ GB/token",
-      "points": [
-       [
-        4,
-        837.5
-       ],
-       [
-        8,
-        418.75
-       ],
-       [
-        16,
-        209.4
-       ],
-       [
-        32,
-        104.7
-       ],
-       [
-        64,
-        52.3
-       ],
-       [
-        128,
-        26.2
-       ],
-       [
-        256,
-        13.1
-       ]
-      ]
-     },
-     {
-      "kind": "point",
-      "x": 3.5,
-      "y": 957,
-      "label": "7B 4-bit 957"
-     },
-     {
-      "kind": "point",
-      "x": 14,
-      "y": 239,
-      "label": "7B FP16 239"
-     },
-     {
-      "kind": "point",
-      "x": 35,
-      "y": 95.7,
-      "label": "70B 4-bit 95.7"
-     },
-     {
-      "kind": "point",
-      "x": 140,
-      "y": 23.9,
-      "label": "70B FP16 23.9"
-     },
-     {
-      "kind": "point",
-      "x": 350,
-      "y": 9.57,
-      "label": "GPT-3 FP16 9.57"
-     }
-    ],
-    "x_label": "GB read per token (log)",
-    "y_label": "tokens/s (log)",
-    "note": "The roof assumes one read of every byte per token; batching reuses each read across B rows and moves a point right. The H100 ridge point is 295 FLOPs per byte, roughly three hundred times the intensity of a decode step, so no compute roof appears in this window. The points are ceilings, not predictions: a real kernel reaches a fraction of peak bandwidth, and KV traffic and collectives share the same bus."
-   }
-  },
-  {
-   "id": "step-budget-two-term-fit",
-   "title": "The step read: 35 GB shared, 32.77 GB per stream",
-   "caption": "A read budget rather than a fit. One pass over the weights serves every row, so the weight term is fixed at 35 GB for 70B at four bits; the KV cache is re-read for each stream, so each stream adds 100,000 × 327,680 = 32,768,000,000 bytes at a 100,000-token context. Four streams add 4 × 32,768,000,000 = 131,072,000,000 bytes, so the KV term grows by 3 × 32,768,000,000 = 98,304,000,000 extra bytes per step on top of the 35 GB weight read. Aggregate throughput rises with the row count; per-stream throughput falls, because the read grows faster than the rows it serves.",
-   "alt": "Three horizontal bars. The shared weight read is 35 GB. The KV read for one stream at a 100,000-token context is 32.77 GB, from 100,000 × 327,680 bytes. The KV read for four streams is 131.07 GB, from 4 × 32,768,000,000 bytes, nearly four times the weight read while serving four times the rows.",
-   "anchor": "what-real-decode-reveals-about-the-step-budget",
-   "kind": "bars",
-   "data": {
-    "bars": [
-     {
-      "label": "shared weight read",
-      "value": 35.0,
-      "display": "35 GB"
-     },
-     {
-      "label": "KV read, one stream",
-      "value": 32.77,
-      "display": "32.77 GB = 100,000 × 327,680 B"
-     },
-     {
-      "label": "KV read, four streams",
-      "value": 131.07,
-      "display": "131.07 GB = 4 × 32,768,000,000 B",
-      "accent": true
-     }
-    ],
-    "group": "bytes read per decode step, 70B at 4 bits, 100,000-token context",
-    "note": "The weight term does not grow with batch; the KV term does. At one stream the cache is nearly the whole weight read, at four streams it is nearly four times the weight read. Attention arithmetic grows the same way, so the crossover from bandwidth-bound to compute-bound arrives sooner at long context and large batch."
-   }
-  }
- ],
- "sources": [
-  {
-   "url": "https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet",
-   "note": "NVIDIA H100 SXM datasheet: 3,350 GB/s of HBM3 memory bandwidth and 192 GB of HBM3 capacity, the roof this figure draws."
-  },
-  {
-   "url": "https://doi.org/10.1145/1498765.1498785",
-   "note": "Williams, Waterman and Patterson, Roofline (CACM, 2009): attainable rate is the minimum of peak FLOP/s and bandwidth times intensity."
-  },
-  {
-   "url": "https://arxiv.org/abs/2210.17323",
-   "note": "Frantar et al., GPTQ (2022): group-wise quantization with per-group scales, the 0.0156 bytes per parameter overhead."
-  },
-  {
-   "url": "https://arxiv.org/abs/2306.00978",
-   "note": "Lin et al., AWQ (2023): activation-aware weight quantization, same group-scale argument."
-  }
- ]
+  "needed": true,
+  "spine": "serving",
+  "figures": [
+    {
+      "id": "bandwidth-roof-loglog",
+      "title": "The 3,350 GB/s roof, with model ceilings on it",
+      "caption": "The bandwidth roof is 3,350 GB/s divided by the bytes read per token, so attainable throughput falls as the read grows. Every point is computed from that number; none is measured. A 70B model at FP16 reads 140 GB and tops out at 23.9 tok/s, at four bits 35 GB and 95.7; a 7B model at FP16 14 GB and 239, at four bits 3.5 GB and 957; GPT-3 at FP16 350 GB and 9.57. The roof line is sampled at 4, 8, 16, 32, 64, 128 and 256 GB per token, each sample 3,350 ÷ that read, and it enters the plot at 837.5 tokens per second.",
+      "alt": "A log-log plot. The x axis is gigabytes read per token from 1 to 10,000; the y axis is tokens per second from 1 to 1,000. A descending straight line labelled 3,350 GB/s roof enters at 837.5 tokens per second for 4 GB and passes through 209.4 at 16 GB and 13.1 at 256 GB. Five points sit on it: 7B four-bit at 3.5 GB and 957 tokens per second; 7B FP16 at 14 GB and 239; 70B four-bit at 35 GB and 95.7; 70B FP16 at 140 GB and 23.9; GPT-3 FP16 at 350 GB and 9.57.",
+      "anchor": "the-roofline-model-and-decode-s-intensity",
+      "kind": "logaxes",
+      "data": {
+        "series": [
+          {
+            "kind": "line",
+            "label": "roof: 3,350 GB/s ÷ GB/token",
+            "points": [
+              [
+                4,
+                837.5
+              ],
+              [
+                8,
+                418.75
+              ],
+              [
+                16,
+                209.4
+              ],
+              [
+                32,
+                104.7
+              ],
+              [
+                64,
+                52.3
+              ],
+              [
+                128,
+                26.2
+              ],
+              [
+                256,
+                13.1
+              ],
+              [
+                512,
+                6.55
+              ]
+            ]
+          },
+          {
+            "kind": "point",
+            "x": 3.5,
+            "y": 957,
+            "label": "7B 4-bit 957"
+          },
+          {
+            "kind": "point",
+            "x": 14,
+            "y": 239,
+            "label": "7B FP16 239"
+          },
+          {
+            "kind": "point",
+            "x": 35,
+            "y": 95.7,
+            "label": "70B 4-bit 95.7"
+          },
+          {
+            "kind": "point",
+            "x": 140,
+            "y": 23.9,
+            "label": "70B FP16 23.9"
+          },
+          {
+            "kind": "point",
+            "x": 350,
+            "y": 9.57,
+            "label": "GPT-3 FP16 9.57"
+          }
+        ],
+        "x_label": "GB read per token (log)",
+        "y_label": "tokens/s (log)",
+        "note": "The roof assumes one read of every byte per token; batching reuses each read across B rows and moves a point right. The H100 ridge point is 295 FLOPs per byte, roughly three hundred times the intensity of a decode step, so no compute roof appears in this window. The points are ceilings, not predictions: a real kernel reaches a fraction of peak bandwidth, and KV traffic and collectives share the same bus.",
+        "parts": {
+          "series": [
+            "roof",
+            "pt-7b-4",
+            "pt-7b-fp16",
+            "pt-70b-4",
+            "pt-70b-fp16",
+            "pt-gpt3"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to place decode on the roofline, then invert the roof.",
+        "steps": [
+          {
+            "label": "The bandwidth roof: 3,350 GB/s divided by the bytes read per token. Every point below it is a ceiling, not a prediction.",
+            "highlight": [
+              "roof"
+            ]
+          },
+          {
+            "label": "A 70B model at four bits reads 35 GB per token, so its ceiling is 3,350 ÷ 35 = 95.7 tokens/s. At FP16 it reads 140 GB, and 3,350 ÷ 140 = 23.9 tokens/s.",
+            "highlight": [
+              "roof",
+              "pt-70b-4",
+              "pt-70b-fp16"
+            ]
+          },
+          {
+            "label": "A 7B model at FP16 reads 14 GB for 239 tokens/s; at four bits it reads 14 ÷ 4 = 3.5 GB and reaches 3,350 ÷ 3.5 = 957 tokens/s.",
+            "highlight": [
+              "roof",
+              "pt-70b-4",
+              "pt-70b-fp16",
+              "pt-7b-fp16",
+              "pt-7b-4"
+            ]
+          },
+          {
+            "label": "GPT-3 at 175 billion parameters would need 350 GB per token at FP16, giving 3,350 ÷ 350 = 9.57 tokens/s, and would not fit on the card at that precision.",
+            "highlight": [
+              "roof",
+              "pt-70b-4",
+              "pt-70b-fp16",
+              "pt-7b-fp16",
+              "pt-7b-4",
+              "pt-gpt3"
+            ]
+          },
+          {
+            "label": "Decode sits at intensity near 1, roughly three hundred times below the H100's ridge point of 989 TFLOPS ÷ 3,350 GB/s = 295 FLOPs per byte, so no compute roof appears in this window.",
+            "highlight": [
+              "roof",
+              "pt-70b-4",
+              "pt-70b-fp16",
+              "pt-7b-fp16",
+              "pt-7b-4",
+              "pt-gpt3"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "step-budget-two-term-fit",
+      "title": "The step read: 35 GB shared, 32.77 GB per stream",
+      "caption": "A read budget rather than a fit. One pass over the weights serves every row, so the weight term is fixed at 35 GB for 70B at four bits; the KV cache is re-read for each stream, so each stream adds 100,000 × 327,680 = 32,768,000,000 bytes at a 100,000-token context. Four streams add 4 × 32,768,000,000 = 131,072,000,000 bytes, so the KV term grows by 3 × 32,768,000,000 = 98,304,000,000 extra bytes per step on top of the 35 GB weight read. Aggregate throughput rises with the row count; per-stream throughput falls, because the read grows faster than the rows it serves.",
+      "alt": "Three horizontal bars. The shared weight read is 35 GB. The KV read for one stream at a 100,000-token context is 32.77 GB, from 100,000 × 327,680 bytes. The KV read for four streams is 131.07 GB, from 4 × 32,768,000,000 bytes, nearly four times the weight read while serving four times the rows.",
+      "anchor": "what-real-decode-reveals-about-the-step-budget",
+      "kind": "bars",
+      "data": {
+        "bars": [
+          {
+            "label": "shared weight read",
+            "value": 35.0,
+            "display": "35 GB"
+          },
+          {
+            "label": "KV read, one stream",
+            "value": 32.77,
+            "display": "32.77 GB = 100,000 × 327,680 B"
+          },
+          {
+            "label": "KV read, four streams",
+            "value": 131.07,
+            "display": "131.07 GB = 4 × 32,768,000,000 B",
+            "accent": true
+          }
+        ],
+        "group": "bytes read per decode step, 70B at 4 bits, 100,000-token context",
+        "note": "The weight term does not grow with batch; the KV term does. At one stream the cache is nearly the whole weight read, at four streams it is nearly four times the weight read. Attention arithmetic grows the same way, so the crossover from bandwidth-bound to compute-bound arrives sooner at long context and large batch.",
+        "parts": {
+          "bars": [
+            "b-weight",
+            "b-kv1",
+            "b-kv4"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to split one decode step's read into its weight and KV terms.",
+        "steps": [
+          {
+            "label": "The weight term is fixed per step: a 70B model at four bits reads 35 GB once, and one read serves every row in the batch.",
+            "highlight": [
+              "b-weight"
+            ]
+          },
+          {
+            "label": "The KV term is per stream. Llama 2 70B stores 2 × 80 × 8 × 128 = 163,840 values per position at two bytes, which is 163,840 × 2 = 327,680 bytes per position; at 100,000 tokens one stream reads 100,000 × 327,680 = 32,768,000,000 bytes, or 32.77 GB.",
+            "highlight": [
+              "b-weight",
+              "b-kv1"
+            ]
+          },
+          {
+            "label": "Four streams quadruple it: 4 × 32,768,000,000 = 131,072,000,000 bytes, 131.07 GB, on top of the same 35 GB weight read.",
+            "highlight": [
+              "b-weight",
+              "b-kv1",
+              "b-kv4"
+            ]
+          },
+          {
+            "label": "So at one stream the cache is nearly the whole weight read, and at four streams it is nearly four times it. Aggregate throughput rises while per-stream throughput falls.",
+            "highlight": [
+              "b-weight",
+              "b-kv1",
+              "b-kv4"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet",
+      "note": "NVIDIA H100 SXM datasheet: 3,350 GB/s of HBM3 memory bandwidth and 192 GB of HBM3 capacity, the roof this figure draws."
+    },
+    {
+      "url": "https://doi.org/10.1145/1498765.1498785",
+      "note": "Williams, Waterman and Patterson, Roofline (CACM, 2009): attainable rate is the minimum of peak FLOP/s and bandwidth times intensity."
+    },
+    {
+      "url": "https://arxiv.org/abs/2210.17323",
+      "note": "Frantar et al., GPTQ (2022): group-wise quantization with per-group scales, the 0.0156 bytes per parameter overhead."
+    },
+    {
+      "url": "https://arxiv.org/abs/2306.00978",
+      "note": "Lin et al., AWQ (2023): activation-aware weight quantization, same group-scale argument."
+    }
+  ]
 }
