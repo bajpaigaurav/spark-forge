@@ -114,58 +114,58 @@
         "note": "8 + 2 + 0.2 s is ten seconds; the wall clock says eleven. The 0.2 s is the sum of queueing, cache lookup and the first decode step, which the counters do not break down further. The remaining second is tokenization, admission, detokenization and the client's own overhead, which no counter separates. The illustration is schematic: the counters report means over a window, not one trace.",
         "parts": {
           "steps": [
-            "arrival",
-            "queue",
-            "prefill",
-            "ttft",
-            "decode",
-            "wall-clock"
+            "step-arrive",
+            "step-queue",
+            "step-prefill",
+            "step-first",
+            "step-decode",
+            "step-last"
           ],
           "lanes": [
-            "wall-clock",
-            "arrival",
-            "prefill",
-            "decode",
-            "ttft"
+            "lane-wall",
+            "lane-counter",
+            "lane-logs",
+            "lane-tokens",
+            "lane-gap"
           ],
           "cells": [
             [
-              "arrival",
+              "wall-start",
               null,
               null,
               null,
               null,
-              "wall-clock"
+              "wall-end"
             ],
             [
               null,
               null,
-              "prefill",
-              "ttft",
-              "decode",
+              "c-prefill",
+              "c-ttft",
+              "c-decode",
               null
             ],
             [
-              "arrival",
+              "l-start",
               null,
               null,
-              "ttft",
+              "l-first",
               null,
-              "wall-clock"
+              "l-end"
             ],
             [
-              "arrival",
+              "t-prompt",
               null,
               null,
-              "ttft",
-              "decode",
+              "t-one",
+              "t-gen",
               null
             ],
             [
               null,
               null,
               null,
-              "ttft",
+              "g-gap",
               null,
               null
             ]
@@ -174,43 +174,125 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to follow the request through each instrument.",
+        "interval": 1600,
+        "intro": "Press Play or Next to follow one request through all three instruments.",
         "steps": [
           {
-            "label": "A request arrives with its prompt tokens.",
+            "label": "A request arrives with its prompt tokens. The wall clock starts at zero and the log records a start timestamp.",
             "highlight": [
-              "arrival"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt"
             ]
           },
           {
-            "label": "The scheduler queues it for an admission slot.",
+            "label": "The scheduler queues it for an admission slot. Counters are monotonic sums and see nothing here; the wait is invisible to them.",
             "highlight": [
-              "queue"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt",
+              "step-queue",
+              "lane-gap"
             ]
           },
           {
-            "label": "Prefill runs 8 s; no text is emitted.",
+            "label": "Prefill runs 8 s and emits no text. Counters report prefill 8 s, which is a mean over a window rather than one trace.",
             "highlight": [
-              "prefill"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt",
+              "step-queue",
+              "lane-gap",
+              "step-prefill",
+              "lane-counter",
+              "c-prefill"
             ]
           },
           {
-            "label": "The first token appears at 3.46 s, 0.13 s after prefill ends.",
+            "label": "The first token appears. Counters report TTFT 8.2 s, so 8.2 − 8 = 0.2 s is queueing, cache lookup and the first decode step; the gap lane holds it and no counter breaks it down.",
             "highlight": [
-              "ttft"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt",
+              "step-queue",
+              "lane-gap",
+              "step-prefill",
+              "lane-counter",
+              "c-prefill",
+              "step-first",
+              "c-ttft",
+              "l-first",
+              "t-one",
+              "g-gap"
             ]
           },
           {
-            "label": "Decode emits the reply tokens over 2 s.",
+            "label": "Decode emits the reply over 2 s, and the token lane counts what came out.",
             "highlight": [
-              "decode"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt",
+              "step-queue",
+              "lane-gap",
+              "step-prefill",
+              "lane-counter",
+              "c-prefill",
+              "step-first",
+              "c-ttft",
+              "l-first",
+              "t-one",
+              "g-gap",
+              "step-decode",
+              "c-decode",
+              "t-gen"
             ]
           },
           {
-            "label": "The client sees nearly twelve seconds end to end.",
+            "label": "8 + 2 + 0.2 s comes to ten seconds, and the wall clock says eleven. The remaining second is tokenization, admission, detokenization and client overhead, which no counter separates.",
             "highlight": [
-              "wall-clock"
+              "step-arrive",
+              "lane-wall",
+              "wall-start",
+              "lane-logs",
+              "l-start",
+              "lane-tokens",
+              "t-prompt",
+              "step-queue",
+              "lane-gap",
+              "step-prefill",
+              "lane-counter",
+              "c-prefill",
+              "step-first",
+              "c-ttft",
+              "l-first",
+              "t-one",
+              "g-gap",
+              "step-decode",
+              "c-decode",
+              "t-gen",
+              "step-last",
+              "wall-end",
+              "l-end"
             ]
           }
         ]
@@ -243,7 +325,52 @@
           }
         ],
         "group": "one card, three denominators",
-        "note": "The same run reports three rates because the denominator changes. Decode-only counts generated tokens over decode seconds; end-to-end counts every token over wall clock; aggregate counts the sum of streams over the same wall clock. The third bar is the short-context case, where the cache term is small. Add the cache and it shrinks: at a 100,000-token context one stream holds 100,000 × 327,680 = 32,768,000,000 bytes, four streams hold 131.07 GB, and 4 × 3,350 ÷ (35 + 131.07) = 80.7, below the batch-one ceiling."
+        "note": "The same run reports three rates because the denominator changes. Decode-only counts generated tokens over decode seconds; end-to-end counts every token over wall clock; aggregate counts the sum of streams over the same wall clock. The third bar is the short-context case, where the cache term is small. Add the cache and it shrinks: at a 100,000-token context one stream holds 100,000 × 327,680 = 32,768,000,000 bytes, four streams hold 131.07 GB, and 4 × 3,350 ÷ (35 + 131.07) = 80.7, below the batch-one ceiling.",
+        "parts": {
+          "bars": [
+            "b-decode",
+            "b-e2e",
+            "b-agg"
+          ],
+          "note": "note"
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to see why one card reports three rates.",
+        "steps": [
+          {
+            "label": "Decode-only, batch one: a 70B model at four bits reads 35 GB per step, so 3,350 ÷ 35 = 95.7 tokens/s is the ceiling. Generated tokens over decode seconds approaches it.",
+            "highlight": [
+              "b-decode"
+            ]
+          },
+          {
+            "label": "End-to-end: every token in the request, prompt included, over the wall clock. Averaging prefill in gives 63.8 tokens/s, about two thirds of the decode-only rate.",
+            "highlight": [
+              "b-decode",
+              "b-e2e"
+            ]
+          },
+          {
+            "label": "Aggregate at concurrency 4 on a short context: 4 × 3,350 ÷ 35 = 383 tokens/s, because one weight read serves all four rows. Each stream still gets a quarter of it.",
+            "highlight": [
+              "b-decode",
+              "b-e2e",
+              "b-agg"
+            ]
+          },
+          {
+            "label": "Add the cache and the third bar shrinks. One stream at 100,000 tokens reads 100,000 × 327,680 = 32,768,000,000 bytes; four streams read 4 × 32,768,000,000 = 131,072,000,000 bytes, 131.07 GB. Then 4 × 3,350 ÷ (35 + 131.07) = 80.7 tokens/s, below the batch-one ceiling.",
+            "highlight": [
+              "b-decode",
+              "b-e2e",
+              "b-agg",
+              "note"
+            ]
+          }
+        ]
       }
     }
   ],
