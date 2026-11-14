@@ -4,164 +4,85 @@
   "figures": [
     {
       "id": "qkv-score-softmax",
-      "title": "One query's row: score, softmax, weighted sum",
-      "caption": "A query scores three keys with dot products 2, 1 and 0. Softmax turns those scores into shares 0.665, 0.245 and 0.090, and the shares weight the values into the output (0.755, 0.335). The row is a differentiable lookup: the query is the lookup key, the keys are the indices, the values are the contents.",
-      "alt": "A four-column table. The columns are: project x into q, k and v; score the query against each key; softmax the row; and sum the weighted values. Three value rows show v1 equals (1, 0) scoring 2 and taking share 0.665, v2 equals (0, 1) scoring 1 and taking 0.245, and v3 equals (1, 1) scoring 0 and taking 0.090. The output row shows the weighted sum (0.755, 0.335).",
+      "title": "One query's row: the shares mix the values",
+      "caption": "The softmax row is a mixture, not a choice. Each value vector is scaled by its share and the scaled vectors are laid head to tail: 0.665 v_1 + 0.245 v_2 + 0.090 v_3 ends at (0.755, 0.335). Both axes carry one scale, so a segment's length is its share times its vector's length.",
+      "alt": "A vector diagram with one scale on both axes. Three arrows lie head to tail from the origin: 0.665 v_1 runs along x to 0.665, 0.245 v_2 runs up the y axis to 0.245, and 0.090 v_3 runs diagonally to (0.755, 0.335). A dashed chord joins the origin to that endpoint. Beside the plot two rows print the arithmetic, x: 0.665·1 + 0.245·0 + 0.090·1 = 0.755 and y: 0.665·0 + 0.245·1 + 0.090·1 = 0.335.",
       "anchor": "scores-softmax-and-the-lookup-table-view",
-      "kind": "timeline",
+      "kind": "mixture",
       "data": {
-        "steps": [
-          "project x → q, k, v",
-          "s_j = q · k_j",
-          "softmax row",
-          "Σ a_j v_j"
-        ],
-        "lanes": [
+        "segments": [
           {
-            "name": "v_1 = (1, 0)",
-            "cells": [
-              {
-                "label": "v_1",
-                "kind": "solid"
-              },
-              {
-                "label": "2",
-                "kind": "solid"
-              },
-              {
-                "label": "0.665",
-                "kind": "solid"
-              },
-              {
-                "label": "0.665 · v_1",
-                "kind": "solid"
-              }
-            ]
+            "label": "0.665 · v_1",
+            "vector": [
+              1,
+              0
+            ],
+            "share": 0.665
           },
           {
-            "name": "v_2 = (0, 1)",
-            "cells": [
-              {
-                "label": "v_2",
-                "kind": "solid"
-              },
-              {
-                "label": "1",
-                "kind": "solid"
-              },
-              {
-                "label": "0.245",
-                "kind": "solid"
-              },
-              {
-                "label": "0.245 · v_2",
-                "kind": "solid"
-              }
-            ]
+            "label": "0.245 · v_2",
+            "vector": [
+              0,
+              1
+            ],
+            "share": 0.245
           },
           {
-            "name": "v_3 = (1, 1)",
-            "cells": [
-              {
-                "label": "v_3",
-                "kind": "solid"
-              },
-              {
-                "label": "0",
-                "kind": "solid"
-              },
-              {
-                "label": "0.090",
-                "kind": "solid"
-              },
-              {
-                "label": "0.090 · v_3",
-                "kind": "solid"
-              }
-            ]
-          },
-          {
-            "name": "output o",
-            "cells": [
-              null,
-              null,
-              null,
-              {
-                "label": "(0.755, 0.335)",
-                "kind": "new"
-              }
-            ]
+            "label": "0.090 · v_3",
+            "vector": [
+              1,
+              1
+            ],
+            "share": 0.09
           }
         ],
-        "note": "exp(2), exp(1), exp(0) = 7.389, 2.718, 1.000, sum 11.107; shares 0.665, 0.245, 0.090. The output is the share-weighted sum of the values. Scaling by 1/sqrt(d_k) is the next figure.",
+        "result": {
+          "label": "(0.755, 0.335)"
+        },
+        "scale": "one scale on both axes; a segment's length is its share times its vector's length",
+        "note": "exp(2), exp(1), exp(0) = 7.389, 2.718, 1.000, sum 11.107, so the shares are 0.665, 0.245, 0.090. With v_1 = (1, 0), v_2 = (0, 1), v_3 = (1, 1): 0.665 v_1 + 0.245 v_2 + 0.090 v_3 = (0.755, 0.335). Scaling by 1/sqrt(d_k) is the next figure.",
         "parts": {
-          "steps": [
-            "project",
-            "scores",
-            "shares",
-            "output"
+          "segments": [
+            "mix-v1",
+            "mix-v2",
+            "mix-v3"
           ],
-          "lanes": [
-            "project",
-            "project",
-            "project",
-            "output"
-          ],
-          "cells": [
-            [
-              "project",
-              "scores",
-              "shares",
-              "output"
-            ],
-            [
-              "project",
-              "scores",
-              "shares",
-              "output"
-            ],
-            [
-              "project",
-              "scores",
-              "shares",
-              "output"
-            ],
-            [
-              null,
-              null,
-              null,
-              "output"
-            ]
-          ]
+          "result": "mix-sum"
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
+        "interval": 1500,
         "intro": "Press Play or Next to score one query and mix the values.",
         "steps": [
           {
-            "label": "Each token's x is projected into q, k and v.",
+            "label": "The top score takes share 0.665, so v_1 = (1, 0) contributes 0.665 along x.",
             "highlight": [
-              "project"
+              "mix-v1"
             ]
           },
           {
-            "label": "The query scores every key with a dot product.",
+            "label": "Share 0.245 scales v_2 = (0, 1) to 0.245 up the y axis, added head to tail.",
             "highlight": [
-              "scores"
+              "mix-v1",
+              "mix-v2"
             ]
           },
           {
-            "label": "Softmax turns the row of scores into shares.",
+            "label": "Share 0.090 scales v_3 = (1, 1) to 0.090 on both axes.",
             "highlight": [
-              "shares"
+              "mix-v1",
+              "mix-v2",
+              "mix-v3"
             ]
           },
           {
-            "label": "The shares weight the values and sum to the output.",
+            "label": "The path ends at (0.755, 0.335). The dashed chord is that sum; the rows beside it are its coordinates.",
             "highlight": [
-              "output"
+              "mix-v1",
+              "mix-v2",
+              "mix-v3",
+              "mix-sum"
             ]
           }
         ]
@@ -170,7 +91,7 @@
     {
       "id": "scaling-variance",
       "title": "Why divide by sqrt(d_k)",
-      "caption": "Score standard deviation against d_k under the paper's unit-variance assumption: the raw curve is sqrt(d_k), and the horizontal line is the scaled result, standard deviation 1. At d_k = 64 the raw standard deviation is 8, so a two-sigma gap between the top two scores gives an exponential ratio of about 8.9 million; dividing by sqrt(d_k) shrinks the gap by 8. The curve is computed from sqrt(d_k), not measured.",
+      "caption": "Score standard deviation against d_k under the paper's unit-variance assumption: the raw curve is sqrt(d_k), and the horizontal line is the scaled result, standard deviation 1. At d_k = 64 the raw standard deviation is 8, so a two-sigma gap between the top two scores gives an exponential ratio of about 8.9 million; dividing by sqrt(d_k) shrinks the gap by 8. The curve is computed from sqrt(d_k), not measured, and the gradient collapse lives in the note because it sits below the plot's range.",
       "alt": "A log-log plot. The rising line is score standard deviation equal to square root of d_k, passing through d_k equals 1 with standard deviation 1, d_k equals 16 with 4, d_k equals 64 with 8, and d_k equals 4096 with 64. A horizontal line at standard deviation 1 is labelled after dividing by square root of d_k. A point at d_k equals 64, standard deviation 8 is labelled.",
       "anchor": "multi-head-attention-and-the-scaling-factor",
       "kind": "logaxes",
@@ -210,21 +131,156 @@
                 64
               ]
             ],
-            "label": "std = sqrt(d_k)"
+            "label": "std = sqrt(d_k)",
+            "series_part": "std-curve"
           },
           {
             "kind": "hline",
             "y": 1,
-            "label": "after ÷ sqrt(d_k): std = 1"
+            "label": "after ÷ sqrt(d_k): std = 1",
+            "series_part": "std-one"
           },
           {
             "kind": "point",
             "x": 64,
             "y": 8,
-            "label": "d_k = 64 → std 8"
+            "label": "d_k = 64 → std 8",
+            "series_part": "dk-64"
           }
         ],
-        "note": "Under the assumption each product q_a k_a has variance 1, and the sum of d_k products has variance d_k, so the raw score standard deviation is sqrt(d_k). A gap of two standard deviations gives e^16 ≈ 8.9 million; at a = 0.999 the softmax gradient is 0.000999, against 0.223 in the unsaturated example. Dividing by sqrt(d_k) restores standard deviation 1."
+        "note": "Under the assumption each product q_a k_a has variance 1, and the sum of d_k products has variance d_k, so the raw score standard deviation is sqrt(d_k). At d_k = 64 that is 8: a two-sigma gap gives an exponential ratio of e^16 ≈ 8.9 million, the top share is about 1 − e^−16, and its gradient a(1 − a) is about 1e−7. At a = 0.999 the gradient is 0.000999; at a = 0.665 it is 0.665 × 0.335 = 0.223, more than two hundred times larger. Dividing by sqrt(d_k) restores standard deviation 1 and shrinks the gap by 8.",
+        "parts": {
+          "series": [
+            "std-curve",
+            "std-one",
+            "dk-64"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to follow the score spread down to a gradient.",
+        "steps": [
+          {
+            "label": "Each score sums d_k products of unit variance, so its standard deviation is sqrt(d_k).",
+            "highlight": [
+              "std-curve"
+            ]
+          },
+          {
+            "label": "At d_k = 64 the spread is 8. A two-sigma gap is e^16 ≈ 8.9 million to one.",
+            "highlight": [
+              "std-curve",
+              "dk-64"
+            ]
+          },
+          {
+            "label": "That saturates softmax: the top share is about 1 − e^−16 and its gradient about 1e−7.",
+            "highlight": [
+              "std-curve",
+              "dk-64"
+            ]
+          },
+          {
+            "label": "Dividing by sqrt(d_k) puts the spread back at 1 and shrinks the gap by 8.",
+            "highlight": [
+              "std-curve",
+              "dk-64",
+              "std-one"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "score-matrix-footprint",
+      "title": "One layer's score matrix at 100,000 tokens",
+      "caption": "The score matrix is what the quadratic cost buys. At n = 100,000 one head holds 10^10 entries, 20 GB in 16-bit precision; all 32 heads at once would be 640 GB, more than three times the 192 GB an H100 holds. Real implementations tile the computation, so the full matrix never materialises.",
+      "alt": "One bar drawn to scale from 0 to 640 GB. A fill covers the whole bar, labelled 32 heads: 640 GB. Inside it a reserved span reaches 192 GB, labelled H100: 192 GB. A narrow share at the left end is 20 GB, the score matrix for one head, labelled below the bar because the span is too narrow to hold text. The axis marks 0, 192 GB and 640 GB.",
+      "anchor": "the-quadratic-cost-and-the-shift-to-inference",
+      "kind": "memory",
+      "data": {
+        "total": 640,
+        "spans": [
+          {
+            "from": 0,
+            "to": 640,
+            "label": "32 heads: 640 GB",
+            "kind": "used"
+          },
+          {
+            "from": 0,
+            "to": 192,
+            "label": "H100: 192 GB",
+            "kind": "reserved"
+          },
+          {
+            "from": 0,
+            "to": 20,
+            "label": "20 GB",
+            "kind": "share",
+            "label_anchor": "start"
+          }
+        ],
+        "axis": [
+          {
+            "at": 0,
+            "label": "0"
+          },
+          {
+            "at": 192,
+            "label": "192 GB"
+          },
+          {
+            "at": 640,
+            "label": "640 GB"
+          }
+        ],
+        "note": "At n = 100,000 the score matrix holds n^2 = 10^10 pairs. Per layer the attention arithmetic is 4 n^2 d_model = 4 × 10^10 × 4096 ≈ 1.6 × 10^14 FLOPs, 160 trillion. One head's scores in 16-bit precision are 10^10 entries × 2 bytes = 20 GB; 32 heads would need 640 GB. Since 640 GB is more than three times 192 GB, implementations tile the computation and never hold the full matrix.",
+        "parts": {
+          "spans": [
+            "span-heads",
+            "span-h100",
+            "span-one-head"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1700,
+        "intro": "Press Play or Next to build the matrix that never fits.",
+        "steps": [
+          {
+            "label": "One head at 100,000 tokens: 10^10 entries, 20 GB in fp16.",
+            "highlight": [
+              "span-one-head"
+            ]
+          },
+          {
+            "label": "An H100 holds 192 GB. One head's scores already take a tenth of it.",
+            "highlight": [
+              "span-one-head",
+              "span-h100"
+            ]
+          },
+          {
+            "label": "All 32 heads at once would be 640 GB: more than three times the card.",
+            "highlight": [
+              "span-one-head",
+              "span-h100",
+              "span-heads"
+            ]
+          },
+          {
+            "label": "So the matrix is tiled. The arithmetic is real; the array never is.",
+            "highlight": [
+              "span-one-head",
+              "span-h100",
+              "span-heads"
+            ]
+          }
+        ]
       }
     }
   ],

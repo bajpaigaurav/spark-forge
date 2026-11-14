@@ -1591,6 +1591,113 @@ def render_keep(spec):
     return _fit(spec, 900, build).render()
 
 
+# ---------------------------------------------------------------------------
+# mixture -- value vectors scaled by their shares, added head to tail
+# ---------------------------------------------------------------------------
+
+def render_mixture(spec):
+    """A softmax row returns a mixture, not a choice.
+
+    Each value vector is scaled by its share, and the scaled vectors are laid end to
+    end, so the head-to-tail path ends at the vector sum the prose prints. Both axes
+    carry one scale, which is what makes a segment's length mean its share times its
+    vector's length. The per-axis arithmetic sits beside the plot: three short segments
+    leave no room for it inside, and the two rows are the only place the x and y sums
+    are separated.
+    """
+    segments = spec.get("segments") or []
+    if not segments:
+        return None
+    result = spec.get("result") or {}
+    note = spec.get("note")
+    parts = spec.get("parts") or {}
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        label_size = size * 0.84
+        small = size * 0.82
+        lh = round(label_size * 1.2)
+        # pixels per unit coordinate, the same on both axes; the x axis runs the full
+        # unit so the reader can see how far short of it the partial sums stop
+        k = min(430.0, w - 2 * pad - 380)
+        ox = 56.0
+        oy = 26.0 + k * 0.5
+        c.add(c.line(ox, oy, ox + k, oy, stroke=RULE, sw=1))
+        c.add(c.line(ox, oy, ox, oy - k * 0.5, stroke=RULE, sw=1))
+        c.add(c.text(ox - 6, oy - k * 0.5 + small * 0.34, "y", small, anchor="end",
+                     fill=MUTED))
+        c.add(c.text(ox - 6, oy + small * 0.34, "0", small, anchor="end", fill=MUTED))
+        c.add(c.text(ox + k + 6, oy + small * 0.34, "x", small, anchor="start",
+                     fill=MUTED))
+
+        acc_x = acc_y = 0.0
+        pts = [(ox, oy)]
+        for seg in segments:
+            acc_x += seg["share"] * seg["vector"][0]
+            acc_y += seg["share"] * seg["vector"][1]
+            pts.append((ox + k * acc_x, oy - k * acc_y))
+
+        # one arrow per scaled vector, each carrying its own label so the animation can
+        # light a segment and its text together
+        for si, seg in enumerate(segments):
+            x1, y1 = pts[si]
+            x2, y2 = pts[si + 1]
+            marks = c.line(x1, y1, x2, y2, stroke=ACCENT, sw=2.4, arrow=True,
+                           accent=True)
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            # push each label off its segment along a normal, always to the right of
+            # the segment's direction, so text never lands inside the path it names
+            dx, dy = x2 - x1, y2 - y1
+            span = math.hypot(dx, dy) or 1.0
+            nx, ny = dy / span, -dx / span
+            if nx < 0:
+                nx, ny = -nx, -ny
+            lx, ly = mx + nx * 10, my + ny * 10 + label_size * 0.34
+            anchor = "middle" if abs(nx) < 0.3 else "start"
+            marks += c.text(lx, ly, seg["label"], label_size, anchor=anchor,
+                            weight="600")
+            c.add(_grp(_part_at(parts, "segments", si), marks))
+
+        # the sum itself: a dashed chord from the origin to the end of the path
+        end_x, end_y = pts[-1]
+        res_part = _part_at(parts, "result", 0)
+        marks = c.line(ox, oy, end_x, end_y, stroke=MUTED, sw=1.4, dash="5 4")
+        marks += c.circle(end_x, end_y, 3.5)
+        if result.get("label"):
+            marks += c.text(end_x + 6, end_y + label_size * 0.34, result["label"],
+                            label_size, anchor="start", weight="600")
+        c.add(_grp(res_part, marks))
+
+        # the two coordinate sums, beside the plot where they have room
+        col_x = ox + k + 34
+        col_w = w - pad - col_x
+        rows = []
+        for axis, name, total in ((0, "x", acc_x), (1, "y", acc_y)):
+            terms = " + ".join(f"{s['share']:.3f}·{s['vector'][axis]:g}"
+                               for s in segments)
+            rows.append(f"{name}:  {terms} = {total:.3f}")
+        ty = oy - k * 0.34
+        c.add(c.block(col_x, ty, rows, small, anchor="start", weight="600",
+                      part=res_part))
+        if spec.get("scale"):
+            cap = wrap_px(spec["scale"], small, col_w)
+            c.add(c.block(col_x, ty + len(rows) * lh + small * 0.9, cap, small,
+                          anchor="start", fill=MUTED))
+
+        note_y = oy + 40
+        if note:
+            nl = c.note_lines(note, small, w - 2 * pad)
+            c.add(c.note(pad, note_y, note, small, w - 2 * pad))
+            c.h = note_y + (nl - 1) * round(small * 1.2) + small * 1.6 + 12
+        else:
+            c.h = note_y + 14
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
 RENDER = {
     "tokens": render_tokens,
     "matrix": render_matrix,
@@ -1610,6 +1717,7 @@ RENDER = {
     "wiring": render_wiring,
     "slab": render_slab,
     "keep": render_keep,
+    "mixture": render_mixture,
 }
 
 
