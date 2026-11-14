@@ -1,258 +1,371 @@
 {
- "needed": true,
- "spine": "serving",
- "figures": [
-  {
-   "id": "one-request-two-phases",
-   "title": "One request, two phases that share a machine",
-   "caption": "Prefill is a matrix-matrix multiply over the 100,000-token prompt: every weight block is reused across all N rows, intensity is about N operations per byte, and the phase is compute-bound. Decode is a matrix-vector multiply per token: the weights are read in full for one row, intensity is one operation per byte, and the phase is bandwidth-bound. Nothing can be emitted until prefill finishes, which is why time to first token tracks the prefill term.",
-   "alt": "Five lanes across five steps. The phase lane shows queueing, then prefill, then the first token, then decode, then done. The regime lane marks prefill compute-bound and decode bandwidth-bound. The tokens lane carries 100,000 prompt tokens, 100,000 processed, one emitted, then one per step. The KV lane writes the prompt's cache during prefill and reads and appends during decode. The rate lane marks prefill as ALU-limited and decode as memory-limited.",
-   "anchor": "prefill-is-compute-bound",
-   "kind": "timeline",
-   "data": {
-    "steps": [
-     "arrive",
-     "prefill",
-     "first token",
-     "decode",
-     "finish"
-    ],
-    "lanes": [
-     {
-      "name": "phase",
-      "cells": [
-       {
-        "label": "queue",
-        "kind": "solid"
-       },
-       {
-        "label": "prefill",
-        "kind": "new"
-       },
-       {
-        "label": "first token",
-        "kind": "new"
-       },
-       {
-        "label": "decode",
-        "kind": "new"
-       },
-       {
-        "label": "done",
-        "kind": "solid"
-       }
-      ]
-     },
-     {
-      "name": "regime",
-      "cells": [
-       null,
-       {
-        "label": "compute-bound",
-        "kind": "solid"
-       },
-       null,
-       {
-        "label": "bandwidth-bound",
-        "kind": "solid"
-       },
-       null
-      ]
-     },
-     {
-      "name": "tokens",
-      "cells": [
-       {
-        "label": "100,000 prompt",
-        "kind": "solid"
-       },
-       {
-        "label": "100,000 processed",
-        "kind": "solid"
-       },
-       {
-        "label": "1 emitted",
-        "kind": "new"
-       },
-       {
-        "label": "1 per step",
-        "kind": "solid"
-       },
-       {
-        "label": "done",
-        "kind": "solid"
-       }
-      ]
-     },
-     {
-      "name": "KV cache",
-      "cells": [
-       null,
-       {
-        "label": "written for prompt",
-        "kind": "solid"
-       },
-       null,
-       {
-        "label": "read + append",
-        "kind": "solid"
-       },
-       null
-      ]
-     },
-     {
-      "name": "limiter",
-      "cells": [
-       null,
-       {
-        "label": "ALUs",
-        "kind": "solid"
-       },
-       null,
-       {
-        "label": "memory bus",
-        "kind": "solid"
-       },
-       null
-      ]
-     }
-    ],
-    "note": "Prefill runs N rows through each weight block, so intensity is N operations per byte and the ALUs bind. Decode runs one row, so intensity is one operation per byte and the memory bus binds: a 70B model at four bits reads 35 GB per token, and at 3,350 GB/s the floor is 10.4 ms per token.",
-    "parts": {
-     "steps": [
-      "arrival",
-      "prefill",
-      "ttft",
-      "decode",
-      "finish"
-     ],
-     "lanes": [
-      "arrival",
-      "prefill",
-      "ttft",
-      "decode",
-      "finish"
-     ],
-     "cells": [
-      [
-       "arrival",
-       "prefill",
-       "ttft",
-       "decode",
-       "finish"
-      ],
-      [
-       null,
-       "prefill",
-       null,
-       "decode",
-       null
-      ],
-      [
-       "arrival",
-       "prefill",
-       "ttft",
-       "decode",
-       "finish"
-      ],
-      [
-       null,
-       "prefill",
-       null,
-       "decode",
-       null
-      ],
-      [
-       null,
-       "prefill",
-       null,
-       "decode",
-       null
-      ]
-     ]
+  "needed": true,
+  "spine": "serving",
+  "figures": [
+    {
+      "id": "one-request-two-phases",
+      "title": "One request, two phases that share a machine",
+      "caption": "Prefill is a matrix-matrix multiply over the 100,000-token prompt: every weight block is reused across all N rows, intensity is about N operations per byte, and the phase is compute-bound. Decode is a matrix-vector multiply per token: the weights are read in full for one row, intensity is one operation per byte, and the phase is bandwidth-bound. Nothing can be emitted until prefill finishes, which is why time to first token tracks the prefill term.",
+      "alt": "Five lanes across five steps. The phase lane shows queueing, then prefill, then the first token, then decode, then done. The regime lane marks prefill compute-bound and decode bandwidth-bound. The tokens lane carries 100,000 prompt tokens, 100,000 processed, one emitted, then one per step. The KV lane writes the prompt's cache during prefill and reads and appends during decode. The rate lane marks prefill as ALU-limited and decode as memory-limited.",
+      "anchor": "prefill-is-compute-bound",
+      "kind": "timeline",
+      "data": {
+        "steps": [
+          "arrive",
+          "prefill",
+          "first token",
+          "decode",
+          "finish"
+        ],
+        "lanes": [
+          {
+            "name": "phase",
+            "cells": [
+              {
+                "label": "queue",
+                "kind": "solid"
+              },
+              {
+                "label": "prefill",
+                "kind": "new"
+              },
+              {
+                "label": "first token",
+                "kind": "new"
+              },
+              {
+                "label": "decode",
+                "kind": "new"
+              },
+              {
+                "label": "done",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "regime",
+            "cells": [
+              null,
+              {
+                "label": "compute-bound",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "bandwidth-bound",
+                "kind": "solid"
+              },
+              null
+            ]
+          },
+          {
+            "name": "tokens",
+            "cells": [
+              {
+                "label": "100,000 prompt",
+                "kind": "solid"
+              },
+              {
+                "label": "100,000 processed",
+                "kind": "solid"
+              },
+              {
+                "label": "1 emitted",
+                "kind": "new"
+              },
+              {
+                "label": "1 per step",
+                "kind": "solid"
+              },
+              {
+                "label": "done",
+                "kind": "solid"
+              }
+            ]
+          },
+          {
+            "name": "KV cache",
+            "cells": [
+              null,
+              {
+                "label": "written for prompt",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "read + append",
+                "kind": "solid"
+              },
+              null
+            ]
+          },
+          {
+            "name": "limiter",
+            "cells": [
+              null,
+              {
+                "label": "ALUs",
+                "kind": "solid"
+              },
+              null,
+              {
+                "label": "memory bus",
+                "kind": "solid"
+              },
+              null
+            ]
+          }
+        ],
+        "note": "Prefill runs N rows through each weight block, so intensity is N operations per byte and the ALUs bind. Decode runs one row, so intensity is one operation per byte and the memory bus binds: a 70B model at four bits reads 35 GB per token, and at 3,350 GB/s the floor is 10.4 ms per token.",
+        "parts": {
+          "steps": [
+            "step-arrive",
+            "step-prefill",
+            "step-ttft",
+            "step-decode",
+            "step-finish"
+          ],
+          "lanes": [
+            "lane-phase",
+            "lane-regime",
+            "lane-tokens",
+            "lane-kv",
+            "lane-limiter"
+          ],
+          "cells": [
+            [
+              "col-arrive",
+              "col-prefill",
+              "col-ttft",
+              "col-decode",
+              "col-finish"
+            ],
+            [
+              null,
+              "col-prefill",
+              null,
+              "col-decode",
+              null
+            ],
+            [
+              "col-arrive",
+              "col-prefill",
+              "col-ttft",
+              "col-decode",
+              "col-finish"
+            ],
+            [
+              null,
+              "col-prefill",
+              null,
+              "col-decode",
+              null
+            ],
+            [
+              null,
+              "col-prefill",
+              null,
+              "col-decode",
+              null
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to follow one request through both phases.",
+        "steps": [
+          {
+            "label": "A request arrives carrying 100,000 prompt tokens and waits in the queue.",
+            "highlight": [
+              "step-arrive",
+              "lane-phase",
+              "lane-tokens",
+              "col-arrive"
+            ]
+          },
+          {
+            "label": "Prefill runs the prompt as a matrix of N = 100,000 rows by d_model columns. Each weight block is loaded once and reused across every row, so intensity is N ops/byte = 100,000. The ALUs bind, the KV cache is written for the whole prompt, and no text is emitted.",
+            "highlight": [
+              "step-prefill",
+              "lane-phase",
+              "lane-regime",
+              "lane-tokens",
+              "lane-kv",
+              "lane-limiter",
+              "col-arrive",
+              "col-prefill"
+            ]
+          },
+          {
+            "label": "The first token appears once every layer has seen the prompt: prefill plus queueing, a cache lookup and one decode step.",
+            "highlight": [
+              "step-ttft",
+              "lane-phase",
+              "lane-regime",
+              "lane-tokens",
+              "lane-kv",
+              "lane-limiter",
+              "col-arrive",
+              "col-prefill",
+              "col-ttft"
+            ]
+          },
+          {
+            "label": "Decode inverts every term. One row meets each weight, so intensity is one operation per byte and the memory bus binds: a 70B model at four bits reads 35 GB per token, and 35 GB / 3,350 GB/s = 10.4 ms is the floor. Each step also reads the KV cache and appends one entry.",
+            "highlight": [
+              "step-decode",
+              "lane-phase",
+              "lane-regime",
+              "lane-tokens",
+              "lane-kv",
+              "lane-limiter",
+              "col-arrive",
+              "col-prefill",
+              "col-ttft",
+              "col-decode"
+            ]
+          },
+          {
+            "label": "The request finishes after its reply budget is spent. Timing it end to end gives one number that describes neither phase.",
+            "highlight": [
+              "step-finish",
+              "lane-phase",
+              "lane-regime",
+              "lane-tokens",
+              "lane-kv",
+              "lane-limiter",
+              "col-arrive",
+              "col-prefill",
+              "col-ttft",
+              "col-decode",
+              "col-finish"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "prefill-versus-decode-regimes",
+      "title": "Why the two phases scale in opposite directions",
+      "caption": "The same weight matrix meets a matrix in prefill and a vector in decode. In prefill the weight block is loaded once into shared memory and reused for every row of the N-row activation matrix, so intensity is about N operations per byte; with N at 100,000 the ALUs are the constraint. In decode each weight is read once per emitted token, so intensity is one operation per byte and the 3,350 GB/s memory bus is the constraint: 35 GB per token gives a 10.4 ms floor. Batching raises decode intensity to B operations per byte, which is why more streams raise aggregate throughput.",
+      "alt": "Two panels side by side. The prefill panel lists: X is N by d_model with N equal to 100,000; one weight block is reused across all N rows; intensity is about 100,000 operations per byte; the ALUs are the constraint. The decode panel lists: one row per stream per step; each weight is read once per emitted token; intensity is one operation per byte; 3,350 GB/s is the constraint; a 70B model at four bits gives a 10.4 ms floor per token.",
+      "anchor": "the-ridge-point",
+      "kind": "panels",
+      "data": {
+        "panels": [
+          {
+            "title": "Prefill: N rows, compute-bound",
+            "items": [
+              "X is N × d_model; N = 100,000",
+              "one weight block reused across all N rows",
+              "intensity ≈ N ops/byte = 100,000",
+              "the ALUs are the constraint"
+            ],
+            "note": "The 4d feedforward block is d_model × d_ff, but every weight element is read once and used N times, so the intensity argument holds whatever the matrix."
+          },
+          {
+            "title": "Decode: one row, bandwidth-bound",
+            "items": [
+              "one row per stream per decode step",
+              "each weight read once per emitted token",
+              "intensity = 1 op/byte",
+              "3,350 GB/s is the constraint",
+              "35 GB per token → 10.4 ms"
+            ],
+            "note": "Batching raises intensity: four streams give 4 ops/byte, and aggregate decode rises toward the 4× ceiling, short of it because each stream adds its own cache read."
+          }
+        ],
+        "note": "The ridge point is peak FLOP/s divided by achievable bandwidth. On an H100 that is 989 TFLOPS against 3,350 GB/s, or 295 FLOPs per byte, so the balance point sits near batch 300. Prefill is two orders of magnitude above it; decode at batch one is three hundred times below it.",
+        "parts": {
+          "panels": [
+            "prefill-panel",
+            "decode-panel"
+          ],
+          "items": [
+            [
+              "p-n",
+              "p-reuse",
+              "p-intensity",
+              "p-alu"
+            ],
+            [
+              "d-row",
+              "d-read",
+              "d-intensity",
+              "d-bw",
+              "d-floor"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to place each phase against the ridge point.",
+        "steps": [
+          {
+            "label": "Prefill starts from X of N = 100,000 rows by d_model columns. Every weight element is read once and used across all N rows.",
+            "highlight": [
+              "prefill-panel",
+              "p-n",
+              "p-reuse"
+            ]
+          },
+          {
+            "label": "That reuse sets the intensity: a bf16 weight is two bytes doing 2N operations, so intensity is N ops/byte = 100,000. The ALUs are the constraint and the memory bus has room to spare.",
+            "highlight": [
+              "prefill-panel",
+              "p-n",
+              "p-reuse",
+              "p-intensity",
+              "p-alu"
+            ]
+          },
+          {
+            "label": "Decode is the inverse: one row per stream per step, each weight read once per emitted token, so intensity is 1 op/byte.",
+            "highlight": [
+              "prefill-panel",
+              "p-n",
+              "p-reuse",
+              "p-intensity",
+              "p-alu",
+              "decode-panel",
+              "d-row",
+              "d-read",
+              "d-intensity"
+            ]
+          },
+          {
+            "label": "At 3,350 GB/s a 70B model at four bits reads 35 GB per token, so 35 / 3,350 = 10.4 ms is the floor for one stream. The memory bus, not the ALUs, is the constraint.",
+            "highlight": [
+              "prefill-panel",
+              "p-n",
+              "p-reuse",
+              "p-intensity",
+              "p-alu",
+              "decode-panel",
+              "d-row",
+              "d-read",
+              "d-intensity",
+              "d-bw",
+              "d-floor"
+            ]
+          }
+        ]
+      }
     }
-   },
-   "anim": {
-    "mode": "step",
-    "interval": 1400,
-    "intro": "Press Play or Next to follow one request through both phases.",
-    "steps": [
-     {
-      "label": "A request arrives with 100,000 prompt tokens.",
-      "highlight": [
-       "arrival"
-      ]
-     },
-     {
-      "label": "Prefill runs the whole prompt as one N-row matrix multiply; no text is emitted.",
-      "highlight": [
-       "prefill"
-      ]
-     },
-     {
-      "label": "The first token appears once every layer has seen the prompt.",
-      "highlight": [
-       "ttft"
-      ]
-     },
-     {
-      "label": "Decode runs one row at a time, re-reading the weights and the KV cache.",
-      "highlight": [
-       "decode"
-      ]
-     },
-     {
-      "label": "The request finishes after its reply budget is spent.",
-      "highlight": [
-       "finish"
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "id": "prefill-versus-decode-regimes",
-   "title": "Why the two phases scale in opposite directions",
-   "caption": "The same weight matrix meets a matrix in prefill and a vector in decode. In prefill the weight block is loaded once into shared memory and reused for every row of the N-row activation matrix, so intensity is about N operations per byte; with N at 100,000 the ALUs are the constraint. In decode each weight is read once per emitted token, so intensity is one operation per byte and the 3,350 GB/s memory bus is the constraint: 35 GB per token gives a 10.4 ms floor. Batching raises decode intensity to B operations per byte, which is why more streams raise aggregate throughput.",
-   "alt": "Two panels side by side. The prefill panel lists: X is N by d_model with N equal to 100,000; one weight block is reused across all N rows; intensity is about 100,000 operations per byte; the ALUs are the constraint. The decode panel lists: one row per stream per step; each weight is read once per emitted token; intensity is one operation per byte; 3,350 GB/s is the constraint; a 70B model at four bits gives a 10.4 ms floor per token.",
-   "anchor": "the-ridge-point",
-   "kind": "panels",
-   "data": {
-    "panels": [
-     {
-      "title": "Prefill: N rows, compute-bound",
-      "items": [
-       "X is N × d_model; N = 100,000",
-       "one weight block reused across all N rows",
-       "intensity ≈ N ops/byte = 100,000",
-       "the ALUs are the constraint"
-      ],
-      "note": "The 4d feedforward block is d_model × d_ff, but every weight element is read once and used N times, so the intensity argument holds whatever the matrix."
-     },
-     {
-      "title": "Decode: one row, bandwidth-bound",
-      "items": [
-       "one row per stream per decode step",
-       "each weight read once per emitted token",
-       "intensity = 1 op/byte",
-       "3,350 GB/s is the constraint",
-       "35 GB per token → 10.4 ms"
-      ],
-      "note": "Batching raises intensity: four streams give 4 ops/byte, and aggregate decode rises toward the 4× ceiling, short of it because each stream adds its own cache read."
-     }
-    ],
-    "note": "The ridge point is peak FLOP/s divided by achievable bandwidth. On an H100 that is 989 TFLOPS against 3,350 GB/s, or 295 FLOPs per byte, so the balance point sits near batch 300. Prefill is two orders of magnitude above it; decode at batch one is three hundred times below it."
-   }
-  }
- ],
- "sources": [
-  {
-   "url": "https://doi.org/10.1145/1498765.1498785",
-   "note": "Williams, Waterman and Patterson, Roofline: An Insightful Visual Performance Model for Multicore Architectures (CACM, 2009): arithmetic intensity against peak FLOP/s and bandwidth."
-  },
-  {
-   "url": "https://arxiv.org/abs/1911.02150",
-   "note": "Shazeer, Fast Transformer Decoding: One Write-Head is All You Need (2019): incremental decoding is limited by memory bandwidth, not arithmetic."
-  }
- ]
+  ],
+  "sources": [
+    {
+      "url": "https://doi.org/10.1145/1498765.1498785",
+      "note": "Williams, Waterman and Patterson, Roofline: An Insightful Visual Performance Model for Multicore Architectures (CACM, 2009): arithmetic intensity against peak FLOP/s and bandwidth."
+    },
+    {
+      "url": "https://arxiv.org/abs/1911.02150",
+      "note": "Shazeer, Fast Transformer Decoding: One Write-Head is All You Need (2019): incremental decoding is limited by memory bandwidth, not arithmetic."
+    }
+  ]
 }
