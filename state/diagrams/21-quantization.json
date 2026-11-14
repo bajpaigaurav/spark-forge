@@ -38,42 +38,92 @@
           "panels": [
             "encode",
             "decode"
+          ],
+          "items": [
+            [
+              "enc-range",
+              "enc-scale",
+              "enc-zero",
+              "enc-map",
+              "enc-005",
+              "enc-02"
+            ],
+            [
+              "dec-map",
+              "dec-8",
+              "dec-10",
+              "dec-error",
+              "dec-bound"
+            ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to encode and decode one group.",
+        "interval": 1600,
+        "intro": "Press Play or Next to encode two weights into four bits and decode them back.",
         "steps": [
           {
-            "label": "Fix the group interval [−1, 1].",
+            "label": "Fix the group interval at [-1, 1]. Four unsigned bits give sixteen levels, 0 through 15, and two numbers define the map: s = (max - min)/15 and z = round(-min/s).",
             "highlight": [
-              "encode"
+              "encode",
+              "enc-range"
             ]
           },
           {
-            "label": "Compute the scale s = 2/15 and the zero point z = 8.",
+            "label": "That interval gives s = 2/15 ≈ 0.1333 and z = 8, so encoding is q = clamp(round(w/s) + z, 0, 15).",
             "highlight": [
-              "encode"
+              "encode",
+              "enc-range",
+              "enc-scale",
+              "enc-zero",
+              "enc-map"
             ]
           },
           {
-            "label": "Encode 0.05 to code 8 and 0.2 to code 10.",
+            "label": "Encode: 0.05 becomes round(0.375) + 8 = 8, and 0.2 becomes round(1.5) + 8 = 10.",
             "highlight": [
-              "encode"
+              "encode",
+              "enc-range",
+              "enc-scale",
+              "enc-zero",
+              "enc-map",
+              "enc-005",
+              "enc-02"
             ]
           },
           {
-            "label": "Decode code 8 to 0 and code 10 to 0.2667.",
+            "label": "Decode with ŵ = (q - z)·s: code 8 gives (8 - 8)·s = 0 and code 10 gives (10 - 8)·s = 0.2667.",
             "highlight": [
-              "decode"
+              "encode",
+              "enc-range",
+              "enc-scale",
+              "enc-zero",
+              "enc-map",
+              "enc-005",
+              "enc-02",
+              "decode",
+              "dec-map",
+              "dec-8",
+              "dec-10"
             ]
           },
           {
-            "label": "The 0.2 weight pays 0.0667, under the half-step bound.",
+            "label": "The 0.2 weight pays 0.2667 - 0.2 = 0.0667, which is exactly half a step: every weight in the group pays at most that, and the bound is set locally rather than by the loudest number in the matrix.",
             "highlight": [
-              "decode"
+              "encode",
+              "enc-range",
+              "enc-scale",
+              "enc-zero",
+              "enc-map",
+              "enc-005",
+              "enc-02",
+              "decode",
+              "dec-map",
+              "dec-8",
+              "dec-10",
+              "dec-error",
+              "dec-bound"
             ]
           }
         ]
@@ -143,7 +193,56 @@
         "corner": "output channel",
         "row_head": "d_out rows",
         "col_head": "groups along d_in (128 weights each)",
-        "note": "Each cell is a group of 128 consecutive input features in one row of W; the ink is the group's largest |w|. Groups run along d_in so a group is a contiguous 64-byte read. A group carries 3 bytes of metadata against 64 bytes of payload, 4.7 percent overhead. The 4.0 outlier in the first row's g3 sets that group's scale; the other 127 entries collapse toward level 0."
+        "note": "Each cell is a group of 128 consecutive input features in one row of W; the ink is the group's largest |w|. Groups run along d_in so a group is a contiguous 64-byte read. A group carries 3 bytes of metadata against 64 bytes of payload, 4.7 percent overhead. The 4.0 outlier in the first row's g3 sets that group's scale; the other 127 entries collapse toward level 0.",
+        "parts": {
+          "cols": [
+            "g0",
+            "g1",
+            "g2",
+            "g3",
+            "g4",
+            "g5",
+            "g6",
+            "g7"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to see one outlier set the scale for a whole group of 128 weights.",
+        "steps": [
+          {
+            "label": "Groups run along d_in: 128 consecutive entries of one row, a contiguous 64-byte read, with 3 bytes of metadata against 64 bytes of payload.",
+            "highlight": [
+              "g0",
+              "g1",
+              "g2"
+            ]
+          },
+          {
+            "label": "The 4.0 in g3 sets that group's range to [-4, 4], so the scale is 4/7 ≈ 0.571 and every ordinary weight of 0.1 rounds to level 0. All 127 neighbours in that group lose their resolution.",
+            "highlight": [
+              "g0",
+              "g1",
+              "g2",
+              "g3"
+            ]
+          },
+          {
+            "label": "Move the outlier into its own group and the remaining 127 entries get a scale of 0.4/15 ≈ 0.0267, which resolves 0.1 to within 0.013. Groups of 128 confine the damage to 127/d_in of the matrix, about 3 percent at d_in = 4096.",
+            "highlight": [
+              "g0",
+              "g1",
+              "g2",
+              "g3",
+              "g4",
+              "g5",
+              "g6",
+              "g7"
+            ]
+          }
+        ]
       }
     }
   ],
