@@ -1,201 +1,254 @@
 {
-  "needed": true,
-  "spine": "embedding",
-  "figures": [
-    {
-      "id": "embedding-table-lookup",
-      "title": "The table is a lookup, not an ordering",
-      "caption": "Four rows of the chapter's two-dimensional toy table. The token id selects a row by offset; the row's coordinates are the vector the rest of the network reads. The id is a merge-order position, so adjacent rows are not semantically adjacent, and nothing in the number says man is near woman.",
-      "alt": "A table with four rows and two columns, labelled d0 and d1. Row 0 is (1.0, 0.2), row 1 is (0.9, 0.7), row 2 is (0.8, 0.1), row 3 is (0.7, 0.6). Row 2 is highlighted as the row an id selects. The left-hand row numbers are positions in this excerpt, not token ids with any order.",
-      "anchor": "the-token-id-carries-no-geometry",
-      "kind": "matrix",
-      "data": {
-        "rows": [
-          [
-            1.0,
-            0.2
-          ],
-          [
-            0.9,
-            0.7
-          ],
-          [
-            0.8,
-            0.1
-          ],
-          [
-            0.7,
-            0.6
-          ]
-        ],
-        "cols": [
-          "d0",
-          "d1"
-        ],
-        "corner": "row offset",
-        "row_head": "V rows, one per vocabulary id",
-        "col_head": "d_model (toy: 2)",
-        "highlight_row": 2,
-        "scale": 1.0,
-        "note": "The highlighted row is the one the id selects. The row numbers are positions in this excerpt, not a rank: the id records when a BPE merge happened. A gather returns one row; no arithmetic mixes rows.",
-        "parts": {
-          "rows": [
-            "table",
-            "table",
-            "row vector",
-            "table"
-          ],
-          "cols": [
-            "table",
-            "table"
-          ],
-          "cells": [
-            [
-              "table",
-              "table"
-            ],
-            [
-              "table",
-              "table"
-            ],
-            [
-              "row vector",
-              "row vector"
-            ],
-            [
-              "table",
-              "table"
-            ]
-          ],
-          "corner": "id",
-          "headers": "table",
-          "note": "table"
-        }
-      },
-      "anim": {
-        "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to follow one lookup.",
-        "steps": [
-          {
-            "label": "A BPE id arrives as an integer.",
-            "highlight": [
-              "id"
-            ]
-          },
-          {
-            "label": "The integer is an offset into E, which has V rows.",
-            "highlight": [
-              "table"
-            ]
-          },
-          {
-            "label": "The gather returns exactly one row; no arithmetic mixes rows.",
-            "highlight": [
-              "row"
-            ]
-          },
-          {
-            "label": "That row, of width d_model, becomes x in the residual stream.",
-            "highlight": [
-              "vector"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "anisotropy-cone",
-      "title": "Same two rows, before and after the shared component comes out",
-      "caption": "The chapter's toy table scores two rows at cosine 0.917 before centering and 0.166 after the table mean is subtracted. The drop is the anisotropic cone coming out. The fix is All-but-the-Top: subtract the mean, then remove the top principal components.",
-      "alt": "Two panels. Left, raw rows: a is (1.6, 1.05) and b is (1.05, 1.6); their dot product is 3.36, each length is 1.914, and the cosine is 0.917. Right, after subtracting the mean m = (1, 1): a prime is (0.6, 0.05) and b prime is (0.05, 0.6); the dot product is 0.06, each length is 0.602, and the cosine is 0.166.",
-      "anchor": "cosine-similarity-and-the-anisotropic-cone",
-      "kind": "panels",
-      "data": {
-        "panels": [
-          {
-            "title": "raw rows, before centering",
-            "items": [
-              "a = (1.6, 1.05)",
-              "b = (1.05, 1.6)",
-              "a · b = 1.68 + 1.68 = 3.36",
-              "|a| = |b| = 1.914",
-              "cos = 3.36 / 3.662 = 0.917"
-            ],
-            "note": "Two unrelated rows already score 0.917. The table sits in a narrow cone, so a random pair is comfortably positive."
-          },
-          {
-            "title": "after subtracting m = (1, 1)",
-            "items": [
-              "a' = (0.6, 0.05)",
-              "b' = (0.05, 0.6)",
-              "a' · b' = 0.03 + 0.03 = 0.06",
-              "|a'| = |b'| = 0.602",
-              "cos = 0.06 / 0.3625 = 0.166"
-            ],
-            "note": "All-but-the-Top: subtract the mean, then remove each vector's projection onto the top principal components."
-          }
-        ]
-      }
-    },
-    {
-      "id": "tied-embeddings",
-      "title": "Tying saves a second copy of the embedding matrix",
-      "caption": "Tying sets W = Eᵀ, so one V × d_model matrix serves both the input lookup and the output projection. GPT-2 small publishes 124M parameters with the matrix counted once; untied, the same model carries a second 38,597,376-number copy, about 163M, so tying saves roughly 24 percent of the untied count.",
-      "alt": "Three horizontal bars. The embedding matrix alone is 38,597,376 parameters. GPT-2 small with tied embeddings is 124M parameters. GPT-2 small untied is about 163M parameters, highlighted. The arithmetic 50,257 times 768 equals 38,597,376 is printed in the note.",
-      "anchor": "analogies-and-the-embedding-table",
-      "kind": "bars",
-      "data": {
-        "bars": [
-          {
-            "label": "embedding matrix alone",
-            "value": 38.597376,
-            "display": "38,597,376"
-          },
-          {
-            "label": "GPT-2 small, tied (published)",
-            "value": 124,
-            "display": "124M"
-          },
-          {
-            "label": "GPT-2 small, untied",
-            "value": 163,
-            "display": "≈163M",
-            "accent": true
-          }
-        ],
-        "note": "50,257 × 768 = 38,597,376. GPT-2's 124M already counts that matrix once. Untying adds a second copy: 124 + 38.6 ≈ 163M, so tying saves 38.6 / 163 ≈ 24% of the untied count. LLaMA-7B (32,000 × 4,096 = 131M) leaves the matrices untied."
-      }
+ "needed": true,
+ "spine": "embedding",
+ "figures": [
+  {
+   "id": "embedding-table-lookup",
+   "title": "The table is a lookup, not an ordering",
+   "caption": "The lookup is one gather. The id arrives as an integer with no geometry, indexes E — a table of V rows, each d_model wide — and the gather returns one row, the chapter's king row (0.8, 0.1), which becomes x in the residual stream. No arithmetic mixes rows, and nothing in the id is ordered: it records when a BPE merge happened.",
+   "alt": "Four stages left to right, then wrapping. The id for king arrives as an integer with no geometry. That integer indexes E, a table of V rows of width d_model. The gather returns exactly one row, (0.8, 0.1). That row becomes x, the vector the block stack reads at this position.",
+   "anchor": "the-token-id-carries-no-geometry",
+   "kind": "flow",
+   "data": {
+    "nodes": [
+     "id for king: an integer, a merge rank",
+     "E: V rows x d_model",
+     "gather returns one row: (0.8, 0.1)",
+     "x: width d_model, into the residual stream"
+    ],
+    "parts": {
+     "nodes": [
+      "id",
+      "table",
+      "row",
+      "vector"
+     ]
     }
-  ],
-  "sources": [
-    {
-      "url": "https://arxiv.org/abs/1301.3781",
-      "note": "Mikolov et al. 2013, word2vec: distributed representations learned as a side effect of prediction."
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1400,
+    "intro": "Press Play or Next to follow one lookup.",
+    "steps": [
+     {
+      "label": "A BPE id arrives as an integer. It is a merge rank, so it carries no geometry.",
+      "highlight": [
+       "id"
+      ]
+     },
+     {
+      "label": "The integer is an offset into E, which has V rows of width d_model.",
+      "highlight": [
+       "table"
+      ]
+     },
+     {
+      "label": "The gather returns exactly one row, (0.8, 0.1); no arithmetic mixes rows.",
+      "highlight": [
+       "row"
+      ]
+     },
+     {
+      "label": "That row becomes x, the residual stream's input at this position.",
+      "highlight": [
+       "vector"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "anisotropy-cone",
+   "title": "Same two rows, before and after the shared component comes out",
+   "caption": "The chapter's two rows drawn as rays from one origin, at the same scale. Before centering they sit close together and score cosine 0.917: the anisotropic cone. Subtract the table mean m = (1, 1) and the same rows both shrink and separate, scoring 0.166. All-but-the-Top does the rest: remove each centered vector's projection onto the top principal components.",
+   "alt": "Two square plots sharing one scale. Left, raw rows from a common origin: a points to (1.6, 1.05) and b to (1.05, 1.6), nearly the same direction, with an arc between them and cos 0.917 printed beneath the plot. The mean m = (1, 1) is drawn as a dashed ray on the left plot and named in the same line. Right, after subtracting m = (1, 1): a prime points to (0.6, 0.05) and b prime to (0.05, 0.6), much shorter and almost perpendicular, with an arc between them and cos 0.166 beneath the plot. Both plots print their coordinates; a shared note explains that the drop from 0.917 to 0.166 is the cone coming out.",
+   "anchor": "cosine-similarity-and-the-anisotropic-cone",
+   "kind": "vectors",
+   "data": {
+    "plots": [
+     {
+      "key": "raw",
+      "label": "raw rows, before centering",
+      "vectors": [
+       {
+        "label": "a",
+        "x": 1.6,
+        "y": 1.05
+       },
+       {
+        "label": "b",
+        "x": 1.05,
+        "y": 1.6
+       }
+      ],
+      "cos_label": "cos 0.917"
+     },
+     {
+      "key": "centered",
+      "label": "after subtracting m = (1, 1)",
+      "vectors": [
+       {
+        "label": "a′",
+        "x": 0.6,
+        "y": 0.05
+       },
+       {
+        "label": "b′",
+        "x": 0.05,
+        "y": 0.6
+       }
+      ],
+      "cos_label": "cos 0.166"
+     }
+    ],
+    "mean": {
+     "label": "m = (1, 1)",
+     "x": 1,
+     "y": 1
     },
-    {
-      "url": "https://aclanthology.org/D14-1162/",
-      "note": "Pennington, Socher and Manning 2014, GloVe: the co-occurrence-factorization route to the same geometry."
-    },
-    {
-      "url": "https://arxiv.org/abs/1607.04606",
-      "note": "Bojanowski et al. 2016, fastText: subword n-gram sums, including the running example."
-    },
-    {
-      "url": "https://arxiv.org/abs/1909.00512",
-      "note": "Ethayarajh 2019: measured anisotropy across layers and models."
-    },
-    {
-      "url": "https://arxiv.org/abs/1702.01417",
-      "note": "Mu and Viswanath 2018, All-but-the-Top: subtract the mean, then remove top principal components."
-    },
-    {
-      "url": "https://arxiv.org/abs/1608.05859",
-      "note": "Press and Wolf 2017: tying the input and output embeddings, and the gradient argument."
-    },
-    {
-      "url": "https://jalammar.github.io/illustrated-word2vec",
-      "note": "Pedagogical visual explanation of embedding tables and cosine similarity."
+    "note": "Both rows score 0.917 before centering because the table sits in a narrow cone. Taking out the shared component drops the same pair to 0.166.",
+    "parts": {
+     "rays": [
+      "rays-raw",
+      "rays-centered"
+     ],
+     "arcs": [
+      "arc-raw",
+      "arc-centered"
+     ],
+     "mean": [
+      "mean"
+     ]
     }
-  ]
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1600,
+    "intro": "Press Play or Next to watch the shared component come out.",
+    "steps": [
+     {
+      "label": "Two unrelated rows, a = (1.6, 1.05) and b = (1.05, 1.6): nearly the same ray.",
+      "highlight": [
+       "rays-raw"
+      ]
+     },
+     {
+      "label": "Subtract the table mean m = (1, 1) from both rows.",
+      "highlight": [
+       "mean"
+      ]
+     },
+     {
+      "label": "a′ = (0.6, 0.05) and b′ = (0.05, 0.6): shorter, and almost perpendicular.",
+      "highlight": [
+       "rays-centered"
+      ]
+     },
+     {
+      "label": "Cosine falls from 0.917 to 0.166. That drop is the cone coming out.",
+      "highlight": [
+       "arc-raw",
+       "arc-centered"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "tied-embeddings",
+   "title": "Tying saves a second copy of the embedding matrix",
+   "caption": "Tying sets W = Eᵀ, so one V × d_model matrix serves both the input lookup and the output projection. GPT-2 small publishes 124M parameters with the matrix counted once; untied, the same model carries a second 38,597,376-number copy, about 163M, so tying saves roughly 24 percent of the untied count.",
+   "alt": "Four boxes left to right: token id (one integer), gather row k of E (row, width 768), h, width d (residual stream), and logits: h Eᵀ (one score per token). An accent lane runs above the boxes from the lookup to the logits, labelled W = Eᵀ: the output projection is the same matrix, read the other way. The note prints 50,257 × 768 = 38,597,376 numbers stored once, and that untying stores a second copy, 124M + 38.6M ≈ 163M.",
+   "anchor": "analogies-and-the-embedding-table",
+   "kind": "lane",
+   "data": {
+    "stages": [
+     "token id",
+     "gather row k of E",
+     "h, width d",
+     "logits: h Eᵀ"
+    ],
+    "sizes": [
+     "one integer",
+     "row, width 768",
+     "residual stream",
+     "one score per token"
+    ],
+    "bypass": "W = Eᵀ: the output projection is the same matrix, read the other way",
+    "note": "50,257 × 768 = 38,597,376 numbers, stored once. Untying stores a second copy: 124M + 38.6M ≈ 163M.",
+    "parts": {
+     "stages": [
+      "stage-token",
+      "stage-gather",
+      "stage-h",
+      "stage-logits"
+     ],
+     "bypass": "bypass",
+     "note": "note"
+    }
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1700,
+    "intro": "Press Play or Next to follow one matrix through both of its jobs.",
+    "steps": [
+     {
+      "label": "A token id is an integer. The model's first move is to look it up.",
+      "highlight": [
+       "stage-token"
+      ]
+     },
+     {
+      "label": "The lookup is a gather: row k of E, width 768, becomes the residual stream.",
+      "highlight": [
+       "stage-gather"
+      ]
+     },
+     {
+      "label": "At the end, h is dotted with every row of E again. The projection is Eᵀ.",
+      "highlight": [
+       "stage-h",
+       "stage-logits"
+      ]
+     },
+     {
+      "label": "One matrix, two jobs: 38,597,376 numbers stored once, not twice.",
+      "highlight": [
+       "bypass"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://arxiv.org/abs/1301.3781",
+   "note": "Mikolov et al. 2013, word2vec: distributed representations learned as a side effect of prediction."
+  },
+  {
+   "url": "https://aclanthology.org/D14-1162/",
+   "note": "Pennington, Socher and Manning 2014, GloVe: the co-occurrence-factorization route to the same geometry."
+  },
+  {
+   "url": "https://arxiv.org/abs/1607.04606",
+   "note": "Bojanowski et al. 2016, fastText: subword n-gram sums, including the running example."
+  },
+  {
+   "url": "https://arxiv.org/abs/1909.00512",
+   "note": "Ethayarajh 2019: measured anisotropy across layers and models."
+  },
+  {
+   "url": "https://arxiv.org/abs/1702.01417",
+   "note": "Mu and Viswanath 2018, All-but-the-Top: subtract the mean, then remove top principal components."
+  },
+  {
+   "url": "https://arxiv.org/abs/1608.05859",
+   "note": "Press and Wolf 2017: tying the input and output embeddings, and the gradient argument."
+  },
+  {
+   "url": "https://jalammar.github.io/illustrated-word2vec",
+   "note": "Pedagogical visual explanation of embedding tables and cosine similarity."
+  }
+ ]
 }

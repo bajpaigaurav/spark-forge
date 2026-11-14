@@ -24,6 +24,13 @@ fields. The vocabulary is below; a spec names one in `kind`.
     flow       a left-to-right sequence of stages, wrapping into rows
     grid       an n-by-n grid with an axis (the causal score matrix)
     merge_forest  a merge genealogy: bytes at the leaves, each merge a node above them
+    vocab_stack  a vocabulary split into its two halves with the shared rows
+    vectors    rows as rays from a shared origin, before and after centering
+    bus        one persistent lane, sublayers above and below reading and writing it
+    wiring     two chains on one shared column grid, so a moved step lines up
+    slab       two tensors drawn by depth, one sheet against a materialised stack
+    keep       to-scale strips: how much of a sentence reaches the decoder
+    mixture    value vectors scaled by their shares, added head to tail
 
 Nothing here invents a number: every label comes from the spec, and the spec was told to
 use only quantities that appear in the chapter. The figure is inline SVG with no script,
@@ -75,6 +82,11 @@ def _part_at(parts, key, idx):
     if isinstance(seq, list) and idx < len(seq):
         return seq[idx] or None
     return None
+
+
+def _grp(part, inner):
+    """Wrap marks in a part group, or leave them ungrouped when the spec has none."""
+    return f'<g data-part="{part}">{inner}</g>' if part else inner
 
 
 def _cell_part(parts, row, col):
@@ -362,6 +374,10 @@ def render_memory(spec):
                 if x2 - x1 > text_width(s["label"], size * 0.84) + 8:
                     c.add(c.text(mid, bar_y + bar_h / 2 + size * 0.3, s["label"],
                                  size * 0.84, weight="600", part=span_part))
+                elif s.get("label_anchor") == "start":
+                    c.add(c.text(x1 + 2, bar_y + bar_h + size + 4, s["label"],
+                                 size * 0.84, anchor="start", fill=ACCENT, weight="600",
+                                 part=span_part))
                 else:
                     c.add(c.text(mid, bar_y + bar_h + size + 4, s["label"], size * 0.84,
                                  fill=ACCENT, weight="600", part=span_part))
@@ -478,10 +494,18 @@ def render_bits(spec):
 # ---------------------------------------------------------------------------
 
 def render_bars(spec):
+    """Aligned horizontal bars with their numbers, optionally in labelled groups.
+
+    Groups matter when the figure is a before-and-after: the point of the softmax example
+    is that raising one score sharpens the same three weights, so the two triples have to
+    read as two blocks on one scale rather than six unrelated bars.
+    """
+    groups = spec.get("groups")
     bars = spec.get("bars") or []
+    if groups:
+        bars = [b for g in groups for b in g.get("bars") or []]
     if not bars:
         return None
-    group = spec.get("group")             # optional: {name: [...]} for small multiples
     note = spec.get("note")
     parts = spec.get("parts") or {}
 
@@ -497,29 +521,63 @@ def render_bars(spec):
             nl = c.note_lines(note, size * 0.86, w - 2 * pad)
             c.add(c.note(pad, 14, note, size * 0.86, w - 2 * pad,
                          part=parts.get("note")))
-            note_h = nl * size * 1.2 + 10
+            note_h = nl * size * 1.2 + (12 if groups else 10)
         top = 26 + note_h
         vmax = max(float(b["value"]) for b in bars) or 1
         rh = 26
         y = top
-        for bi, b in enumerate(bars):
-            bar_part = _part_at(parts, "bars", bi)
-            ll = wrap_px(b["label"], size * 0.86, label_w - 8)
-            c.add(c.block(pad, y + rh / 2 - (len(ll) - 1) * size * 0.6 + size * 0.3, ll,
-                          size * 0.86, anchor="start", fill=INK, part=bar_part))
-            bw = plot_w * float(b["value"]) / vmax
-            c.add(c.rect(plot_x, y + 3, max(2, bw), rh - 6,
-                         fill=WASH_3 if b.get("accent") else WASH_2,
-                         stroke=ACCENT if b.get("accent") else RULE, sw=1,
-                         part=bar_part))
-            disp = b.get("display", f"{b['value']:g}")
-            dl = wrap_px(disp, size * 0.84, w - (plot_x + max(2, bw) + 6) - pad)
-            c.add(c.block(plot_x + max(2, bw) + 6,
-                          y + rh / 2 - (len(dl) - 1) * size * 0.6 + size * 0.3, dl,
-                          size * 0.84, anchor="start", fill=INK, weight="600",
-                          part=bar_part))
-            y += rh + 8
-        c.h = y + 10
+        if not groups:
+            # Ungrouped specs predate groups; keep their geometry byte-identical.
+            for bi, b in enumerate(bars):
+                bar_part = _part_at(parts, "bars", bi)
+                ll = wrap_px(b["label"], size * 0.86, label_w - 8)
+                c.add(c.block(pad, y + rh / 2 - (len(ll) - 1) * size * 0.6 + size * 0.3, ll,
+                              size * 0.86, anchor="start", fill=INK, part=bar_part))
+                bw = plot_w * float(b["value"]) / vmax
+                c.add(c.rect(plot_x, y + 3, max(2, bw), rh - 6,
+                             fill=WASH_3 if b.get("accent") else WASH_2,
+                             stroke=ACCENT if b.get("accent") else RULE, sw=1,
+                             part=bar_part))
+                disp = b.get("display", f"{b['value']:g}")
+                dl = wrap_px(disp, size * 0.84, w - (plot_x + max(2, bw) + 6) - pad)
+                c.add(c.block(plot_x + max(2, bw) + 6,
+                              y + rh / 2 - (len(dl) - 1) * size * 0.6 + size * 0.3, dl,
+                              size * 0.84, anchor="start", fill=INK, weight="600",
+                              part=bar_part))
+                y += rh + 8
+            c.h = y + 10
+            return c
+        small = size * 0.86
+        tiny = size * 0.74
+        lh = round(small * 1.22)
+        tlh = round(tiny * 1.22)
+        bi = 0
+        for gi, g in enumerate(groups):
+            if g.get("label"):
+                gp = _part_at(parts, "groups", gi)
+                c.add(c.line(pad, y, w - pad, y, stroke=RULE, sw=1, part=gp))
+                c.add(c.text(pad, y + tlh + 2, g["label"], tiny, anchor="start",
+                             fill=ACCENT, weight="600", part=gp))
+                y += tlh + 12
+            for b in g.get("bars") or []:
+                bar_part = _part_at(parts, "bars", bi) or _part_at(parts, "groups", gi)
+                bi += 1
+                ll = wrap_px(b["label"], small, label_w - 10)
+                c.add(c.block(pad, y + rh / 2 - (len(ll) - 1) * lh / 2 + small * 0.34,
+                              ll, small, anchor="start", fill=INK, lh=lh,
+                              part=bar_part))
+                bw = plot_w * float(b["value"]) / vmax
+                c.add(c.rect(plot_x, y + 3, max(2, bw), rh - 6,
+                             fill=WASH_3 if b.get("accent") else WASH_2,
+                             stroke=ACCENT if b.get("accent") else RULE, sw=1,
+                             part=bar_part))
+                disp = b.get("display", f"{b['value']:g}")
+                c.add(c.text(plot_x + max(2, bw) + 8, y + rh / 2 + small * 0.34, disp,
+                             size * 0.84, anchor="start", fill=INK, weight="600",
+                             part=bar_part))
+                y += rh + 8
+            y += 10
+        c.h = y + 6
         return c
 
     return _fit(spec, 760, build).render()
@@ -1004,6 +1062,535 @@ def render_merge_forest(spec):
     return _fit(spec, 480, build, min_w=400).render()
 
 
+# ---------------------------------------------------------------------------
+# vectors -- two plots of rays from a shared origin, with the angle between them
+# ---------------------------------------------------------------------------
+
+def render_vectors(spec):
+    """Rows drawn as rays from a shared origin, before and after centering.
+
+    Both plots use one scale, so a shorter ray really is a shorter vector: subtracting
+    the mean shrinks the rows as well as separating them. The arc between the rays is the
+    angle cue; its cosine is printed under the plot rather than inside the wedge, because
+    two rays that are close together leave no room for text between them.
+    """
+    plots = spec.get("plots") or []
+    if len(plots) < 2:
+        return None
+    mean = spec.get("mean") or None
+    note = spec.get("note") or ""
+    parts = spec.get("parts") or {}
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        gap = 54
+        pw = (w - 2 * pad - gap) / 2
+        side = min(pw - 34, 300)
+        coords = [v for p in plots for v in p.get("vectors") or []]
+        top = max([max(abs(v["x"]), abs(v["y"])) for v in coords] +
+                  ([max(abs(mean["x"]), abs(mean["y"]))] if mean else []))
+        k = side / (top * 1.18)
+        title_size = size * 0.95
+        label_size = size * 0.82
+        small = size * 0.78
+        lh = round(small * 1.45)
+
+        def arc(cx, cy, r, a0, a1):
+            n = max(10, int(abs(a1 - a0) / 0.03))
+            pts = [(cx + r * math.cos(a0 + (a1 - a0) * i / n),
+                    cy - r * math.sin(a0 + (a1 - a0) * i / n)) for i in range(n + 1)]
+            return c.path("M" + " L".join(f"{x:.2f},{y:.2f}" for x, y in pts),
+                          stroke=ACCENT, sw=1.4)
+
+        y = pad
+        bottoms = []
+        for pi, plot in enumerate(plots):
+            key = plot.get("key") or str(pi)
+            x0 = pad + pi * (pw + gap)
+            ox = x0 + 30
+            oy = y + title_size * 1.3 + side
+            c.add(c.text(x0 + pw / 2, y + title_size * 1.05, plot.get("label", ""),
+                         title_size, weight="600"))
+            c.add(c.line(ox, oy, ox + side + 10, oy, stroke=RULE, sw=1))
+            c.add(c.line(ox, oy, ox, oy - side - 10, stroke=RULE, sw=1))
+
+            rays = [c.circle(ox, oy, 2.5, fill=INK)]
+            angles = []
+            lengths = []
+            for v in plot.get("vectors") or []:
+                tx, ty = ox + k * v["x"], oy - k * v["y"]
+                rays.append(c.line(ox, oy, tx, ty, stroke=ACCENT, sw=2,
+                                   arrow=True, accent=True))
+                rays.append(c.circle(tx, ty, 3, fill=ACCENT))
+                rays.append(c.text(tx, ty - 9, v["label"], label_size,
+                                   fill=INK, weight="600"))
+                angles.append(math.atan2(v["y"], v["x"]))
+                lengths.append(math.hypot(v["x"], v["y"]))
+            c.add(c.group(_part_at(parts, "rays", pi) or "rays-" + key,
+                          "".join(rays)))
+
+            extras = []
+            if pi == 0 and mean:
+                tx, ty = ox + k * mean["x"], oy - k * mean["y"]
+                mp = _part_at(parts, "mean", 0) or "mean"
+                c.add(c.group(mp,
+                              c.line(ox, oy, tx, ty, stroke=MUTED, sw=1.4, dash="5 4") +
+                              c.circle(tx, ty, 2.5, fill=MUTED)))
+                extras.append(mean.get("label", ""))
+            if plot.get("cos_label"):
+                a0, a1 = min(angles), max(angles)
+                r = min(0.62 * min(lengths) * k, side * 0.55)
+                c.add(c.group(_part_at(parts, "arcs", pi) or "arc-" + key,
+                              arc(ox, oy, r, a0, a1)))
+                extras.append(plot["cos_label"])
+
+            lines = ["    ".join(f'{v["label"]} = ({v["x"]}, {v["y"]})'
+                                 for v in plot.get("vectors") or [])]
+            if extras:
+                lines.append("    ".join(e for e in extras if e))
+            cy = oy + label_size * 1.7
+            c.add(c.block(x0 + pw / 2, cy, lines, small, fill=MUTED, lh=lh))
+            bottom = cy + (len(lines) - 1) * lh + small * 1.5
+            if pi == len(plots) - 1 and note:
+                wrapped = wrap_px(note, small, pw - 10)
+                ny = bottom + small * 1.2
+                c.add(c.block(x0 + pw / 2, ny, wrapped, small, fill=MUTED, lh=lh))
+                bottom = ny + (len(wrapped) - 1) * lh + small * 1.5
+            bottoms.append(bottom)
+        c.h = max(bottoms) + 12
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
+def render_bus(spec):
+    """One persistent lane with sublayers tapping it, instead of a pipeline.
+
+    The chapter rejects the stack-of-blocks picture: one vector per token survives from
+    the embedding lookup to the unembedding, and each sublayer reads it and adds to it
+    rather than handing a replacement to the next block. So the drawing is a bus: a
+    horizontal lane with a row of sublayer boxes above it and a row below, every box
+    carrying a read arrow out of the lane and a write arrow back into it. Each row's
+    label states how many times per layer that stack writes.
+    """
+    rows = spec.get("rows") or []
+    if not rows:
+        return None
+    note = spec.get("note")
+    lane_text = spec.get("lane") or ""
+    parts = spec.get("parts") or {}
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        label_w = 132
+        x0 = pad + label_w
+        cw = w - x0 - pad
+        small = size * 0.82
+        tiny = size * 0.74
+        lh = round(small * 1.22)
+        tlh = round(tiny * 1.2)
+
+        y = 24
+        if note:
+            nl = c.note_lines(note, size * 0.86, w - 2 * pad)
+            c.add(c.note(pad, y, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
+            y += nl * size * 1.2 + 24
+
+        gap = 22
+        arrow_gap = 28
+        band_h = max(24.0, tiny * 1.9)
+        maxn = max(len(r.get("boxes") or []) for r in rows)
+        bw = (cw - (maxn - 1) * gap) / maxn
+
+        def box_height(row):
+            tallest = 0
+            for b in row.get("boxes") or []:
+                lines = wrap_px(b.get("name", ""), small, bw - 14)
+                sub = wrap_px(b.get("sub", ""), tiny, bw - 14) if b.get("sub") else []
+                tallest = max(tallest, len(lines) + len(sub))
+            return 14 + tallest * lh
+
+        heights = [box_height(r) for r in rows]
+        enc_h = heights[0]
+        enc_top = y
+        band_top = enc_top + enc_h + arrow_gap
+        dec_top = band_top + band_h + arrow_gap
+
+        def row_at(ri):
+            return enc_top if ri == 0 else dec_top
+
+        # `parts.boxes` may be flat (in row order) or one list per row; both are read
+        # through the same offset so a box's name never depends on the row count.
+        box_parts = parts.get("boxes") or []
+        nested = bool(box_parts) and isinstance(box_parts[0], list)
+        offsets = [sum(len(r.get("boxes") or []) for r in rows[:ri])
+                   for ri in range(len(rows))]
+
+        def box_part(ri, bi):
+            if nested:
+                if ri < len(box_parts) and bi < len(box_parts[ri]):
+                    return box_parts[ri][bi] or None
+                return None
+            return _part_at(parts, "boxes", offsets[ri] + bi)
+
+        # the lane, with its own label inside it
+        lane_part = parts.get("lane") or "lane"
+        inner = [c.rect(x0 - 16, band_top, cw + 16 + 0, band_h, fill="none",
+                        stroke=ACCENT, sw=1.4, rx=band_h / 2)]
+        if lane_text:
+            inner.append(c.text(x0, band_top + band_h / 2 + tiny * 0.36, lane_text,
+                                tiny, anchor="start", fill=INK, weight="600"))
+        c.add(c.group(lane_part, "".join(inner)))
+
+        for ri, row in enumerate(rows):
+            # Row 0 always sits above the lane; any further row sits below it.
+            above = ri == 0
+            by = row_at(ri)
+            bh = heights[ri]
+            row_part = _part_at(parts, "rows", ri)
+            boxes = row.get("boxes") or []
+            rlines = wrap_px(row.get("label", ""), small, label_w - 8)
+            extra = row.get("writes")
+            block = list(rlines) + ([extra] if extra else [])
+            c.add(c.block_centered(pad + (label_w - 12) / 2, by + bh / 2, block,
+                                   small, fill=INK, weight="600", lh=lh,
+                                   part=row_part))
+            row_w = len(boxes) * bw + (len(boxes) - 1) * gap
+            start = x0 + (cw - row_w) / 2
+            for bi, b in enumerate(boxes):
+                bx = start + bi * (bw + gap)
+                bpart = box_part(ri, bi) or row_part
+                inner = [c.rect(bx, by, bw, bh, fill="none",
+                                stroke=ACCENT if b.get("accent") else RULE,
+                                sw=1.2, rx=4)]
+                lines = (wrap_px(b.get("name", ""), small, bw - 14) +
+                         (wrap_px(b.get("sub", ""), tiny, bw - 14) if b.get("sub") else []))
+                inner.append(c.block_centered(bx + bw / 2, by + bh / 2, lines, small,
+                                              fill=INK, weight="600", lh=lh))
+                c.add(c.group(bpart, "".join(inner)))
+                rx = bx + bw * 0.32
+                wx = bx + bw * 0.68
+                if above:
+                    c.add(c.line(rx, band_top, rx, by + bh, stroke=MUTED, sw=1.1,
+                                 arrow=True, part=bpart))
+                    c.add(c.line(wx, by + bh, wx, band_top, stroke=ACCENT, sw=1.1,
+                                 arrow=True, accent=True, part=bpart))
+                else:
+                    c.add(c.line(rx, band_top + band_h, rx, by, stroke=MUTED, sw=1.1,
+                                 arrow=True, part=bpart))
+                    c.add(c.line(wx, by, wx, band_top + band_h, stroke=ACCENT, sw=1.1,
+                                 arrow=True, accent=True, part=bpart))
+        bottom = dec_top + heights[-1] if len(rows) > 1 else band_top + band_h
+        c.h = bottom + 24
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
+def render_wiring(spec):
+    """Two chains drawn on one shared column grid, so a moved step is visible.
+
+    The point of pre-norm versus post-norm is not two equations but one step changing
+    place. Both chains therefore use the same columns and the same box size: where the
+    norm box sits is the whole figure, and an empty slot is as informative as a filled
+    one. A skip arc leaves the input and rejoins at the add, so the identity path is a
+    drawn object rather than a claim in a caption.
+    """
+    chains = spec.get("chains") or []
+    columns = spec.get("columns") or []
+    if not chains or not columns:
+        return None
+    note = spec.get("note")
+    parts = spec.get("parts") or {}
+    cell_parts = parts.get("cells") or []
+
+    def cell_part(ri, ci):
+        if ri < len(cell_parts) and ci < len(cell_parts[ri]):
+            return cell_parts[ri][ci] or None
+        return None
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        label_w = 120
+        x0 = pad + label_w
+        n = len(columns)
+        gap = 14
+        cw = (w - x0 - pad) / n
+        bw = cw - gap
+        small = size * 0.82
+        tiny = size * 0.74
+        lh = round(small * 1.2)
+        tlh = round(tiny * 1.22)
+        skip_h = 26
+
+        cells = [cell for ch in chains for cell in ch.get("cells") or []]
+        tallest = max([len(wrap_px(cell.get("text", ""), small, bw - 12)) for cell in cells]
+                      or [1])
+        box_h = 12 + tallest * lh
+
+        y = 24
+        if note:
+            nl = c.note_lines(note, size * 0.86, w - 2 * pad)
+            c.add(c.note(pad, y, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
+            y += nl * size * 1.2 + 22
+
+        head_y = y
+        for ci, col in enumerate(columns):
+            cx = x0 + ci * cw + cw / 2
+            c.add(c.text(cx, head_y, col, tiny, fill=MUTED, weight="600"))
+        y = head_y + tlh + 14
+
+        for ri, ch in enumerate(chains):
+            chain_part = _part_at(parts, "chains", ri)
+            top = y + skip_h
+            label_lines = wrap_px(ch.get("label", ""), small, label_w - 12)
+            c.add(c.block(pad, top + (box_h - len(label_lines) * lh) / 2 + small,
+                          label_lines, small, anchor="start", fill=INK, weight="600",
+                          lh=lh, part=chain_part))
+            boxes = {}
+            for cell in ch.get("cells") or []:
+                ci = cell.get("col", 0)
+                bx = x0 + ci * cw + gap / 2
+                bpart = cell_part(ri, ci) or chain_part
+                ghost = cell.get("ghost")
+                accent = cell.get("accent")
+                c.add(c.rect(bx, top, bw, box_h, fill="none",
+                             stroke=ACCENT if accent else RULE,
+                             sw=1.2 if accent else 1, rx=4,
+                             dash="3 3" if ghost else None, part=bpart))
+                lines = wrap_px(cell.get("text", ""), small, bw - 12)
+                c.add(c.block_centered(bx + bw / 2, top + box_h / 2, lines, small,
+                                       fill=INK if accent else MUTED,
+                                       weight="600" if accent else "400",
+                                       lh=lh, part=bpart))
+                boxes[ci] = bx
+            for k in range(n - 1):
+                if k in boxes and (k + 1) in boxes:
+                    c.add(c.line(boxes[k] + bw, top + box_h / 2, boxes[k + 1],
+                                 top + box_h / 2, stroke=MUTED, sw=1.1, arrow=True,
+                                 part=chain_part))
+            skip = ch.get("skip")
+            if skip:
+                a, b = skip.get("from", 0), skip.get("to", 1)
+                ax, bx2 = boxes[a] + bw / 2, boxes[b] + bw / 2
+                sy = top - skip_h
+                d = (f"M{ax:.2f},{top:.2f} L{ax:.2f},{sy:.2f} "
+                     f"L{bx2:.2f},{sy:.2f} L{bx2:.2f},{top:.2f}")
+                c.add(c.path(d, stroke=ACCENT, sw=1.3, arrow=True, accent=True,
+                             part=chain_part))
+                if skip.get("label"):
+                    c.add(c.text((ax + bx2) / 2, sy - 5, skip["label"], tiny,
+                                 fill=ACCENT, part=chain_part))
+            y = top + box_h + tlh * 1.4
+            if ch.get("note"):
+                nl = c.note_lines(ch["note"], tiny, w - 2 * pad)
+                c.add(c.note(pad, y, ch["note"], tiny, w - 2 * pad, part=chain_part))
+                y += nl * tlh + 6
+            y += 16
+        c.h = y + 4
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
+def render_slab(spec):
+    """Two tensors side by side, drawn by how many sheets they occupy.
+
+    The cost comparison between additive and dot-product scoring is not about the
+    multiply-adds alone; it is that one produces a single n-by-m sheet and the other a
+    k-deep stack that has to be materialised and then reduced. So each panel is a sheet
+    with a depth: one sheet is one GEMM's output, several offset sheets are the stack.
+    """
+    panels = spec.get("panels") or []
+    if not panels:
+        return None
+    note = spec.get("note")
+    parts = spec.get("parts") or {}
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        gap = 40
+        pw = (w - 2 * pad - gap) / len(panels)
+        small = size * 0.82
+        tiny = size * 0.74
+        lh = round(small * 1.22)
+        tlh = round(tiny * 1.22)
+
+        y = 24
+        if note:
+            nl = c.note_lines(note, size * 0.86, w - 2 * pad)
+            c.add(c.note(pad, y, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
+            y += nl * size * 1.2 + 24
+
+        head = y
+        for pi, p in enumerate(panels):
+            c.add(c.text(pad + pi * (pw + gap), head, p.get("title", ""), size * 0.9,
+                         anchor="start", fill=ACCENT, weight="600",
+                         part=_part_at(parts, "panels", pi)))
+        y = head + size * 1.6
+
+        sw = min(pw - 78, 250)
+        sh = sw * 0.5
+        step = 7.0
+        # Every panel's front sheet shares a baseline, so the stack's height is set by
+        # the deepest panel and the shallower ones sit at the bottom of that band. A
+        # depth of 128 is drawn as eight sheets; the bracket carries the real count.
+        stacks = [sh + (min(max(1, int(p.get("depth") or 1)), 8) - 1) * step
+                  for p in panels]
+        stack_h = max(stacks)
+        bottoms = []
+        for pi, p in enumerate(panels):
+            x0 = pad + pi * (pw + gap)
+            panel_part = _part_at(parts, "panels", pi)
+            fx = x0 + 40
+            sheets = min(max(1, int(p.get("depth") or 1)), 8)
+            top = y + stack_h - sh
+            # Back sheets first so the front sheet's outline and grid sit on top.
+            for si in range(sheets - 1, 0, -1):
+                off = si * step
+                c.add(c.group(panel_part,
+                              c.rect(fx + off, top - off, sw, sh, fill="none",
+                                     stroke=RULE, sw=1, rx=3)))
+            c.add(c.group(panel_part,
+                          c.rect(fx, top, sw, sh, fill="none", stroke=ACCENT, sw=1.2,
+                                 rx=3)))
+            grid = []
+            for gi in range(1, 5):
+                gy = top + sh * gi / 5
+                grid.append(c.line(fx, gy, fx + sw, gy, stroke=RULE, sw=0.6))
+            for gj in range(1, 8):
+                gx = fx + sw * gj / 8
+                grid.append(c.line(gx, top, gx, top + sh, stroke=RULE, sw=0.6))
+            c.add(c.group(panel_part, "".join(grid)))
+            if p.get("cells"):
+                c.add(c.block_centered(fx + sw / 2, top + sh / 2,
+                                       wrap_px(p["cells"], small, sw - 12), small,
+                                       fill=INK, weight="600", lh=lh,
+                                       part=panel_part))
+            if sheets > 1 and p.get("zlab"):
+                zx = fx + sw + (sheets - 1) * step + 12
+                zy0 = top - (sheets - 1) * step
+                c.add(c.group(panel_part,
+                              c.line(zx, zy0, zx, top + sh, stroke=MUTED, sw=1) +
+                              c.line(zx - 4, zy0, zx + 4, zy0, stroke=MUTED, sw=1) +
+                              c.line(zx - 4, top + sh, zx + 4, top + sh, stroke=MUTED,
+                                     sw=1)))
+                zl = wrap_px(p["zlab"], tiny, 66)
+                zy = top + sh / 2 - (len(zl) - 1) * tlh / 2 + tiny * 0.34
+                c.add(c.block(zx + 8, zy, zl, tiny, anchor="start", fill=ACCENT,
+                              weight="600", lh=tlh, part=panel_part))
+            ly = top + sh + tlh + 8
+            if p.get("xlab"):
+                c.add(c.text(fx + sw / 2, ly, p["xlab"], tiny, fill=MUTED,
+                             part=panel_part))
+            if p.get("ylab"):
+                # Above the whole stack, not above the front sheet: a label inside the
+                # band would be crossed by the back sheets' outlines.
+                c.add(c.text(fx, top - (sheets - 1) * step - 10, p["ylab"], tiny,
+                             anchor="start", fill=MUTED, part=panel_part))
+            y2 = ly + tlh * 1.4
+            for key in ("cost", "note"):
+                if p.get(key):
+                    nl = c.note_lines(p[key], small if key == "cost" else tiny,
+                                      pw - 12)
+                    c.add(c.note(x0, y2, p[key], small if key == "cost" else tiny,
+                                 pw - 12, part=panel_part))
+                    y2 += nl * (lh if key == "cost" else tlh) + 6
+            bottoms.append(y2)
+        c.h = max(bottoms) + 6
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
+def render_keep(spec):
+    """To-scale strips of what the decoder actually receives.
+
+    The bottleneck is a capacity claim, so the drawing has to be to scale: a strip's
+    length is its float count, the solid head is the part that survives, and the dashed
+    remainder is what the decoder never sees. Rows share one scale, so the fifty-token
+    sentence really is ten times the five-token one and the same 256-slot head is a
+    sliver of both. A Bahdanau row keeps everything, which is why its strip is solid end
+    to end.
+    """
+    rows = spec.get("rows") or []
+    if not rows:
+        return None
+    note = spec.get("note")
+    parts = spec.get("parts") or {}
+
+    def build(w, size):
+        c = Canvas(w, 0, spec.get("title", "Figure"),
+                   spec.get("why") or spec.get("caption") or spec.get("title", ""))
+        pad = 16
+        label_w = 158
+        x0 = pad + label_w
+        plot_w = w - x0 - pad - 236
+        small = size * 0.82
+        tiny = size * 0.74
+        lh = round(small * 1.22)
+        tlh = round(tiny * 1.22)
+        rh = 30
+
+        y = 24
+        if note:
+            nl = c.note_lines(note, size * 0.86, w - 2 * pad)
+            c.add(c.note(pad, y, note, size * 0.86, w - 2 * pad,
+                         part=parts.get("note")))
+            y += nl * size * 1.2 + 24
+
+        scale = max(float(r.get("total") or 1) for r in rows)
+        for ri, r in enumerate(rows):
+            rp = _part_at(parts, "rows", ri)
+            total = float(r.get("total") or 1)
+            kept = float(r.get("kept") or 0)
+            strip_w = plot_w * total / scale
+            kw = strip_w * kept / total
+            lines = wrap_px(r.get("label", ""), small, label_w - 10)
+            c.add(c.block(pad, y + rh / 2 - (len(lines) - 1) * lh / 2 + small * 0.34,
+                          lines, small, anchor="start", fill=INK, weight="600", lh=lh,
+                          part=rp))
+            c.add(c.rect(x0, y, max(1.0, kw), rh, fill=WASH_2,
+                         stroke=ACCENT if r.get("accent", True) else RULE, sw=1.1,
+                         part=rp))
+            if kept < total:
+                c.add(c.rect(x0 + kw, y, strip_w - kw, rh, fill="none", stroke=RULE,
+                             sw=1, dash="3 3", part=rp))
+            # Labels are placed left to right after the strip's right edge unless the
+            # kept head is wide enough to hold its own label; a short strip leaves the
+            # head only a sliver, so its label moves out rather than colliding with the
+            # discarded count.
+            ty2 = y + rh / 2 + small * 0.34
+            after = x0 + strip_w + 8
+            if r.get("kept_label"):
+                if kw > text_width(r["kept_label"], tiny) + 10:
+                    c.add(c.text(x0 + kw / 2, ty2, r["kept_label"], tiny,
+                                 weight="600", part=rp))
+                else:
+                    c.add(c.text(after, ty2, r["kept_label"], tiny, anchor="start",
+                                 fill=ACCENT, weight="600", part=rp))
+                    after += text_width(r["kept_label"], tiny) + 16
+            if r.get("total_label"):
+                c.add(c.text(after, ty2, r["total_label"], tiny, anchor="start",
+                             fill=MUTED, part=rp))
+            y += rh + tlh + 10
+        c.h = y + 6
+        return c
+
+    return _fit(spec, 900, build).render()
+
+
 RENDER = {
     "tokens": render_tokens,
     "matrix": render_matrix,
@@ -1018,6 +1605,11 @@ RENDER = {
     "grid": render_grid,
     "vocab_stack": render_vocab_stack,
     "merge_forest": render_merge_forest,
+    "vectors": render_vectors,
+    "bus": render_bus,
+    "wiring": render_wiring,
+    "slab": render_slab,
+    "keep": render_keep,
 }
 
 

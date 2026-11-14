@@ -1,139 +1,292 @@
 {
-  "needed": true,
-  "spine": "residual",
-  "figures": [
-    {
-      "id": "residual-lane",
-      "title": "One lane, read and written at every block",
-      "caption": "Every sublayer reads the residual stream, computes a correction, and adds it back. The lane holds one vector per token at width d_model from the embedding lookup to the unembedding; attention and the feed-forward network never replace it, so nothing else survives the depth.",
-      "alt": "A left-to-right lane of five stages: embedding, attention, feed-forward, final norm, and unembedding, each labelled with its width, d_model except the unembedding's V. Above the stages a bypass line labelled residual stream runs the whole length, showing that the original vector is added back past every stage rather than replaced.",
-      "anchor": "residual-sublayers-and-the-persistent-stream",
-      "kind": "lane",
-      "data": {
-        "stages": [
-          "embedding",
-          "attention",
-          "feed-forward",
-          "final norm",
-          "unembedding"
-        ],
-        "bypass": "residual stream: width d_model, never replaced",
-        "sizes": [
-          "d_model",
-          "d_model",
-          "d_model",
-          "d_model",
-          "V"
-        ],
-        "note": "Attention is the only stage that moves information between positions; every other stage is per-token. Encoder layers write to the stream twice, decoder layers three times.",
-        "parts": {
-          "stages": [
-            "embedding",
-            "attention",
-            "feed-forward",
-            "final-norm",
-            "unembedding"
-          ],
-          "bypass": "residual"
-        }
+ "needed": true,
+ "spine": "residual",
+ "figures": [
+  {
+   "id": "residual-lane",
+   "title": "One lane, read and written at every block",
+   "caption": "Every sublayer reads the residual stream, computes a correction, and adds it back. The lane holds one vector per token at width d_model from the embedding lookup to the unembedding; attention and the feed-forward network never replace it, so nothing else survives the depth.",
+   "alt": "A single horizontal lane labelled the residual stream: one vector per token, width d_model, never replaced. Above it, an encoder layer row with two boxes, self-attention and feed-forward, each joined to the lane by a muted arrow reading out and an accent arrow writing back. Below it, a decoder layer row with three boxes, masked self-attention, cross-attention and feed-forward, wired the same way. The encoder row is annotated two writes per layer and the decoder row three.",
+   "anchor": "residual-sublayers-and-the-persistent-stream",
+   "kind": "bus",
+   "data": {
+    "note": "Attention is the only sublayer that moves information between positions; everything else is per-token. Deleting a layer at inference still leaves the lane intact.",
+    "lane": "the residual stream: one vector per token, width d_model, never replaced",
+    "rows": [
+     {
+      "label": "encoder layer",
+      "writes": "two writes per layer",
+      "boxes": [
+       {
+        "name": "self-attention",
+        "sub": "reads every position"
+       },
+       {
+        "name": "feed-forward",
+        "sub": "per token"
+       }
+      ]
+     },
+     {
+      "label": "decoder layer",
+      "writes": "three writes per layer",
+      "boxes": [
+       {
+        "name": "masked self-attention",
+        "sub": "reads past positions"
+       },
+       {
+        "name": "cross-attention",
+        "sub": "reads the encoder"
+       },
+       {
+        "name": "feed-forward",
+        "sub": "per token"
+       }
+      ]
+     }
+    ],
+    "parts": {
+     "note": "note",
+     "lane": "lane",
+     "rows": [
+      "row-enc",
+      "row-dec"
+     ],
+     "boxes": [
+      [
+       "enc-attn",
+       "enc-ff"
+      ],
+      [
+       "dec-mask",
+       "dec-cross",
+       "dec-ff"
+      ]
+     ]
+    }
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1500,
+    "intro": "Press Play or Next to follow the lane past every sublayer.",
+    "steps": [
+     {
+      "label": "The lane starts as one vector per token at width d_model. It is never replaced.",
+      "highlight": [
+       "lane"
+      ]
+     },
+     {
+      "label": "Self-attention reads the lane at every position and adds its output back.",
+      "highlight": [
+       "enc-attn"
+      ]
+     },
+     {
+      "label": "The feed-forward network reads and writes one position at a time.",
+      "highlight": [
+       "enc-ff"
+      ]
+     },
+     {
+      "label": "An encoder layer is two sublayers, so the stream is written to twice.",
+      "highlight": [
+       "row-enc"
+      ]
+     },
+     {
+      "label": "Masked self-attention sees only positions up to the current one.",
+      "highlight": [
+       "dec-mask"
+      ]
+     },
+     {
+      "label": "Cross-attention reads the encoder's final stream, the only place the two stacks meet.",
+      "highlight": [
+       "dec-cross"
+      ]
+     },
+     {
+      "label": "A decoder layer ends with the same per-token feed-forward network.",
+      "highlight": [
+       "dec-ff"
+      ]
+     },
+     {
+      "label": "Three sublayers, three writes. The lane is the only thing that survives the depth.",
+      "highlight": [
+       "row-dec"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "pre-post-norm",
+   "title": "Where the norm sits decides what the identity path carries",
+   "caption": "Post-norm puts LayerNorm after the addition, so the norm's Jacobian multiplies the identity term and rescaling sits directly in the gradient path. Pre-norm normalizes only the sublayer branch, leaving a bare identity term; that is why it trains without warmup, and why the stream's norm is never renormalized and grows with depth.",
+   "alt": "Two chains on one five-column grid: x in, norm before F, sublayer F, add, norm after add. Post-norm fills F(x), x + F(x) and LayerNorm(x + F(x)), and leaves norm before F as a dashed empty box. Pre-norm fills LayerNorm(x), F(LayerNorm(x)) and x + F(LayerNorm(x)), and leaves norm after add empty. Each chain draws an accent skip arc from x straight to the add, labelled identity.",
+   "anchor": "pre-norm-post-norm-and-stream-growth",
+   "kind": "wiring",
+   "data": {
+    "columns": [
+     "x in",
+     "norm before F",
+     "sublayer F",
+     "add",
+     "norm after add"
+    ],
+    "note": "Same five columns, same boxes. Each chain leaves exactly one column empty: that empty column is the whole argument.",
+    "chains": [
+     {
+      "label": "post-norm\n2017 paper",
+      "cells": [
+       {
+        "col": 0,
+        "text": "x"
+       },
+       {
+        "col": 1,
+        "text": "—",
+        "ghost": true
+       },
+       {
+        "col": 2,
+        "text": "F(x)"
+       },
+       {
+        "col": 3,
+        "text": "x + F(x)"
+       },
+       {
+        "col": 4,
+        "text": "LayerNorm(x + F(x))",
+        "accent": true
+       }
+      ],
+      "skip": {
+       "from": 0,
+       "to": 3,
+       "label": "identity"
       },
-      "anim": {
-        "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to add each write to the lane.",
-        "steps": [
-          {
-            "label": "The embedding lookup writes the first vector into the lane.",
-            "highlight": [
-              "embedding"
-            ]
-          },
-          {
-            "label": "Attention reads the lane at every position and adds its output back.",
-            "highlight": [
-              "attention"
-            ]
-          },
-          {
-            "label": "The feed-forward network reads and writes one position at a time.",
-            "highlight": [
-              "feed-forward"
-            ]
-          },
-          {
-            "label": "The final norm rescales the accumulated stream.",
-            "highlight": [
-              "final-norm"
-            ]
-          },
-          {
-            "label": "The unembedding scores every vocabulary item from the same lane.",
-            "highlight": [
-              "unembedding"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "pre-post-norm",
-      "title": "Where the norm sits decides what the identity path carries",
-      "caption": "Post-norm puts LayerNorm after the addition, so the norm's Jacobian multiplies the identity term and rescaling sits directly in the gradient path. Pre-norm normalizes only the sublayer branch, leaving a bare identity term; that is why it trains without warmup, and why the stream's norm is never renormalized and grows with depth.",
-      "alt": "Two panels. Post-norm: y equals LayerNorm of x plus F of x; the Jacobian is J_N plus J_N J_F; the norm multiplies the identity term; the stream is renormalized every layer and practice used learning-rate warmup. Pre-norm: y equals x plus F of LayerNorm of x; the Jacobian is I plus J_F J_N; the identity term is a bare I; the stream is never renormalized, so L independent writes of variance v give variance Lv and standard deviation square root of Lv.",
-      "anchor": "pre-norm-post-norm-and-stream-growth",
-      "kind": "panels",
-      "data": {
-        "panels": [
-          {
-            "title": "post-norm (2017 paper)",
-            "items": [
-              "y = LayerNorm(x + F(x))",
-              "Jacobian J_N + J_N J_F",
-              "the norm multiplies the identity term",
-              "stream renormalized every layer",
-              "learning-rate warmup in practice"
-            ],
-            "note": "Magnitude stays bounded, but rescaling sits directly in the identity path."
-          },
-          {
-            "title": "pre-norm (GPT-2, GPT-3, LLaMA)",
-            "items": [
-              "y = x + F(LayerNorm(x))",
-              "Jacobian I + J_F J_N",
-              "the identity term is a bare I",
-              "stream never renormalized",
-              "warmup can be dropped"
-            ],
-            "note": "The stream's norm grows with depth: L independent writes of variance v give variance Lv and standard deviation sqrt(Lv)."
-          }
-        ]
-      }
-    }
-  ],
-  "sources": [
-    {
-      "url": "https://arxiv.org/abs/1512.03385",
-      "note": "He et al. 2016, ResNet: the identity path and the degradation problem."
-    },
-    {
-      "url": "https://arxiv.org/abs/2002.04745",
-      "note": "Xiong et al. 2020: pre-norm versus post-norm gradients and the warmup argument."
-    },
-    {
-      "url": "https://arxiv.org/abs/2203.00555",
-      "note": "Wang et al. 2022, DeepNet/DeepNorm: scaling the residual and sublayer initialization for post-norm depth."
-    },
-    {
-      "url": "https://transformer-circuits.pub/2022/toy_model",
-      "note": "Elhage et al. 2022, Toy Models of Superposition: fixed-width interference between features."
-    },
-    {
-      "url": "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt",
-      "note": "nostalgebraist 2020: applying the final norm and unembedding to intermediate streams."
-    },
-    {
-      "url": "https://arxiv.org/abs/2303.08112",
-      "note": "Belrose et al. 2023, the tuned lens: per-layer affine maps before the unembedding."
-    }
-  ]
+      "note": "Jacobian J_N + J_N J_F. The norm's own Jacobian multiplies the identity term, so rescaling sits in the gradient path; magnitude stays bounded, and practice paid for it with learning-rate warmup."
+     },
+     {
+      "label": "pre-norm\nGPT-2, GPT-3, LLaMA",
+      "cells": [
+       {
+        "col": 0,
+        "text": "x"
+       },
+       {
+        "col": 1,
+        "text": "LayerNorm(x)"
+       },
+       {
+        "col": 2,
+        "text": "F(LayerNorm(x))"
+       },
+       {
+        "col": 3,
+        "text": "x + F(LayerNorm(x))"
+       },
+       {
+        "col": 4,
+        "text": "—",
+        "ghost": true
+       }
+      ],
+      "skip": {
+       "from": 0,
+       "to": 3,
+       "label": "identity"
+      },
+      "note": "Jacobian I + J_F J_N. The identity term is a bare I and the norm multiplies only the branch. The stream is never renormalized, so L writes of variance v leave it with standard deviation sqrt(Lv)."
+     }
+    ]
+   },
+   "anim": {
+    "mode": "step",
+    "interval": 1500,
+    "intro": "Press Play or Next to compare where the norm sits.",
+    "steps": [
+     {
+      "label": "Post-norm reads x, runs the sublayer, then adds.",
+      "highlight": [
+       "cell-post-2",
+       "cell-post-3"
+      ]
+     },
+     {
+      "label": "Only then does the norm rescale the sum, in the column after the add.",
+      "highlight": [
+       "cell-post-4"
+      ]
+     },
+     {
+      "label": "Pre-norm normalizes the input first, so the column before F is the filled one.",
+      "highlight": [
+       "cell-pre-1"
+      ]
+     },
+     {
+      "label": "The add is then untouched: x arrives through a bare identity.",
+      "highlight": [
+       "cell-pre-3"
+      ]
+     }
+    ]
+   },
+   "parts": {
+    "note": "note",
+    "chains": [
+     "chain-post",
+     "chain-pre"
+    ],
+    "cells": [
+     [
+      "cell-post-0",
+      "cell-post-1",
+      "cell-post-2",
+      "cell-post-3",
+      "cell-post-4"
+     ],
+     [
+      "cell-pre-0",
+      "cell-pre-1",
+      "cell-pre-2",
+      "cell-pre-3",
+      "cell-pre-4"
+     ]
+    ]
+   }
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://arxiv.org/abs/1512.03385",
+   "note": "He et al. 2016, ResNet: the identity path and the degradation problem."
+  },
+  {
+   "url": "https://arxiv.org/abs/2002.04745",
+   "note": "Xiong et al. 2020: pre-norm versus post-norm gradients and the warmup argument."
+  },
+  {
+   "url": "https://arxiv.org/abs/2203.00555",
+   "note": "Wang et al. 2022, DeepNet/DeepNorm: scaling the residual and sublayer initialization for post-norm depth."
+  },
+  {
+   "url": "https://transformer-circuits.pub/2022/toy_model",
+   "note": "Elhage et al. 2022, Toy Models of Superposition: fixed-width interference between features."
+  },
+  {
+   "url": "https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt",
+   "note": "nostalgebraist 2020: applying the final norm and unembedding to intermediate streams."
+  },
+  {
+   "url": "https://arxiv.org/abs/2303.08112",
+   "note": "Belrose et al. 2023, the tuned lens: per-layer affine maps before the unembedding."
+  }
+ ]
 }
