@@ -39,32 +39,36 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to compare the two error sums.",
+        "interval": 1600,
+        "intro": "Press Play or Next to compare a linear error sum with a quadrature one.",
         "steps": [
           {
-            "label": "Aligned errors all push the same way: 4,096 × 0.0335 = 137.2.",
+            "label": "The dot product has N = 4,096 terms, each half-step is 0.067, and the input RMS is 0.5, so a term's typical error magnitude is 0.067/2 x 0.5 = 0.0335. If every error and every input shared a sign, the totals would add linearly: 4,096 x 0.0335 = 137.2.",
             "highlight": [
               "aligned"
             ]
           },
           {
-            "label": "Independent errors add in quadrature: √4,096 × 0.0335 = 2.14.",
+            "label": "Independent zero-mean errors add in quadrature instead: sqrt(4,096) x 0.0335 = 64 x 0.0335 = 2.14.",
             "highlight": [
+              "aligned",
               "independent"
             ]
           },
           {
-            "label": "Uniform rounding gives a per-term std of 0.0192, so √4,096 × 0.0192 ≈ 1.23.",
+            "label": "Uniform rounding gives a per-term standard deviation of (step/sqrt(12)) x x_rms ≈ 0.0385 x 0.5 ≈ 0.0192, so the quadrature total is sqrt(4,096) x 0.0192 ≈ 1.23.",
             "highlight": [
+              "aligned",
+              "independent",
               "uniform"
             ]
           },
           {
-            "label": "The ratio is 64, the square root of N.",
+            "label": "The ratio between the linear and quadrature totals is 64, the square root of N: independence is worth a factor of 64 on the same per-term error.",
             "highlight": [
               "aligned",
-              "independent"
+              "independent",
+              "uniform"
             ]
           }
         ]
@@ -108,6 +112,129 @@
               "at half-step ≈ σ, rounding is a different function"
             ],
             "note": "Four bits is an empirical default, not a theorem; quality depends on group size and model."
+          }
+        ],
+        "parts": {
+          "panels": [
+            "one-scale",
+            "split",
+            "floor"
+          ],
+          "items": [
+            [
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse"
+            ],
+            [
+              "s-alone",
+              "s-max",
+              "s-step",
+              "s-levels"
+            ],
+            [
+              "f-4bit",
+              "f-3bit",
+              "f-2bit",
+              "f-limit"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to watch an outlier set a group's grid, then to read the bit-width floor.",
+        "steps": [
+          {
+            "label": "A group holds 0.1, 0.2, 0.3 and 4.0. The outlier sets m = 4.0, so the step is 2 x 4/15 ≈ 0.533 and the grid is built for a value no ordinary weight reaches.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step"
+            ]
+          },
+          {
+            "label": "Every ordinary weight rounds to the same level: 0.1, 0.2 and 0.3 all land on 0.2667. The group keeps four bits of storage and almost none of resolution.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse"
+            ]
+          },
+          {
+            "label": "Split the outlier into its own group and the remaining three get m = 0.3, a step of 0.04, and distinct levels. Separate scales per block confine the damage to the block that holds the outlier.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse",
+              "split",
+              "s-alone",
+              "s-max",
+              "s-step",
+              "s-levels"
+            ]
+          },
+          {
+            "label": "Bit width sets the floor. At four bits the step is m/7, so with the largest weight near 3σ the half-step is about 0.2σ.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse",
+              "split",
+              "s-alone",
+              "s-max",
+              "s-step",
+              "s-levels",
+              "floor",
+              "f-4bit"
+            ]
+          },
+          {
+            "label": "At three bits the step is m/3 and the half-step is about 0.43σ.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse",
+              "split",
+              "s-alone",
+              "s-max",
+              "s-step",
+              "s-levels",
+              "floor",
+              "f-4bit",
+              "f-3bit"
+            ]
+          },
+          {
+            "label": "At two bits the step is m and the half-step is about 1σ. Once the half-step reaches σ, rounding stops being a perturbation and becomes a different function, which is why four is an empirical default rather than a theorem.",
+            "highlight": [
+              "one-scale",
+              "g-weights",
+              "g-max",
+              "g-step",
+              "g-collapse",
+              "split",
+              "s-alone",
+              "s-max",
+              "s-step",
+              "s-levels",
+              "floor",
+              "f-4bit",
+              "f-3bit",
+              "f-2bit",
+              "f-limit"
+            ]
           }
         ]
       }
