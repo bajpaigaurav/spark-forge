@@ -162,36 +162,46 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to project h and normalise the scores.",
+        "interval": 1600,
+        "intro": "Press Play or Next to project h through the vocabulary and normalise the scores.",
         "steps": [
           {
-            "label": "h is the last residual-stream vector, d_model wide.",
+            "label": "h is the last residual-stream vector, d_model = 4,096 wide.",
             "highlight": [
               "hidden"
             ]
           },
           {
-            "label": "Each vocabulary row of Wᵀ scores h: three candidates get 2, 1 and 0.",
+            "label": "Every vocabulary row of W^T scores h. Three candidates come back at 2, 1 and 0, so the head costs d_model x V = 4,096 x 50,000 = 204,800,000 multiply-adds per token, about the 12 d_model^2 = 201,300,000 of one transformer layer.",
             "highlight": [
+              "hidden",
               "logits"
             ]
           },
           {
-            "label": "Exponentiate each score; the gaps become ratios.",
+            "label": "Exponentiate: e^2 ≈ 7.389, e ≈ 2.718, and e^0 = 1. A one-point logit gap becomes a factor of e in probability space.",
             "highlight": [
+              "hidden",
+              "logits",
               "exp"
             ]
           },
           {
-            "label": "Sum the exponentials: 11.107.",
+            "label": "Sum the exponentials: 7.389 + 2.718 + 1 ≈ 11.107. Implementations subtract the largest logit first, which leaves this normalizer unchanged and keeps e^s from overflowing.",
             "highlight": [
+              "hidden",
+              "logits",
+              "exp",
               "normalizer"
             ]
           },
           {
-            "label": "Divide by the sum; the probabilities are 0.665, 0.245 and 0.090.",
+            "label": "Divide: 7.389/11.107 ≈ 0.665, 2.718/11.107 ≈ 0.245, and 1/11.107 ≈ 0.090. Shifting all three scores by the same amount cancels from every term, so only the gaps matter.",
             "highlight": [
+              "hidden",
+              "logits",
+              "exp",
+              "normalizer",
               "probabilities"
             ]
           }
@@ -236,7 +246,42 @@
         "corner": "T",
         "highlight_row": 1,
         "scale": 1.0,
-        "note": "At T = 0.5 the scaled logits are 4, 2 and 0, with exponentials 54.598, 7.389 and 1 summing to 62.987. At T = 2 they are 1, 0.5 and 0, with 2.718, 1.649 and 1 summing to 5.367. Temperature can only reweight what the head already produced; it cannot recover a candidate scored far below the top."
+        "note": "At T = 0.5 the scaled logits are 4, 2 and 0, with exponentials 54.598, 7.389 and 1 summing to 62.987. At T = 2 they are 1, 0.5 and 0, with 2.718, 1.649 and 1 summing to 5.367. Temperature can only reweight what the head already produced; it cannot recover a candidate scored far below the top.",
+        "parts": {
+          "rows": [
+            "t-05",
+            "t-1",
+            "t-2"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to watch temperature reshape the same three logits.",
+        "steps": [
+          {
+            "label": "At T = 0.5 the scaled logits are 4, 2 and 0. The exponentials are 54.598, 7.389 and 1, summing to 62.987, so the probabilities are 0.867, 0.117 and 0.016. Below one, temperature sharpens the distribution toward its argmax.",
+            "highlight": [
+              "t-05"
+            ]
+          },
+          {
+            "label": "At T = 1 the same logits 2, 1, 0 give 7.389, 2.718 and 1, a sum of 11.107, and probabilities 0.665, 0.245 and 0.090.",
+            "highlight": [
+              "t-05",
+              "t-1"
+            ]
+          },
+          {
+            "label": "At T = 2 the logits halve to 1, 0.5 and 0. The exponentials are 2.718, 1.649 and 1, summing to 5.367, so the probabilities spread to 0.506, 0.307 and 0.186. Temperature can only reweight what the head already produced; it cannot recover a candidate scored far below the top.",
+            "highlight": [
+              "t-05",
+              "t-1",
+              "t-2"
+            ]
+          }
+        ]
       }
     }
   ],
