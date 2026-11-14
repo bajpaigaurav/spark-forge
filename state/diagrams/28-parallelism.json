@@ -85,39 +85,37 @@
         "note": "At N = 2 the ring sends B×H elements per rank per collective; at N = 8 it sends 1.75 B×H. A 70B model at four bits reads 35 GB of weights per token, so on an H100 at 3,350 GB/s the step floor is 10.4 ms. Over 32 blocks and two collectives that is 64 collectives and a budget of 10.4/64 = 0.1625 ms, or 162.5 µs, per collective. Above that round trip the schedule cannot reach the memory-bound floor.",
         "parts": {
           "steps": [
-            "input",
-            "column-parallel",
-            "row-parallel",
-            "all-reduce",
-            "next-block"
+            "step-input",
+            "step-f",
+            "step-g",
+            "step-reduce",
+            "step-next"
           ],
           "lanes": [
-            "input",
-            "column-parallel",
-            "row-parallel",
-            "all-reduce",
-            "next-block"
+            "lane-r0",
+            "lane-r1",
+            "lane-link"
           ],
           "cells": [
             [
-              "input",
-              "column-parallel",
-              "row-parallel",
-              "all-reduce",
-              "next-block"
+              "r0-input",
+              "r0-f",
+              "r0-g",
+              "r0-reduce",
+              "r0-next"
             ],
             [
-              "input",
-              "column-parallel",
-              "row-parallel",
-              "all-reduce",
-              "next-block"
+              "r1-input",
+              "r1-f",
+              "r1-g",
+              "r1-wait",
+              "r1-next"
             ],
             [
               null,
               null,
               null,
-              "all-reduce",
+              "link-volume",
               null
             ]
           ]
@@ -125,37 +123,91 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to follow the split through one block.",
+        "interval": 1600,
+        "intro": "Press Play or Next to follow one tensor-parallel block through its two collectives.",
         "steps": [
           {
-            "label": "x is replicated on both ranks: B×H.",
+            "label": "x of shape B×H is replicated on both ranks. Nothing has been split yet.",
             "highlight": [
-              "input"
+              "step-input",
+              "lane-r0",
+              "lane-r1",
+              "r0-input",
+              "r1-input"
             ]
           },
           {
-            "label": "f: each rank multiplies x by its column slice W_i; no collective.",
+            "label": "f splits W by columns into N slices W_i of shape H×(K/N). Rank i computes y_i = xW_i of shape B×(K/N), and no rank needs another's slice, so there is no collective here.",
             "highlight": [
-              "column-parallel"
+              "step-input",
+              "lane-r0",
+              "lane-r1",
+              "r0-input",
+              "r1-input",
+              "step-f",
+              "r0-f",
+              "r1-f"
             ]
           },
           {
-            "label": "g: each rank multiplies its y_i by its row slice V_i.",
+            "label": "g splits V by rows into slices of shape (K/N)×M. Rank i computes z_i = y_i V_i of shape B×M, a partial sum over its slice of the input features.",
             "highlight": [
-              "row-parallel"
+              "step-input",
+              "lane-r0",
+              "lane-r1",
+              "r0-input",
+              "r1-input",
+              "step-f",
+              "r0-f",
+              "r1-f",
+              "step-g",
+              "r0-g",
+              "r1-g"
             ]
           },
           {
-            "label": "all-reduce sums the partials; rank 1 waits for the round trip.",
+            "label": "One all-reduce sums the partials: z = sum of z_i. A ring sends 2(N−1)/N × B×H per rank, which is B×H at N = 2 and 1.75 B×H at N = 8. Two collectives per block over 32 blocks is 64 per forward pass, so the 10.4 ms floor allows 10.4/64 = 0.1625 ms = 162.5 µs per collective.",
             "highlight": [
-              "all-reduce"
+              "step-input",
+              "lane-r0",
+              "lane-r1",
+              "r0-input",
+              "r1-input",
+              "step-f",
+              "r0-f",
+              "r1-f",
+              "step-g",
+              "r0-g",
+              "r1-g",
+              "step-reduce",
+              "lane-link",
+              "r0-reduce",
+              "r1-wait",
+              "link-volume"
             ]
           },
           {
-            "label": "The next block repeats the pair; 64 collectives per forward.",
+            "label": "The block is closed and both ranks hold the full B×M output, so the next block starts from a replicated x again. Two collectives per block, fixed in count but not in volume as N grows.",
             "highlight": [
-              "next-block"
+              "step-input",
+              "lane-r0",
+              "lane-r1",
+              "r0-input",
+              "r1-input",
+              "step-f",
+              "r0-f",
+              "r1-f",
+              "step-g",
+              "r0-g",
+              "r1-g",
+              "step-reduce",
+              "lane-link",
+              "r0-reduce",
+              "r1-wait",
+              "link-volume",
+              "step-next",
+              "r0-next",
+              "r1-next"
             ]
           }
         ]
@@ -195,7 +247,94 @@
             "note": "Doubling M cuts the bubble from 27% to 16%, a factor of about 1.7, not half. With P = 2 and L = 32, tensor parallelism issues 64 collective operations for every pipeline send."
           }
         ],
-        "note": "The per-collective budget moves with the model, the batch and the collective size; it is not a general link threshold. A split that halves compute time but doubles stall time pays only while stall is below half the compute time it removes."
+        "note": "The per-collective budget moves with the model, the batch and the collective size; it is not a general link threshold. A split that halves compute time but doubles stall time pays only while stall is below half the compute time it removes.",
+        "parts": {
+          "panels": [
+            "tp-panel",
+            "pp-panel"
+          ],
+          "items": [
+            [
+              "tp-f",
+              "tp-g",
+              "tp-reduce",
+              "tp-count",
+              "tp-budget",
+              "tp-ring"
+            ],
+            [
+              "pp-layers",
+              "pp-send",
+              "pp-msgs",
+              "pp-bubble",
+              "pp-p8",
+              "pp-p16"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1600,
+        "intro": "Press Play or Next to price tensor parallelism against pipeline parallelism.",
+        "steps": [
+          {
+            "label": "Tensor parallel: f is y_i = xW_i with W_i of shape H×(K/N) and no collective; g is z_i = y_iV_i, partial sums of shape B×M, followed by one all-reduce. That is 2 collectives per block.",
+            "highlight": [
+              "tp-panel",
+              "tp-f",
+              "tp-g",
+              "tp-reduce",
+              "tp-count"
+            ]
+          },
+          {
+            "label": "Over 32 blocks that is 64 collectives. The 70B model at four bits reads 35 GB per token, which at 3,350 GB/s floors the step at 10.4 ms, so each collective has 10.4/64 = 0.1625 ms = 162.5 µs. Above that round trip the schedule cannot reach the floor.",
+            "highlight": [
+              "tp-panel",
+              "tp-f",
+              "tp-g",
+              "tp-reduce",
+              "tp-count",
+              "tp-budget"
+            ]
+          },
+          {
+            "label": "Ring volume grows with N: 2(N−1)/N × B×H is B×H at N = 2 and 1.75 B×H at N = 8. Pipeline parallel instead puts whole layers on each rank and sends once per micro-batch boundary, M(P−1) sends per direction per step.",
+            "highlight": [
+              "tp-panel",
+              "tp-f",
+              "tp-g",
+              "tp-reduce",
+              "tp-count",
+              "tp-budget",
+              "tp-ring",
+              "pp-panel",
+              "pp-layers",
+              "pp-send",
+              "pp-msgs"
+            ]
+          },
+          {
+            "label": "The pipeline's cost is the bubble. With P stages and M micro-batches the step takes M + P − 1 slots and P − 1 are idle, so idle fraction is (P−1)/(M+P−1): P = 4, M = 8 gives 3/11 = 27.3%, and M = 16 gives 3/19 = 15.8%. Doubling M cuts idle time by well under half.",
+            "highlight": [
+              "tp-panel",
+              "tp-f",
+              "tp-g",
+              "tp-reduce",
+              "tp-count",
+              "tp-budget",
+              "tp-ring",
+              "pp-panel",
+              "pp-layers",
+              "pp-send",
+              "pp-msgs",
+              "pp-bubble",
+              "pp-p8",
+              "pp-p16"
+            ]
+          }
+        ]
       }
     }
   ],
