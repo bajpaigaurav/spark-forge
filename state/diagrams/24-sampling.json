@@ -95,53 +95,96 @@
         "note": "Holtzman et al. documented this in 2019: maximising likelihood step by step produces text that loops, drifts and contradicts itself. The previous token's key and value sit in the cache; if attention puts weight on them and the context supplies no stronger signal, the same direction reaches the head again.",
         "parts": {
           "steps": [
-            "context",
+            "ctx",
             "scores",
             "choice",
-            "context",
-            "scores"
+            "append",
+            "reinforce"
           ],
           "lanes": [
-            "context",
+            "ctx",
             "scores",
             "choice",
-            null
+            "why"
+          ],
+          "cells": [
+            [
+              "ctx",
+              null,
+              null,
+              "append",
+              "reinforce"
+            ],
+            [
+              null,
+              "scores",
+              null,
+              null,
+              "reinforce"
+            ],
+            [
+              null,
+              null,
+              "choice",
+              "append",
+              "reinforce"
+            ],
+            [
+              null,
+              "scores",
+              null,
+              "append",
+              "reinforce"
+            ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to run the loop one token at a time.",
+        "interval": 1600,
+        "intro": "Press Play or Next to run the greedy loop one token at a time.",
         "steps": [
           {
-            "label": "The context ends in the the.",
+            "label": "The context ends in \"the the\". The model saw that pattern in training, so the next-token scores put \"the\" above \"cat\" and \"dog\".",
             "highlight": [
-              "context"
+              "ctx"
             ]
           },
           {
-            "label": "Scores put the above cat and dog because the pattern appeared in training.",
+            "label": "The scores are read: \"the\" is on top, and the choice is deterministic because greedy takes the argmax at every step.",
             "highlight": [
+              "ctx",
               "scores"
             ]
           },
           {
-            "label": "Greedy takes the argmax: the.",
+            "label": "Greedy appends \"the\", and the context becomes \"the the the\".",
             "highlight": [
-              "choice"
+              "ctx",
+              "scores",
+              "choice",
+              "append"
             ]
           },
           {
-            "label": "Appending it makes the the the, a stronger match for the same pattern.",
+            "label": "That is an even stronger match for the repeated pattern, so the score for \"the\" rises again relative to the alternatives.",
             "highlight": [
-              "context"
+              "ctx",
+              "scores",
+              "choice",
+              "append",
+              "reinforce"
             ]
           },
           {
-            "label": "The score for the rises again; the loop is closed.",
+            "label": "The loop is closed: appending raises the score, and the raised score appends again. This is the self-reinforcement that makes greedy output loop, drift and contradict itself.",
             "highlight": [
-              "scores"
+              "ctx",
+              "scores",
+              "choice",
+              "append",
+              "reinforce",
+              "why"
             ]
           }
         ]
@@ -284,94 +327,133 @@
         "note": "The three cuts coincide here because B clears both the cumulative target and the floor. They diverge elsewhere: ten tokens at 0.1 each are kept nine by top-p = 0.9 but five by top-k = 5; one token at 0.95 with the rest thin is kept alone by top-p but fifty by top-k = 50. Top-p admits a variable count that follows the shape; top-k fixes the count; min-p sets the floor at min_p × p_max = 0.1 × 0.844 = 0.0844.",
         "parts": {
           "steps": [
-            "temperature",
-            "temperature",
-            "temperature",
-            "cut",
-            "cut",
-            "renormalise"
+            "t1",
+            "t05",
+            "t2",
+            "topk",
+            "topp",
+            "minp"
           ],
           "lanes": [
-            "temperature",
-            "temperature",
-            "temperature",
-            "renormalise"
+            "lane-a",
+            "lane-b",
+            "lane-c",
+            "lane-mass"
           ],
           "cells": [
             [
               null,
               null,
               null,
-              null,
-              null,
-              null
+              "topk",
+              "topp",
+              "minp"
             ],
             [
               null,
               null,
               null,
-              null,
-              null,
-              null
+              "topk",
+              "topp",
+              "minp"
             ],
             [
               null,
               null,
               null,
-              "cut temperature",
-              "cut temperature",
-              "cut temperature"
+              "topk",
+              "topp",
+              "minp"
             ],
             [
               null,
               null,
               null,
-              "renormalise",
-              "renormalise",
-              "renormalise"
+              "topk",
+              "topp",
+              "minp"
             ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to apply temperature, then each cut.",
+        "interval": 1600,
+        "intro": "Press Play or Next to reshape the distribution with temperature, then cut it three ways.",
         "steps": [
           {
-            "label": "At T = 1 the logits 4.0, 2.0, 1.0 give 0.844, 0.114, 0.042.",
+            "label": "At T = 1 the logits 4.0, 2.0 and 1.0 give p = 0.844, 0.114 and 0.042.",
             "highlight": [
-              "temperature"
+              "t1",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass"
             ]
           },
           {
-            "label": "T = 0.5 divides the logits by 0.5: 0.980, 0.018, 0.002.",
+            "label": "At T = 0.5 the logits become 8, 4 and 2, so p sharpens to 0.980, 0.018 and 0.002: temperature rescales gaps without reordering anything.",
             "highlight": [
-              "temperature"
+              "t1",
+              "t05",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass"
             ]
           },
           {
-            "label": "T = 2 flattens: 0.628, 0.231, 0.140.",
+            "label": "At T = 2 the logits become 2, 1 and 0.5, and p flattens to 0.628, 0.231 and 0.140.",
             "highlight": [
-              "temperature"
+              "t1",
+              "t05",
+              "t2",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass"
             ]
           },
           {
-            "label": "Sort descending and keep the top k = 2: mass 0.958.",
+            "label": "Top-k with k = 2 keeps A and B, a mass of 0.844 + 0.114 = 0.958, renormalised to 0.881 and 0.119. C is gone entirely.",
             "highlight": [
-              "cut"
+              "t1",
+              "t05",
+              "t2",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass",
+              "topk"
             ]
           },
           {
-            "label": "Add probabilities until the running total reaches 0.9: the same two.",
+            "label": "Top-p with p = 0.9 admits A at 0.844, which is short of 0.9, then B, reaching 0.958. The same two survive, because the count here happens to match the mass.",
             "highlight": [
-              "cut"
+              "t1",
+              "t05",
+              "t2",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass",
+              "topk",
+              "topp"
             ]
           },
           {
-            "label": "Drop everything below 0.0844, then renormalise: 0.881 and 0.119.",
+            "label": "Min-p sets a floor at min_p x p_max = 0.1 x 0.844 = 0.0844. A and B clear it, C at 0.042 does not, and renormalising gives 0.881 and 0.119 again. Three rules, one answer here; they diverge as soon as the shape changes.",
             "highlight": [
-              "renormalise"
+              "t1",
+              "t05",
+              "t2",
+              "lane-a",
+              "lane-b",
+              "lane-c",
+              "lane-mass",
+              "topk",
+              "topp",
+              "minp"
             ]
           }
         ]
