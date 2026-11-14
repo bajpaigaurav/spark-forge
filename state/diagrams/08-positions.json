@@ -70,7 +70,115 @@
         "row_head": "position p",
         "corner": "p",
         "scale": 0.15,
-        "note": "Angles in radians, pθ_i mod 2π with θ_i = 10000^(−2i/512), for d_model = 512 and four pairs. θ_0 = 1, θ_1 = 0.9647, θ_2 = 0.9306, θ_3 = 0.8977; the full ladder runs to a wavelength of about 10000·2π. At p = 1 the pair (sin 1, cos 1) is (0.841, 0.540); the k = 1 rotation [[0.540, 0.841], [−0.841, 0.540]] gives (0.908, −0.415) = (sin 2, cos 2)."
+        "note": "Angles in radians, pθ_i mod 2π with θ_i = 10000^(−2i/512), for d_model = 512 and four pairs. θ_0 = 1, θ_1 = 0.9647, θ_2 = 0.9306, θ_3 = 0.8977; the full ladder runs to a wavelength of about 10000·2π. At p = 1 the pair (sin 1, cos 1) is (0.841, 0.540); the k = 1 rotation [[0.540, 0.841], [−0.841, 0.540]] gives (0.908, −0.415) = (sin 2, cos 2).",
+        "parts": {
+          "cols": [
+            "pair-0",
+            "pair-1",
+            "pair-2",
+            "pair-3"
+          ],
+          "cells": [
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ],
+            [
+              "cell-p1",
+              "cell-p1",
+              "cell-p1",
+              "cell-p1"
+            ],
+            [
+              "cell-p2",
+              "cell-p2",
+              "cell-p2",
+              "cell-p2"
+            ],
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ],
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ],
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ],
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ],
+            [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to walk the frequency ladder, then the p = 1 to p = 2 rotation.",
+        "steps": [
+          {
+            "label": "Pair i = 0 advances θ_0 = 1 radian per position and wraps every 2π.",
+            "highlight": [
+              "pair-0"
+            ]
+          },
+          {
+            "label": "Pair i = 1 advances θ_1 = 0.9647 radians per position.",
+            "highlight": [
+              "pair-0",
+              "pair-1"
+            ]
+          },
+          {
+            "label": "Pair i = 2 advances θ_2 = 0.9306.",
+            "highlight": [
+              "pair-0",
+              "pair-1",
+              "pair-2"
+            ]
+          },
+          {
+            "label": "Pair i = 3 advances θ_3 = 0.8977; the slowest pair needs about 10000·2π positions per turn.",
+            "highlight": [
+              "pair-0",
+              "pair-1",
+              "pair-2",
+              "pair-3"
+            ]
+          },
+          {
+            "label": "p = 1: the pair (sin 1, cos 1) is (0.841, 0.540).",
+            "highlight": [
+              "cell-p1"
+            ]
+          },
+          {
+            "label": "p = 2: rotate by k = 1 with [[0.540, 0.841], [−0.841, 0.540]] to get (0.908, −0.415) = (sin 2, cos 2).",
+            "highlight": [
+              "cell-p1",
+              "cell-p2"
+            ]
+          }
+        ]
       }
     },
     {
@@ -109,58 +217,215 @@
         ],
         "parts": {
           "panels": [
-            "rope",
-            "alibi"
+            "rope-panel",
+            "alibi-panel"
           ],
           "items": [
             [
-              "rope",
-              "query rope",
-              "key rope",
-              "dot",
-              "dot",
-              "key rope"
+              "rope-freq",
+              "rope-q",
+              "rope-k",
+              "rope-dot",
+              "rope-cancel",
+              "rope-cache"
             ],
             [
-              "alibi",
-              "alibi",
-              "alibi",
-              "alibi",
-              "alibi",
-              "alibi"
+              "alibi-slope",
+              "alibi-slopes",
+              "alibi-penalty",
+              "alibi-fast",
+              "alibi-slow",
+              "alibi-novector"
             ]
           ]
         }
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
+        "interval": 1500,
         "intro": "Press Play or Next to rotate the query and key, then compare the ALiBi penalty.",
         "steps": [
           {
-            "label": "Rotate the query at position i by angle iθ.",
+            "label": "Each pair m rotates at θ_m = 10000^(−2m/d).",
             "highlight": [
-              "rope",
-              "query"
+              "rope-panel",
+              "rope-freq"
             ]
           },
           {
-            "label": "Rotate the key at position j by angle jθ.",
+            "label": "Rotate q at position i: (1, 0) becomes (cos iθ, sin iθ); rotate k at j the same way.",
             "highlight": [
-              "rope",
-              "key"
+              "rope-panel",
+              "rope-freq",
+              "rope-q",
+              "rope-k"
             ]
           },
           {
-            "label": "The dot product is cos((i − j)θ); the absolute positions cancel.",
+            "label": "The pair dot is cos((i − j)θ): the absolute positions cancel.",
             "highlight": [
-              "dot"
+              "rope-panel",
+              "rope-freq",
+              "rope-q",
+              "rope-k",
+              "rope-dot",
+              "rope-cancel"
             ]
           },
           {
-            "label": "ALiBi skips the rotation and subtracts m_h|i − j| instead.",
+            "label": "The cached k is already rotated, and base 10000 is the knob: NTK-aware scaling gives 20,220 at d = 128 and s = 2; YaRN scales logits by 0.967 at s = 2 and 0.910 at s = 8.",
             "highlight": [
-              "alibi"
+              "rope-panel",
+              "rope-freq",
+              "rope-q",
+              "rope-k",
+              "rope-dot",
+              "rope-cancel",
+              "rope-cache"
+            ]
+          },
+          {
+            "label": "ALiBi adds no positional vector: per-head slope m_h = 2^(−8h/n), eight heads from 1/2 down to 1/256.",
+            "highlight": [
+              "alibi-panel",
+              "alibi-slope",
+              "alibi-slopes"
+            ]
+          },
+          {
+            "label": "Subtract m_h|i − j|: 50 at 100 tokens for m = 1/2, 0.39 for m = 1/256. No knob, and far scores fall linearly with no periodic ambiguity.",
+            "highlight": [
+              "alibi-panel",
+              "alibi-slope",
+              "alibi-slopes",
+              "alibi-penalty",
+              "alibi-fast",
+              "alibi-slow",
+              "alibi-novector"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "kv-admission-ceiling",
+      "title": "One reservation, two pool sizes",
+      "caption": "Admission reserves the same 32,786 positions per stream either way: the 32,768-token reply budget plus 16 batch rows plus 2 reserved rows. The equal share of the pool grows with the pool, so the ceiling left for a prompt grows with it. At a quarter pool the share is 65,536 and the ceiling 32,750; at the full window the share is 262,144 and the ceiling 229,358, seven times the first.",
+      "alt": "Grouped horizontal bars at one scale. Top group, pool of 262,144 positions across 4 streams: equal share 65,536, reservation 32,786, ceiling 32,750. Bottom group, pool of 1,048,576 positions: equal share 262,144, the same reservation 32,786, ceiling 229,358. The reservation bar is identical in both groups; only the share and the ceiling move.",
+      "anchor": "kv-cache-memory-and-admission",
+      "kind": "bars",
+      "data": {
+        "groups": [
+          {
+            "label": "pool at 262,144 positions (a quarter of the window)",
+            "bars": [
+              {
+                "label": "equal share",
+                "value": 65536,
+                "display": "65,536"
+              },
+              {
+                "label": "reservation 32,768 + 16 + 2",
+                "value": 32786,
+                "display": "32,786"
+              },
+              {
+                "label": "ceiling left for a prompt",
+                "value": 32750,
+                "display": "32,750",
+                "accent": true
+              }
+            ]
+          },
+          {
+            "label": "pool at 1,048,576 positions (the full window)",
+            "bars": [
+              {
+                "label": "equal share",
+                "value": 262144,
+                "display": "262,144"
+              },
+              {
+                "label": "reservation 32,768 + 16 + 2",
+                "value": 32786,
+                "display": "32,786"
+              },
+              {
+                "label": "ceiling left for a prompt",
+                "value": 229358,
+                "display": "229,358",
+                "accent": true
+              }
+            ]
+          }
+        ],
+        "note": "262,144 / 4 = 65,536 and 65,536 − 32,786 = 32,750. 1,048,576 / 4 = 262,144 and 262,144 − 32,786 = 229,358, which is 229,358 / 32,750 ≈ seven times the first ceiling. The reservation does not shrink as the pool grows.",
+        "parts": {
+          "groups": [
+            "g-262k",
+            "g-1m"
+          ],
+          "bars": [
+            "share-262k",
+            "res-262k",
+            "ceil-262k",
+            "share-1m",
+            "res-1m",
+            "ceil-1m"
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to split the quarter pool, then watch the same reservation leave a far larger ceiling at the full window.",
+        "steps": [
+          {
+            "label": "262,144 positions across 4 streams gives each stream 65,536.",
+            "highlight": [
+              "g-262k",
+              "share-262k"
+            ]
+          },
+          {
+            "label": "Admission reserves 32,768 + 16 + 2 = 32,786 positions.",
+            "highlight": [
+              "g-262k",
+              "share-262k",
+              "res-262k"
+            ]
+          },
+          {
+            "label": "The ceiling a prompt sees is 65,536 − 32,786 = 32,750.",
+            "highlight": [
+              "g-262k",
+              "share-262k",
+              "res-262k",
+              "ceil-262k"
+            ]
+          },
+          {
+            "label": "Raise the pool to 1,048,576 and the share becomes 262,144.",
+            "highlight": [
+              "g-1m",
+              "share-1m"
+            ]
+          },
+          {
+            "label": "The reservation is unchanged at 32,786.",
+            "highlight": [
+              "g-1m",
+              "share-1m",
+              "res-1m"
+            ]
+          },
+          {
+            "label": "The ceiling becomes 262,144 − 32,786 = 229,358, seven times 32,750.",
+            "highlight": [
+              "g-1m",
+              "share-1m",
+              "res-1m",
+              "ceil-1m"
             ]
           }
         ]
