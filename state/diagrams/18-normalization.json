@@ -51,6 +51,132 @@
             ],
             "note": "Invariant to scaling, not to shifting."
           }
+        ],
+        "parts": {
+          "panels": [
+            "ln",
+            "rms"
+          ],
+          "items": [
+            [
+              "ln-x",
+              "ln-mean",
+              "ln-centered",
+              "ln-var",
+              "ln-out",
+              "ln-check",
+              "ln-gamma"
+            ],
+            [
+              "rms-x",
+              "rms-ms",
+              "rms-r",
+              "rms-out",
+              "rms-mean",
+              "rms-gamma",
+              "rms-drop"
+            ]
+          ]
+        }
+      },
+      "anim": {
+        "mode": "step",
+        "interval": 1500,
+        "intro": "Press Play or Next to run LayerNorm and RMSNorm on the same vector.",
+        "steps": [
+          {
+            "label": "LayerNorm starts from x = [2, 4, 6, 8], and the mean of one token's own vector is (2 + 4 + 6 + 8)/4 = 5.",
+            "highlight": [
+              "ln",
+              "ln-x",
+              "ln-mean"
+            ]
+          },
+          {
+            "label": "Center: x - μ = [-3, -1, 1, 3].",
+            "highlight": [
+              "ln",
+              "ln-x",
+              "ln-mean",
+              "ln-centered"
+            ]
+          },
+          {
+            "label": "Variance is (9 + 1 + 1 + 9)/4 = 5, so the standard deviation is about 2.236.",
+            "highlight": [
+              "ln",
+              "ln-x",
+              "ln-mean",
+              "ln-centered",
+              "ln-var"
+            ]
+          },
+          {
+            "label": "Divide and rescale: y = [-1.342, -0.447, 0.447, 1.342], which has mean 0 and standard deviation 1.",
+            "highlight": [
+              "ln",
+              "ln-x",
+              "ln-mean",
+              "ln-centered",
+              "ln-var",
+              "ln-out",
+              "ln-check"
+            ]
+          },
+          {
+            "label": "γ = 1 and β = 0 leave that output intact. Adding 100 to every component still gives the same result, and scaling by 10 does too in the limit ε → 0: the layer is invariant to shifts and, approximately, to scale.",
+            "highlight": [
+              "ln",
+              "ln-x",
+              "ln-mean",
+              "ln-centered",
+              "ln-var",
+              "ln-out",
+              "ln-check",
+              "ln-gamma"
+            ]
+          },
+          {
+            "label": "RMSNorm keeps the same x but never subtracts a mean: the mean of squares is (4 + 16 + 36 + 64)/4 = 30.",
+            "highlight": [
+              "rms",
+              "rms-x",
+              "rms-ms"
+            ]
+          },
+          {
+            "label": "The root mean square is about 5.477, so the divisor is that value rather than the centered standard deviation.",
+            "highlight": [
+              "rms",
+              "rms-x",
+              "rms-ms",
+              "rms-r"
+            ]
+          },
+          {
+            "label": "Divide: y = [0.365, 0.730, 1.095, 1.461]. Its mean is 0.913, so RMSNorm scales without centering anything.",
+            "highlight": [
+              "rms",
+              "rms-x",
+              "rms-ms",
+              "rms-r",
+              "rms-out",
+              "rms-mean"
+            ]
+          },
+          {
+            "label": "With γ = 1 the layer is invariant to scaling but not to shifting. Dropping the mean removes one reduction, one elementwise subtraction, and the β parameters at every site.",
+            "highlight": [
+              "rms",
+              "rms-x",
+              "rms-ms",
+              "rms-r",
+              "rms-out",
+              "rms-mean",
+              "rms-gamma",
+              "rms-drop"
+            ]
+          }
         ]
       }
     },
@@ -94,45 +220,62 @@
       },
       "anim": {
         "mode": "step",
-        "interval": 1400,
-        "intro": "Press Play or Next to follow the residual path through a pre-norm block.",
+        "interval": 1500,
+        "intro": "Press Play or Next to follow a pre-norm block and see what multiplies the identity path.",
         "steps": [
           {
-            "label": "Normalize x for attention; the norm is inside the sublayer input.",
+            "label": "Pre-norm normalizes the sublayer input: a_l = x_l + Attn(LN(x_l)), with d_model = 4,096.",
             "highlight": [
               "norm1"
             ]
           },
           {
-            "label": "Attention mixes across positions and writes 4d_model² parameters.",
+            "label": "Attention mixes across positions and holds 4d_model^2 = 67,108,864 parameters per layer.",
             "highlight": [
+              "norm1",
               "attn"
             ]
           },
           {
-            "label": "Add to x. The bypass carries x past the norm.",
+            "label": "Add to x. Because the addition sits outside the norm, dy/dx = I + J_f(LN(x))·J_LN(x) and the identity term survives unmultiplied.",
             "highlight": [
+              "norm1",
+              "attn",
               "add1",
               "identity"
             ]
           },
           {
-            "label": "Normalize the new stream state for the MLP.",
+            "label": "Normalize the new stream state for the MLP: x_{l+1} = a_l + MLP(LN(a_l)).",
             "highlight": [
+              "norm1",
+              "attn",
+              "add1",
+              "identity",
               "norm2"
             ]
           },
           {
-            "label": "The MLP writes 8d_model² parameters, one position at a time.",
+            "label": "The MLP holds 8d_model^2 = 134,217,728 parameters per layer, twice attention, one position at a time.",
             "highlight": [
+              "norm1",
+              "attn",
+              "add1",
+              "identity",
+              "norm2",
               "mlp"
             ]
           },
           {
-            "label": "Add again. Post-norm would put LN after this add, on the identity path.",
+            "label": "Add again. Post-norm would instead compute y = LN(x + f(x)), so the identity path is multiplied by J_LN(x + f(x)): ∂y/∂x = J_LN(x + f(x))(I + J_f(x)), which is why post-norm needs warmup.",
             "highlight": [
-              "add2",
-              "identity"
+              "norm1",
+              "attn",
+              "add1",
+              "identity",
+              "norm2",
+              "mlp",
+              "add2"
             ]
           }
         ]
